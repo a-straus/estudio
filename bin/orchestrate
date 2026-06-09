@@ -88,7 +88,7 @@ grep -q '^- \*\*Acceptable:\*\*$'       "$repo/GOAL.md" && unfilled+=("§12 qual
 if (( ${#unfilled[@]} > 0 )); then
     echo "ERROR: GOAL.md still has unfilled ★ sections:" >&2
     printf '  - %s\n' "${unfilled[@]}" >&2
-    echo "Complete them before starting (see product-project-definition-brief.md)." >&2
+    echo "Complete them before starting — each section has inline guidance." >&2
     exit 1
 fi
 

@@ -8,8 +8,6 @@ sections for autonomous operation are marked ★.
 
 The orchestrator reads this file on every loop iteration. Part D (§11–13) is what
 lets it make decisions without asking you — don't skip it.
-
-Reference: product-project-definition-brief.md for full guidance on each section.
 -->
 
 ---

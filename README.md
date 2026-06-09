@@ -214,8 +214,9 @@ refuses to start while they're empty:
 | §15 Definition of done | Task / Feature / Release done criteria | The loop stop condition |
 | §17 Open questions | What's still unknown | The orchestrator weighs these instead of silently assuming |
 
-> **Reference:** `product-project-definition-brief.md` explains every section
-> in full. Read it once before filling in GOAL.md.
+> Every section of the template carries inline guidance and examples.
+> Anything you leave vague, the agent fills with the most generic plausible
+> answer — make the implicit explicit.
 
 **GOAL.md is read-only for every agent.** The orchestrator commits it once at
 adoption and the loop keeps it `chmod 444` as a tripwire; `integrate` refuses
@@ -332,7 +333,6 @@ waits.
 | `ARCHITECTURE.md` | Orchestrator | The technical design: entities, conventions, boundaries. Amended only through the schema gate |
 | `check.sh` | Orchestrator | The project's build+test gate; `integrate` runs it before every merge |
 | `CLAUDE.md` | Sandbox | The canonical iteration spec — loaded automatically every iteration |
-| `product-project-definition-brief.md` | Reference | Explains every GOAL.md section |
 | `bin/orchestrate` | — | Preflight + the outer loop |
 | `bin/spawn` | Orchestrator | Launch a headless worker (`--model` to route harder tasks) |
 | `bin/integrate` | Orchestrator | Gate + merge a finished branch (refuses unverified work) |
@@ -345,9 +345,8 @@ Runtime artifacts (`logs/`, `STOP`, `.release-done`, `.worker-*`,
 `.orchestrator.pid`) are kept out of git via `.git/info/exclude`,
 re-applied automatically on every `orchestrate` start.
 
-> **Context isolation:** `README.md` and `product-project-definition-brief.md`
-> are listed in `.claudeignore` — Claude does not read them. They are for
-> humans only.
+> **Context isolation:** `README.md` is listed in `.claudeignore` — Claude
+> does not read it. It is for humans only.
 
 ---
 
