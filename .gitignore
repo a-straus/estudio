@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+
+# Agent scratch space, if you clone repos under the workspace
+/work/
+/projects/

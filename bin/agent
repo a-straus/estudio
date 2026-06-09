@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Start a Claude Code agent (skip-permissions) in its own tmux window.
+# Usage: bin/agent <name> [working-dir]
+set -euo pipefail
+
+name="${1:?usage: bin/agent <name> [working-dir]}"
+dir="${2:-$PWD}"
+session="agents"
+
+tmux has-session -t "$session" 2>/dev/null \
+  || tmux new-session -d -s "$session" -n shell
+
+tmux new-window -t "$session" -n "$name" -c "$dir" \
+  "claude --dangerously-skip-permissions; exec ${SHELL:-zsh}"
+
+echo "Started '$name' in tmux session '$session' (cwd: $dir)"
+echo "Attach: tmux attach -t $session    |    switch windows: Ctrl-b <number>"

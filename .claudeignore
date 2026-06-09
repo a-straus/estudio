@@ -1,0 +1,5 @@
+# Files excluded from Claude's context.
+# Claude will not read or index these — they are for humans only.
+
+README.md
+product-project-definition-brief.md

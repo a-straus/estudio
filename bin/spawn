@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+# spawn [--model <model>] <branch> "<task>" [base-ref]
+# Launch a headless worker agent on its own branch + worktree.
+#
+# Model routing: workers default to $WORKER_MODEL (or the CLI default if
+# unset); pass --model to put a specific task on a stronger model (trunk
+# fixes, reviews, gnarly tasks).
+#
+# The worker runs `claude -p` non-interactively: it receives the task brief as
+# its prompt (plus the quality bar and escalation rules from GOAL.md §12/§13),
+# works, commits, and exits. A wrapper records claude's exit code in
+# <worktree>/.worker-done — that marker, not tmux state, is the completion
+# signal. The full event stream is logged to <repo>/logs/<branch>.<ts>.jsonl.
+#
+# Re-running spawn for an existing branch (after a crash, container restart,
+# failed check, or resolved blocker) relaunches a worker in the same worktree
+# to resume from the prior commits.
+#
+# Worktrees live under $WORKTREE_ROOT (default ~/worktrees), outside /workspace,
+# so workers do not inherit the orchestrator's CLAUDE.md.
+#
+# Exit codes: 0 spawned · 1 usage/state error · 2 capacity full
+set -euo pipefail
+. "$(dirname "$0")/_lib.sh"
+
+model="${WORKER_MODEL:-}"
+if [[ "${1:-}" == "--model" ]]; then
+    model="${2:?usage: spawn [--model <model>] <branch> \"<task>\" [base-ref]}"
+    shift 2
+fi
+
+branch="${1:?usage: spawn [--model <model>] <branch> \"<task>\" [base-ref]}"
+task="${2:?usage: spawn [--model <model>] <branch> \"<task>\" [base-ref]}"
+base="${3:-HEAD}"
+
+MAX_WORKERS="${MAX_WORKERS:-3}"
+MAX_WORKER_TURNS="${MAX_WORKER_TURNS:-150}"
+WORKER_TIMEOUT_SECS="${WORKER_TIMEOUT_SECS:-7200}"
+
+root="$(repo_root)"
+[[ -n "$root" ]] || die "not inside a git repository"
+valid_branch "$branch" || die "branch name must be kebab-case ([a-z0-9._-], no slashes): $branch"
+[[ "$branch" != "$(base_branch "$root")" ]] || die "refusing to spawn on the base branch"
+
+wt="$(worktree_path "$root" "$branch")"
+
+# ── State checks ──────────────────────────────────────────────────────────────
+
+if worker_window_live "$branch"; then
+    die "a worker for '$branch' is already running (tmux window '$branch')"
+fi
+
+if [[ -f "$wt/.worker-done" ]]; then
+    echo "ERROR: '$branch' already has a finished worker awaiting action." >&2
+    echo "Run 'integrate $branch' or 'abandon $branch' first." >&2
+    exit 1
+fi
+
+if (( $(running_workers "$root") >= MAX_WORKERS )); then
+    echo "ERROR: worker capacity full ($MAX_WORKERS running). Integrate or wait first." >&2
+    exit 2
+fi
+
+# ── Create or reattach the worktree ──────────────────────────────────────────
+
+mkdir -p "$WORKTREE_ROOT" "$root/logs"
+ensure_excludes "$root"
+git -C "$root" worktree prune
+
+resume=""
+if git -C "$root" show-ref --quiet "refs/heads/$branch"; then
+    resume="yes"
+    if [[ -d "$wt" && ! -e "$wt/.git" ]]; then
+        rm -rf "$wt"    # leftover dir that is no longer a registered worktree
+    fi
+    if [[ ! -d "$wt" ]]; then
+        git -C "$root" worktree add "$wt" "$branch"
+    fi
+else
+    git -C "$root" worktree add -b "$branch" "$wt" "$base"
+fi
+
+# ── Build the worker prompt ───────────────────────────────────────────────────
+# Pull the quality bar and escalation rules from GOAL.md. (Flag-based awk: a
+# /start/,/end/ range would end on the heading line itself, yielding nothing.)
+
+goal_file="$root/GOAL.md"
+quality_bar=""
+escalation=""
+if [[ -f "$goal_file" ]]; then
+    quality_bar=$(awk '/^### ★ 12 · Quality Bar/{f=1; next} /^### |^## |^---/{f=0} f' "$goal_file" \
+        | sed '/^<!--/d; /^$/d' || true)
+    escalation=$(awk '/^### ★ 13 · Escalation/{f=1; next} /^### |^## |^---/{f=0} f' "$goal_file" \
+        | sed '/^<!--/d; /^$/d' || true)
+fi
+
+resume_note=""
+if [[ -n "$resume" ]]; then
+    resume_note="
+## Resuming prior work
+
+A previous worker already started this task on this branch. Before doing
+anything else, review the existing state with \`git log --oneline -15\` and
+\`git log -p -5\`. Keep what is good, fix what is not, and finish the task.
+If a BLOCKED.md file exists, the blocker has been addressed in the brief
+above: resolve it, delete BLOCKED.md, and complete the task.
+"
+fi
+
+cat > "$wt/.worker-prompt.md" <<EOF
+You are a focused, autonomous worker agent on branch '$branch' of this
+repository. Complete the task below, prove it works, commit, and exit.
+
+## Your task
+
+$task
+$resume_note
+## Quality bar
+
+${quality_bar:-Required hygiene: tests for new logic, clear error messages, no hardcoded secrets.}
+
+## When to stop instead (escalation)
+
+${escalation:-Stop if you would need to make an irreversible change outside your task scope, or if a key design decision is missing that would change the implementation significantly.}
+
+If you hit one of these, do NOT guess: write a file called BLOCKED.md
+describing what is blocking you, what you tried, and what decision or input
+you need. Commit it and exit.
+
+## Rules
+
+- Do this task and nothing else. Do not expand scope.
+- Prove your work runs before declaring it done: run \`bash check.sh\` if the
+  repo has one, or the relevant tests / the app itself. A clean compile is
+  not proof.
+- Commit ALL changes with clear, descriptive messages before exiting.
+- Never push, never open pull requests, never switch branches, never leave
+  this worktree, never spawn other agents.
+- Never modify GOAL.md, TASKS.md, QUESTIONS.md, or DECISIONS.md — integration
+  is automatically refused for branches that touch them. GOAL.md is the
+  human's spec: read-only for all agents.
+EOF
+
+# ── Write the runner and launch ───────────────────────────────────────────────
+
+ts="$(date +%Y%m%d-%H%M%S)"
+log="$root/logs/$branch.$ts.jsonl"
+
+timeout_prefix=""
+if command -v timeout >/dev/null 2>&1; then
+    timeout_prefix="timeout $WORKER_TIMEOUT_SECS "
+fi
+
+cat > "$wt/.worker-run.sh" <<EOF
+#!/usr/bin/env bash
+set -uo pipefail
+cd "$wt"
+echo "[worker:$branch] started \$(date '+%F %T')"
+echo "[worker:$branch] log: $log"
+${timeout_prefix}claude -p --dangerously-skip-permissions \\
+    --max-turns $MAX_WORKER_TURNS --verbose --output-format stream-json \\
+    ${model:+--model "$model"} \\
+    < .worker-prompt.md 2>&1 | tee "$log"
+ec=\${PIPESTATUS[0]}
+echo "\$ec" > .worker-done
+if [ -n "\${TMUX:-}" ]; then tmux rename-window "done-$branch" 2>/dev/null || true; fi
+echo ""
+echo "[worker:$branch] exited \$ec — run 'integrate $branch' (or 'abandon $branch')"
+EOF
+chmod +x "$wt/.worker-run.sh"
+
+if command -v tmux >/dev/null 2>&1; then
+    tmux has-session -t agents 2>/dev/null || tmux new-session -d -s agents -n shell
+    # Clear any stale done-window from a previous run of this branch.
+    kill_branch_windows "$branch"
+    tmux new-window -t agents -n "$branch" -c "$wt" \
+        "bash '$wt/.worker-run.sh'; exec \${SHELL:-bash}"
+else
+    nohup bash "$wt/.worker-run.sh" >/dev/null 2>&1 &
+    echo "NOTE: tmux not found — worker running as background process $!"
+fi
+
+echo "Spawned worker on branch '$branch'${resume:+ (resuming existing branch)}${model:+ [model: $model]}"
+echo "  worktree: $wt"
+echo "  log:      $log"
+echo "  watch:    tmux attach -t agents    (window '$branch')"

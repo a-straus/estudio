@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# list-agents
+# The orchestrator's sensor: classify every worker branch by its actual state
+# (completion markers + live windows), with the action each state calls for.
+#
+# States:
+#   RUNNING   — live worker window, no completion marker yet
+#   FINISHED  — completion marker present, exit 0       → integrate <branch>
+#   BLOCKED   — finished but committed BLOCKED.md       → resolve, re-spawn or abandon
+#   FAILED    — completion marker with non-zero exit    → re-spawn or abandon
+#   STALE     — worktree exists, no marker, no window   → re-spawn (resumes) or abandon
+#   ORPHAN    — branch exists, worktree gone (rebuild?) → re-spawn (resumes) or abandon
+set -euo pipefail
+. "$(dirname "$0")/_lib.sh"
+
+root="$(repo_root)"
+[[ -n "$root" ]] || die "not inside a git repository"
+base="$(base_branch "$root")"
+
+echo "=== Worker branches (base: $base) ==="
+found=0
+while IFS= read -r b; do
+    [[ -n "$b" ]] || continue
+    found=1
+    wt="$(worktree_path "$root" "$b")"
+    commits=$(git -C "$root" rev-list --count "$base..$b" 2>/dev/null || echo "?")
+    if [[ -f "$wt/.worker-done" ]]; then
+        ec="$(head -1 "$wt/.worker-done" | tr -dc '0-9')"
+        if branch_blocked "$root" "$b"; then
+            echo "  $b — BLOCKED ($commits commits) → read: git show $b:BLOCKED.md ;" \
+                 "resolve or escalate, then re-spawn or abandon"
+        elif [[ -n "$ec" && "$ec" != "0" ]]; then
+            echo "  $b — FAILED (worker exit $ec, $commits commits) → check latest" \
+                 "logs/$b.*.jsonl ; re-spawn to resume or abandon"
+        else
+            echo "  $b — FINISHED ($commits commits) → integrate $b"
+        fi
+    elif worker_window_live "$b"; then
+        echo "  $b — RUNNING ($commits commits so far) → watch: tmux attach -t agents"
+    elif [[ -d "$wt" ]]; then
+        echo "  $b — STALE (worker process gone, $commits commits) → re-spawn $b to" \
+             "resume, or abandon $b"
+    else
+        echo "  $b — ORPHAN (no worktree — container rebuilt?, $commits commits) →" \
+             "re-spawn $b to resume, or abandon $b"
+    fi
+done < <(worker_branches "$root")
+[[ $found -eq 0 ]] && echo "  (none)"
+
+echo ""
+echo "=== Capacity ==="
+echo "  $(running_workers "$root") running / ${MAX_WORKERS:-3} max"
+
+if [[ -f "$root/QUESTIONS.md" ]]; then
+    pending=$(grep -c '\[PENDING\]' "$root/QUESTIONS.md" 2>/dev/null) || pending=0
+    echo ""
+    echo "=== Pending questions ==="
+    echo "  $pending"
+fi
+
+echo ""
+echo "=== Recent commits ($base) ==="
+git -C "$root" log --oneline -10 "$base" 2>/dev/null || echo "  (no commits)"

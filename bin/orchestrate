@@ -1,0 +1,364 @@
+#!/usr/bin/env bash
+# orchestrate [--fg] [repo-path]
+# Drive the autonomous build loop for a project.
+#
+# Architecture: a plain bash loop invokes `claude -p` once per iteration. Each
+# iteration gets a fresh, bounded context, reads ALL state from files
+# (GOAL.md / TASKS.md / QUESTIONS.md / DECISIONS.md / git / list-agents), does
+# one pass of orchestration work (integrate, reconcile, spawn, escalate), and
+# exits. The canonical iteration spec lives in CLAUDE.md, which claude loads
+# automatically — so the loop survives crashes, restarts, and context
+# compaction by design.
+#
+# Controls (environment variables, all optional):
+#   MAX_ITERATIONS=200          stop after N iterations (re-run to continue)
+#   MAX_COST_USD=0              stop when cumulative API cost exceeds this (0 = off;
+#                               subscription auth reports ~$0, so this mainly guards API keys)
+#   ORCH_MODEL=                 model for orchestrator iterations and for
+#                               `spawn --model "$ORCH_MODEL"` routing (default: CLI default)
+#   WORKER_MODEL=               default model for workers (per-task --model overrides)
+#   ORCH_SYNC=0                 1 = pull GOAL.md edits / question answers from origin
+#                               before each iteration and push state + integrated work
+#                               after — turns GitHub into the dashboard for remote runs
+#   MAX_WORKERS=3               parallel worker cap (enforced by `spawn`)
+#   MAX_WORKER_TURNS=150        per-worker agentic-turn cap
+#   WORKER_TIMEOUT_SECS=7200    per-worker wall-clock cap
+#   ITERATION_TIMEOUT_SECS=2700 per-orchestrator-iteration wall-clock cap
+#   ORCH_MAX_TURNS=100          per-iteration agentic-turn cap
+#   SLEEP_SECONDS=20            base sleep between iterations
+#   SLEEP_MAX=300               max sleep when nothing is changing (adaptive backoff)
+#   FIREWALL_EVERY=10           re-resolve firewall allowlist every N iterations
+#   WORKTREE_ROOT=~/worktrees   where worker worktrees live (outside /workspace)
+#
+# While running:
+#   touch STOP          in the project dir → loop exits cleanly after the
+#                       current iteration; rm STOP and re-run to resume
+#   .release-done       written by the orchestrator when GOAL.md §15 is met →
+#                       loop exits with a success summary
+set -euo pipefail
+. "$(dirname "$0")/_lib.sh"
+
+fg=0
+if [[ "${1:-}" == "--fg" ]]; then fg=1; shift; fi
+repo="${1:-$PWD}"
+repo="$(cd "$repo" && pwd)"
+sandbox="$(cd "$(dirname "$0")/.." && pwd)"
+self="$(cd "$(dirname "$0")" && pwd)/orchestrate"
+
+MAX_ITERATIONS="${MAX_ITERATIONS:-200}"
+MAX_COST_USD="${MAX_COST_USD:-0}"
+ORCH_MODEL="${ORCH_MODEL:-}"
+WORKER_MODEL="${WORKER_MODEL:-}"
+ORCH_SYNC="${ORCH_SYNC:-0}"
+MAX_WORKERS="${MAX_WORKERS:-3}"
+MAX_WORKER_TURNS="${MAX_WORKER_TURNS:-150}"
+WORKER_TIMEOUT_SECS="${WORKER_TIMEOUT_SECS:-7200}"
+ITERATION_TIMEOUT_SECS="${ITERATION_TIMEOUT_SECS:-2700}"
+ORCH_MAX_TURNS="${ORCH_MAX_TURNS:-100}"
+SLEEP_SECONDS="${SLEEP_SECONDS:-20}"
+SLEEP_MAX="${SLEEP_MAX:-300}"
+FIREWALL_EVERY="${FIREWALL_EVERY:-10}"
+MAX_CONSECUTIVE_ERRORS="${MAX_CONSECUTIVE_ERRORS:-3}"
+export MAX_WORKERS MAX_WORKER_TURNS WORKER_TIMEOUT_SECS WORKTREE_ROOT \
+       ORCH_MODEL WORKER_MODEL
+
+# ── Preflight ─────────────────────────────────────────────────────────────────
+
+[[ -d "$repo/.git" ]] || die "$repo is not a git repository — clone your project first"
+command -v claude >/dev/null 2>&1 || die "claude CLI not found in PATH"
+command -v jq >/dev/null 2>&1 || die "jq not found in PATH (required to parse iteration results)"
+
+# Copy state-file templates into the project if they're not there yet.
+for f in GOAL.md TASKS.md QUESTIONS.md DECISIONS.md; do
+    if [[ ! -f "$repo/$f" && -f "$sandbox/$f" ]]; then
+        cp "$sandbox/$f" "$repo/$f"
+        echo "Copied $f template to $repo/$f"
+    fi
+done
+
+[[ -f "$repo/GOAL.md" ]] || die "no GOAL.md in $repo and no template to copy"
+
+# Refuse to start on an unfilled GOAL.md — vague goals make generic products.
+unfilled=()
+grep -q '^- \*\*One-line vision:\*\*$'  "$repo/GOAL.md" && unfilled+=("§3 one-line vision")
+grep -q '^- \*\*\[Must\]\*\*$'          "$repo/GOAL.md" && unfilled+=("§5 user stories")
+grep -q '^- \*\*Stack / languages / frameworks:\*\* \*(Mandated' "$repo/GOAL.md" \
+                                                      && unfilled+=("§8 stack")
+grep -q '^- \*\*Acceptable:\*\*$'       "$repo/GOAL.md" && unfilled+=("§12 quality bar")
+if (( ${#unfilled[@]} > 0 )); then
+    echo "ERROR: GOAL.md still has unfilled ★ sections:" >&2
+    printf '  - %s\n' "${unfilled[@]}" >&2
+    echo "Complete them before starting (see product-project-definition-brief.md)." >&2
+    exit 1
+fi
+
+# Git identity — fail now, not three hours in at the first worker commit.
+if ! git -C "$repo" var GIT_AUTHOR_IDENT >/dev/null 2>&1; then
+    echo "ERROR: git has no usable author identity. In the container, set" >&2
+    echo "AGENT_GIT_NAME / AGENT_GIT_EMAIL on your host shell (see README §1)." >&2
+    exit 1
+fi
+if command -v gh >/dev/null 2>&1 && ! gh auth status >/dev/null 2>&1; then
+    echo "WARNING: gh is not authenticated — fine for local-only runs, but" >&2
+    echo "required before enabling ORCH_SYNC=1." >&2
+fi
+
+base="$(base_branch "$repo")"
+if [[ "$ORCH_SYNC" == "1" ]]; then
+    git -C "$repo" remote get-url origin >/dev/null 2>&1 \
+        || die "ORCH_SYNC=1 but the repo has no 'origin' remote"
+    git -C "$repo" ls-remote --exit-code origin >/dev/null 2>&1 \
+        || die "ORCH_SYNC=1 but 'origin' is unreachable — check gh auth / network"
+fi
+
+if [[ -f "$repo/.release-done" ]]; then
+    echo "This project is already marked complete (.release-done exists):"
+    sed 's/^/  /' "$repo/.release-done"
+    echo "Remove .release-done to continue working on it."
+    exit 0
+fi
+
+pidfile="$repo/.orchestrator.pid"
+if [[ -f "$pidfile" ]] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then
+    echo "Orchestrator already running (pid $(cat "$pidfile"))."
+    echo "Attach: tmux attach -t orchestrator"
+    exit 1
+fi
+
+ensure_excludes "$repo"
+mkdir -p "$repo/logs/orchestrator" "$WORKTREE_ROOT"
+git -C "$repo" worktree prune
+
+# Adopt the state files into git: they are the remote dashboard and the audit
+# trail. GOAL.md is committed once here (and afterwards only the human changes
+# it); the orchestrator keeps TASKS/QUESTIONS/DECISIONS committed as it works.
+chmod u+w "$repo/GOAL.md" 2>/dev/null || true
+state_changed=0
+for f in GOAL.md TASKS.md QUESTIONS.md DECISIONS.md; do
+    [[ -f "$repo/$f" ]] || continue
+    if ! git -C "$repo" ls-files --error-unmatch "$f" >/dev/null 2>&1 \
+            || ! git -C "$repo" diff --quiet HEAD -- "$f" 2>/dev/null; then
+        git -C "$repo" add -- "$f"
+        state_changed=1
+    fi
+done
+if (( state_changed )); then
+    git -C "$repo" commit -q -m "orchestrator: adopt/update state files" || true
+    echo "Committed state files (GOAL.md/TASKS.md/QUESTIONS.md/DECISIONS.md)."
+fi
+
+# GOAL.md is the human's spec — keep it read-only on disk as a tripwire.
+# (Humans: chmod u+w GOAL.md to edit locally, or edit via GitHub with ORCH_SYNC.)
+chmod 444 "$repo/GOAL.md" 2>/dev/null || true
+
+if [[ -n "$(git -C "$repo" status --porcelain)" ]]; then
+    echo "WARNING: the repo has uncommitted changes; workers branch from HEAD" >&2
+    echo "and will not see them." >&2
+fi
+
+# ── Re-launch into tmux unless asked to run in the foreground ────────────────
+
+if (( ! fg )) && command -v tmux >/dev/null 2>&1; then
+    if tmux has-session -t orchestrator 2>/dev/null; then
+        die "a tmux session named 'orchestrator' already exists — attach to it or kill it first"
+    fi
+    cmd="$(printf '%q ' env \
+        MAX_ITERATIONS="$MAX_ITERATIONS" MAX_COST_USD="$MAX_COST_USD" \
+        ORCH_MODEL="$ORCH_MODEL" WORKER_MODEL="$WORKER_MODEL" \
+        ORCH_SYNC="$ORCH_SYNC" \
+        MAX_WORKERS="$MAX_WORKERS" MAX_WORKER_TURNS="$MAX_WORKER_TURNS" \
+        WORKER_TIMEOUT_SECS="$WORKER_TIMEOUT_SECS" \
+        ITERATION_TIMEOUT_SECS="$ITERATION_TIMEOUT_SECS" \
+        ORCH_MAX_TURNS="$ORCH_MAX_TURNS" SLEEP_SECONDS="$SLEEP_SECONDS" \
+        SLEEP_MAX="$SLEEP_MAX" FIREWALL_EVERY="$FIREWALL_EVERY" \
+        MAX_CONSECUTIVE_ERRORS="$MAX_CONSECUTIVE_ERRORS" \
+        WORKTREE_ROOT="$WORKTREE_ROOT" \
+        bash "$self" --fg "$repo")"
+    tmux new-session -d -s orchestrator -n loop -c "$repo" "$cmd"
+    cat <<INFO
+Orchestrator started.
+
+  Watch the loop:    tmux attach -t orchestrator
+  Watch workers:     tmux attach -t agents          (once spawned)
+  Live task board:   $repo/TASKS.md
+  Answer questions:  $repo/QUESTIONS.md
+  Pause it:          touch $repo/STOP               (resume: rm STOP, re-run orchestrate)
+  Logs:              $repo/logs/
+
+It will write to QUESTIONS.md when it needs a decision from you$(
+    [[ "$ORCH_SYNC" == "1" ]] && echo " — sync mode is
+on, so you can read and answer it straight from GitHub" || echo " — edit that
+file and the next iteration picks it up")
+INFO
+    exit 0
+fi
+
+# ── The loop ──────────────────────────────────────────────────────────────────
+
+echo $$ > "$pidfile"
+trap 'rm -f "$pidfile"' EXIT
+cd "$repo"
+
+PROMPT='Run ONE orchestrator iteration for this repository, following the
+Orchestrator guide (CLAUDE.md): process any [ANSWERED] questions into
+DECISIONS.md; inspect worker branches with list-agents and integrate the
+FINISHED ones; reconcile BLOCKED / FAILED / STALE / ORPHAN branches; keep the
+trunk green; spawn new workers up to capacity from the TASKS.md backlog (or
+decompose GOAL.md into the backlog if it is empty); escalate per GOAL.md §13
+by writing [PENDING] questions; keep TASKS.md current and commit state-file
+changes. GOAL.md is read-only — never modify it. When this pass is complete,
+print a short status report and exit — do not wait for workers, sleep, or
+loop inside this session. If GOAL.md §15 "Release done" is fully satisfied,
+write the summary file .release-done.'
+
+iter=0
+total_cost=0
+errors=0
+sleep_s="$SLEEP_SECONDS"
+
+backlog_count() {
+    awk '/^## Backlog/{f=1; next} /^## /{f=0} f && /^- /' TASKS.md 2>/dev/null | wc -l | tr -d ' '
+}
+
+log_line() {
+    echo "[$(date '+%F %T')] $*" | tee -a logs/orchestrator.log
+}
+
+sync_pull() {
+    [[ "$ORCH_SYNC" == "1" ]] || return 0
+    if ! git pull --rebase --autostash -q origin "$base" 2>>logs/orchestrator.log; then
+        git rebase --abort 2>/dev/null || true
+        log_line "WARNING: sync pull from origin failed (conflict?) — continuing with local state"
+    fi
+    chmod 444 GOAL.md 2>/dev/null || true   # pulls can reset the mode bits
+}
+
+sync_push() {
+    [[ "$ORCH_SYNC" == "1" ]] || return 0
+    git push -q origin "$base" 2>>logs/orchestrator.log \
+        || log_line "WARNING: sync push to origin failed — will retry next iteration"
+}
+
+# Safety net: the orchestrator is instructed to commit its state changes, but
+# a timed-out iteration must not lose board state.
+state_commit() {
+    git add -- TASKS.md QUESTIONS.md DECISIONS.md 2>/dev/null || true
+    if ! git diff --cached --quiet 2>/dev/null; then
+        git commit -q -m "orchestrator: state sync (iteration $iter)" || true
+    fi
+}
+
+guard_goal() {
+    if ! git diff --quiet -- GOAL.md 2>/dev/null; then
+        log_line "WARNING: GOAL.md has uncommitted local modifications — agents must never"
+        log_line "edit it. If this was you, commit it; otherwise inspect: git diff GOAL.md"
+    fi
+    chmod 444 GOAL.md 2>/dev/null || true
+}
+
+log_line "orchestrator loop starting in $repo (max $MAX_ITERATIONS iterations, sync=$ORCH_SYNC${ORCH_MODEL:+, model=$ORCH_MODEL})"
+
+while :; do
+    if [[ -f STOP ]]; then
+        log_line "STOP file present — exiting cleanly. rm STOP and re-run orchestrate to resume."
+        exit 0
+    fi
+    if [[ -f .release-done ]]; then
+        sync_push
+        log_line "RELEASE DONE after $iter iterations (total cost: \$$total_cost)."
+        echo "──────────────────────────────────────────────────"
+        cat .release-done
+        echo "──────────────────────────────────────────────────"
+        exit 0
+    fi
+    if (( iter >= MAX_ITERATIONS )); then
+        log_line "iteration budget ($MAX_ITERATIONS) reached — re-run orchestrate to continue."
+        exit 0
+    fi
+    iter=$((iter + 1))
+
+    # Periodically re-resolve the firewall allowlist — CDN IPs rotate, and a
+    # multi-day run will otherwise start failing mysteriously.
+    if (( FIREWALL_EVERY > 0 && iter % FIREWALL_EVERY == 0 )) \
+            && [[ -x /usr/local/bin/init-firewall.sh ]]; then
+        sudo -n /usr/local/bin/init-firewall.sh >/dev/null 2>&1 \
+            && log_line "firewall allowlist refreshed" \
+            || log_line "WARNING: firewall refresh failed"
+    fi
+
+    sync_pull
+
+    # Cheap idle fast-path: humans are slow. If the only possible work is
+    # waiting on a [PENDING] answer (no workers running or finished, nothing
+    # in the backlog), poll in bash instead of burning an iteration.
+    pending=$(grep -c '\[PENDING\]' QUESTIONS.md 2>/dev/null) || pending=0
+    if (( pending > 0 )) \
+            && (( $(running_workers "$repo") == 0 )) \
+            && (( $(backlog_count) == 0 )); then
+        finished=0
+        while IFS= read -r b; do
+            [[ -n "$b" && -f "$(worker_done_file "$repo" "$b")" ]] && finished=1
+        done < <(worker_branches "$repo")
+        if (( finished == 0 )); then
+            iter=$((iter - 1))   # waiting costs nothing; don't charge the budget
+            log_line "waiting on $pending [PENDING] question(s) in QUESTIONS.md — checking again in 60s"
+            sleep 60
+            continue
+        fi
+    fi
+
+    fp_before="$(state_fingerprint "$repo")"
+    log_line "iteration $iter starting (Σ cost \$$total_cost)"
+
+    rc=0
+    out_json="logs/orchestrator/iter-$iter.json"
+    err_log="logs/orchestrator/iter-$iter.err"
+    cmd=(claude -p "$PROMPT" --dangerously-skip-permissions
+         --max-turns "$ORCH_MAX_TURNS" --output-format json)
+    [[ -n "$ORCH_MODEL" ]] && cmd+=(--model "$ORCH_MODEL")
+    run_with_timeout "$ITERATION_TIMEOUT_SECS" "${cmd[@]}" \
+        </dev/null >"$out_json" 2>"$err_log" || rc=$?
+
+    cost="$(jq -r '.total_cost_usd // 0' "$out_json" 2>/dev/null)" || cost=""
+    is_error="$(jq -r '.is_error // false' "$out_json" 2>/dev/null)" || is_error="true"
+    turns="$(jq -r '.num_turns // "?"' "$out_json" 2>/dev/null)" || turns="?"
+    session="$(jq -r '.session_id // "?"' "$out_json" 2>/dev/null)" || session="?"
+    result="$(jq -r '.result // empty' "$out_json" 2>/dev/null)" || result=""
+
+    guard_goal
+    state_commit
+
+    if (( rc != 0 )) || [[ "$is_error" == "true" || -z "$cost" ]]; then
+        errors=$((errors + 1))
+        log_line "iteration $iter FAILED (exit $rc, error #$errors/$MAX_CONSECUTIVE_ERRORS) — see $err_log"
+        tail -5 "$err_log" 2>/dev/null || true
+        if (( errors >= MAX_CONSECUTIVE_ERRORS )); then
+            log_line "aborting: $errors consecutive failed iterations. Fix the cause and re-run."
+            exit 1
+        fi
+        sleep "$sleep_s"
+        continue
+    fi
+    errors=0
+
+    total_cost="$(awk -v a="$total_cost" -v b="$cost" 'BEGIN{printf "%.4f", a + b}')"
+    log_line "iteration $iter done — \$$cost ($turns turns, session $session)"
+    [[ -n "$result" ]] && printf '%s\n' "$result"
+
+    sync_push
+
+    if awk -v t="$total_cost" -v m="$MAX_COST_USD" 'BEGIN{exit !(m > 0 && t > m)}'; then
+        log_line "cost ceiling \$$MAX_COST_USD exceeded (Σ \$$total_cost) — stopping. Raise MAX_COST_USD and re-run to continue."
+        exit 0
+    fi
+
+    # Adaptive backoff: if nothing observable changed, lengthen the sleep.
+    fp_after="$(state_fingerprint "$repo")"
+    if [[ "$fp_after" == "$fp_before" ]]; then
+        sleep_s=$(( sleep_s * 2 ))
+        (( sleep_s > SLEEP_MAX )) && sleep_s="$SLEEP_MAX"
+    else
+        sleep_s="$SLEEP_SECONDS"
+    fi
+    sleep "$sleep_s"
+done

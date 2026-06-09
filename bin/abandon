@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# abandon <branch>
+# Discard a worker branch without merging: kill its window, remove its
+# worktree, delete the branch. Use for failed, empty, or superseded work.
+set -euo pipefail
+. "$(dirname "$0")/_lib.sh"
+
+branch="${1:?usage: abandon <branch>}"
+root="$(repo_root)"
+[[ -n "$root" ]] || die "not inside a git repository"
+[[ "$branch" != "$(base_branch "$root")" ]] || die "refusing to abandon the base branch"
+
+git -C "$root" show-ref --quiet "refs/heads/$branch" \
+    || die "branch '$branch' does not exist"
+
+wt="$(worktree_path "$root" "$branch")"
+
+if command -v tmux >/dev/null 2>&1; then
+    kill_branch_windows "$branch"
+fi
+
+if [[ -d "$wt" ]]; then
+    git -C "$root" worktree remove "$wt" --force 2>/dev/null || rm -rf "$wt"
+fi
+git -C "$root" worktree prune
+git -C "$root" branch -D "$branch"
+
+echo "Abandoned '$branch' (worktree, branch, and window removed). Its commits are gone."

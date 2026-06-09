@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# integrate <branch> [base]
+# Verify a finished worker branch, gate it on check.sh, merge it into the base
+# branch, and clean up the worktree/branch/window.
+#
+# Refuses to merge unverified work. Exit codes (act on them, don't bypass them):
+#   0  merged and cleaned up
+#   1  usage error / branch does not exist
+#   2  worker not finished (still running, crashed, or exited non-zero)
+#   3  worker committed BLOCKED.md — handle the escalation, then re-spawn or abandon
+#   4  no new commits on the branch — re-spawn or abandon
+#   5  check.sh failed on the branch — re-spawn with a brief to fix it
+#   6  merge conflict (aborted, base left clean) — re-spawn against current base
+#   7  branch modifies protected state files (GOAL.md / TASKS.md / QUESTIONS.md /
+#      DECISIONS.md) — re-spawn with a brief to drop those changes, or abandon
+set -euo pipefail
+. "$(dirname "$0")/_lib.sh"
+
+branch="${1:?usage: integrate <branch> [base]}"
+root="$(repo_root)"
+[[ -n "$root" ]] || die "not inside a git repository"
+base="${2:-$(base_branch "$root")}"
+wt="$(worktree_path "$root" "$branch")"
+
+CHECK_TIMEOUT_SECS="${CHECK_TIMEOUT_SECS:-1200}"
+
+git -C "$root" show-ref --quiet "refs/heads/$branch" \
+    || die "branch '$branch' does not exist"
+[[ "$branch" != "$base" ]] || die "refusing to integrate the base branch into itself"
+
+# ── Is the worker actually finished? ─────────────────────────────────────────
+
+if worker_window_live "$branch"; then
+    echo "REFUSED: worker for '$branch' is still running (tmux window '$branch')." >&2
+    exit 2
+fi
+
+if [[ ! -f "$wt/.worker-done" ]]; then
+    echo "REFUSED: no completion marker for '$branch' — the worker crashed or the" >&2
+    echo "container restarted before it finished. Re-spawn to resume the task:" >&2
+    echo "    spawn $branch \"<original brief>\"" >&2
+    echo "or discard it with: abandon $branch" >&2
+    exit 2
+fi
+
+wec="$(head -1 "$wt/.worker-done" 2>/dev/null | tr -dc '0-9')"
+if [[ -n "$wec" && "$wec" != "0" ]]; then
+    echo "REFUSED: worker for '$branch' exited with code $wec (timeout or error —" >&2
+    echo "it likely did not finish). Review the latest logs/$branch.*.jsonl, then" >&2
+    echo "re-spawn to resume, or abandon." >&2
+    exit 2
+fi
+
+if [[ -n "$(git -C "$wt" status --porcelain 2>/dev/null)" ]]; then
+    echo "REFUSED: uncommitted changes left in the worktree — the worker did not" >&2
+    echo "finish cleanly. Re-spawn '$branch' to review and commit, or abandon." >&2
+    git -C "$wt" status --porcelain | head -10 >&2
+    exit 2
+fi
+
+# ── Escalation and emptiness gates ───────────────────────────────────────────
+
+if branch_blocked "$root" "$branch"; then
+    echo "REFUSED: worker reported it is BLOCKED. Its report:" >&2
+    echo "──────────────────────────────────────────────────" >&2
+    git -C "$root" show "$branch:BLOCKED.md" >&2
+    echo "──────────────────────────────────────────────────" >&2
+    echo "Resolve the blocker (answer it yourself from GOAL.md, or escalate to the" >&2
+    echo "human via QUESTIONS.md), then re-spawn '$branch' with the resolution in" >&2
+    echo "the brief, or abandon it." >&2
+    exit 3
+fi
+
+commits=$(git -C "$root" rev-list --count "$base..$branch")
+if (( commits == 0 )); then
+    echo "REFUSED: no new commits on '$branch'. Nothing to integrate." >&2
+    echo "Re-spawn with a clearer brief, or: abandon $branch" >&2
+    exit 4
+fi
+
+# State files are owned by the human (GOAL.md) and the orchestrator (the
+# rest). Workers may read them; branches that modify them never merge.
+protected="$(git -C "$root" diff --name-only "$base..$branch" -- \
+    GOAL.md TASKS.md QUESTIONS.md DECISIONS.md)"
+if [[ -n "$protected" ]]; then
+    echo "REFUSED: '$branch' modifies protected state files:" >&2
+    printf '    %s\n' $protected >&2
+    echo "Re-spawn with a brief to remove those changes" >&2
+    echo "(git checkout $base -- <file> && git commit), or abandon the branch." >&2
+    exit 7
+fi
+
+# ── Verification gate ─────────────────────────────────────────────────────────
+
+if [[ -f "$wt/check.sh" ]]; then
+    echo "=== Running check.sh on '$branch' (timeout ${CHECK_TIMEOUT_SECS}s) ==="
+    mkdir -p "$root/logs"
+    check_log="$root/logs/check-$branch.$(date +%Y%m%d-%H%M%S).log"
+    if ! (cd "$wt" && run_with_timeout "$CHECK_TIMEOUT_SECS" bash check.sh) \
+            > "$check_log" 2>&1; then
+        echo "REFUSED: check.sh failed on '$branch'. Last 20 lines:" >&2
+        tail -20 "$check_log" >&2
+        echo "Full log: $check_log" >&2
+        echo "Re-spawn '$branch' with a brief that includes this failure output." >&2
+        exit 5
+    fi
+    echo "check.sh passed."
+else
+    echo "NOTE: no check.sh on this branch — merging unverified."
+fi
+
+# ── Merge ─────────────────────────────────────────────────────────────────────
+
+echo "=== Integrating '$branch' into '$base' ($commits commits) ==="
+git -C "$root" log --oneline "$base..$branch"
+echo ""
+
+git -C "$root" checkout -q "$base"
+if ! git -C "$root" merge --no-ff "$branch" -m "Integrate: $branch"; then
+    git -C "$root" merge --abort 2>/dev/null || true
+    echo "REFUSED: merge conflict between '$branch' and '$base' (merge aborted," >&2
+    echo "'$base' is clean). Re-spawn '$branch' with a brief to redo the task" >&2
+    echo "against the current '$base', or abandon it." >&2
+    exit 6
+fi
+
+# ── Cleanup ───────────────────────────────────────────────────────────────────
+
+if [[ -d "$wt" ]]; then
+    git -C "$root" worktree remove "$wt" --force 2>/dev/null || rm -rf "$wt"
+fi
+git -C "$root" worktree prune
+git -C "$root" branch -d "$branch"
+if command -v tmux >/dev/null 2>&1; then
+    kill_branch_windows "$branch"
+fi
+
+echo ""
+echo "Done. '$branch' integrated into '$base' and cleaned up."
+echo "Reminder: run 'bash check.sh' on '$base' too — the merge result itself is unverified."
