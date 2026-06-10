@@ -1,6 +1,9 @@
 .DS_Store
 node_modules/
 
+# Container identity + secrets (docker --env-file) — never committed
+.devcontainer/devcontainer.env
+
 # Agent scratch space, if you clone repos under the workspace
 /work/
 /projects/

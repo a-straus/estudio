@@ -11,13 +11,11 @@
   },
   "runArgs": [
     "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW"
+    "--cap-add=NET_RAW",
+    "--env-file", "${localWorkspaceFolder}/.devcontainer/devcontainer.env"
   ],
   "shutdownAction": "none",
-  "remoteEnv": {
-    "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}",
-    "GH_TOKEN": "${localEnv:GH_TOKEN_AGENT}"
-  },
+  "initializeCommand": "test -f .devcontainer/devcontainer.env || cp .devcontainer/devcontainer.env.example .devcontainer/devcontainer.env",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -53,11 +51,7 @@
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
-    "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
-    "GIT_AUTHOR_NAME": "${localEnv:AGENT_GIT_NAME}",
-    "GIT_AUTHOR_EMAIL": "${localEnv:AGENT_GIT_EMAIL}",
-    "GIT_COMMITTER_NAME": "${localEnv:AGENT_GIT_NAME}",
-    "GIT_COMMITTER_EMAIL": "${localEnv:AGENT_GIT_EMAIL}"
+    "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",

@@ -146,47 +146,36 @@ activity is clearly attributed and its permissions are independently scoped.
      (read/write) if you want question notifications via `gh issue create`.
 3. Copy the token — you won't see it again
 
-Store it in Keychain and export it from your host shell profile (e.g. `~/.zshrc`):
+You'll paste it into the env file in step 2.
+
+### 2. Fill in the container env file
+
+All identity and secrets enter the container through one gitignored file,
+read by Docker at container creation (`--env-file`) — no host shell exports,
+nothing depending on how VS Code was launched. macOS gotcha this avoids:
+`~/.zshrc` exports never reach Dock-launched apps, so `${localEnv:...}`
+silently bakes empty values into the container.
 
 ```sh
-security add-generic-password -a "$USER" -s gh-token-agent -w '<paste token>'
-export GH_TOKEN_AGENT="$(security find-generic-password -s gh-token-agent -w)"
+cp .devcontainer/devcontainer.env.example .devcontainer/devcontainer.env
+$EDITOR .devcontainer/devcontainer.env
 ```
 
-(On a Linux server, export it from `~/.profile` or a secrets manager instead.)
+Fill in:
 
-Also set the agent's git identity in your shell profile:
+- `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` / `GIT_COMMITTER_NAME` /
+  `GIT_COMMITTER_EMAIL` — the agent account's identity
+- `GH_TOKEN` — the token from step 1 (`gh` and git-over-HTTPS use it; on
+  every container start `gh auth setup-git` wires it into git automatically)
+- `CLAUDE_CODE_OAUTH_TOKEN` — a long-lived subscription token: run
+  `claude setup-token` on the host and paste the result
 
-```sh
-export AGENT_GIT_NAME="yourname-agent"
-export AGENT_GIT_EMAIL="yourname-agent@users.noreply.github.com"
-```
+Changed the file later? **Rebuild the container** — it's read at creation.
 
-The container picks up all three env vars via `devcontainer.json`. On every
-container start, `gh auth setup-git` runs automatically so git push/pull also
-use the agent token.
-
-### 2. Claude auth token
-
-Auth runs through your Claude subscription (Max/Pro). Generate a long-lived
-OAuth token on your host:
-
-```sh
-claude setup-token
-```
-
-Store it and export it from your shell profile:
-
-```sh
-security add-generic-password -a "$USER" -s claude-code-oauth-token -w '<token>'
-export CLAUDE_CODE_OAUTH_TOKEN="$(security find-generic-password -s claude-code-oauth-token -w)"
-```
-
-The container inherits it via `remoteEnv` in `devcontainer.json`.
-
-> **Prefer API billing?** Swap the `remoteEnv` key to `ANTHROPIC_API_KEY` and
-> export that instead. `api.anthropic.com` is already allowlisted, and the
-> loop's `MAX_COST_USD` ceiling becomes meaningful.
+> **Prefer API billing?** Leave `CLAUDE_CODE_OAUTH_TOKEN` empty and add
+> `ANTHROPIC_API_KEY=...` to the env file instead. `api.anthropic.com` is
+> already allowlisted, and the loop's `MAX_COST_USD` ceiling becomes
+> meaningful.
 
 ### 3. Open the container
 
@@ -385,8 +374,9 @@ git, so v2 of the product is literally v2 of the file.
 The intended end state: the sandbox runs on a server, you check in from
 anywhere, and GitHub is the dashboard.
 
-1. On the server: clone this repo, export the three env vars from the shell
-   profile, `devcontainer up --workspace-folder .`
+1. On the server: clone this repo, fill in
+   `.devcontainer/devcontainer.env` (setup §2), `devcontainer up
+   --workspace-folder .`
 2. Inside the container, clone the project and push-capable remote, then:
 
    ```sh
