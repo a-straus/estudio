@@ -119,7 +119,7 @@ Do these in order. Skip steps that have nothing to do.
    - Route models deliberately: routine implementation on the default
      ($WORKER_MODEL); trunk fixes, reviews, and genuinely hard tasks on
      `--model "$ORCH_MODEL"`, adding `--effort max` when a task needs the
-     deepest reasoning (workers default to high effort).
+     deepest reasoning (workers default to medium effort).
 
 7. **Escalate when required — which is rarely.** Technical and data-model
    design is delegated to you: decide within GOAL.md's bounds and record it

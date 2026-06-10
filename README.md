@@ -118,8 +118,8 @@ better you fill §3/§8/§11/§13, the closer questions get to zero.
 
 | Role | Default | Knobs |
 |------|---------|-------|
-| Orchestrator iterations | `fable` at `max` effort | `ORCH_MODEL`, `ORCH_EFFORT` |
-| Routine feature workers | `opus` at `high` effort | `WORKER_MODEL`, `WORKER_EFFORT` |
+| Orchestrator iterations | `fable` at `high` effort | `ORCH_MODEL`, `ORCH_EFFORT` |
+| Routine feature workers | `opus` at `medium` effort | `WORKER_MODEL`, `WORKER_EFFORT` |
 | Trunk fixes, reviews, hard tasks | orchestrator's model — routed per task | `spawn --model "$ORCH_MODEL" [--effort max]` |
 
 The orchestrator decides the routing; the loop just passes the flags. Effort

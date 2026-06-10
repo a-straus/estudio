@@ -19,9 +19,9 @@
 #                               model owns orchestration, reviews, and hard tasks
 #   WORKER_MODEL=opus           default model for workers (per-task --model overrides;
 #                               budget tiering: WORKER_MODEL=sonnet WORKER_EFFORT=max)
-#   ORCH_EFFORT=high             thinking depth for orchestrator iterations
+#   ORCH_EFFORT=high            thinking depth for orchestrator iterations
 #                               (low|medium|high|extra|max)
-#   WORKER_EFFORT=medium          default thinking depth for workers (per-task
+#   WORKER_EFFORT=medium        default thinking depth for workers (per-task
 #                               --effort overrides)
 #   ORCH_SYNC=0                 1 = pull GOAL.md edits / question answers from origin
 #                               before each iteration and push state + integrated work
@@ -55,8 +55,8 @@ MAX_ITERATIONS="${MAX_ITERATIONS:-200}"
 MAX_COST_USD="${MAX_COST_USD:-0}"
 ORCH_MODEL="${ORCH_MODEL:-fable}"
 WORKER_MODEL="${WORKER_MODEL:-opus}"
-ORCH_EFFORT="${ORCH_EFFORT:-max}"
-WORKER_EFFORT="${WORKER_EFFORT:-high}"
+ORCH_EFFORT="${ORCH_EFFORT:-high}"
+WORKER_EFFORT="${WORKER_EFFORT:-medium}"
 ORCH_SYNC="${ORCH_SYNC:-0}"
 MAX_WORKERS="${MAX_WORKERS:-3}"
 MAX_WORKER_TURNS="${MAX_WORKER_TURNS:-150}"
