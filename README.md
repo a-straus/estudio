@@ -116,13 +116,16 @@ better you fill §3/§8/§11/§13, the closer questions get to zero.
 
 ### Who runs on what
 
-| Role | Model | Knob |
-|------|-------|------|
-| Orchestrator iterations | strongest available | `ORCH_MODEL` |
-| Routine feature workers | cheaper/faster | `WORKER_MODEL` |
-| Trunk fixes, reviews, hard tasks | strongest — routed per task | `spawn --model "$ORCH_MODEL"` |
+| Role | Default | Knobs |
+|------|---------|-------|
+| Orchestrator iterations | `fable` at `max` effort | `ORCH_MODEL`, `ORCH_EFFORT` |
+| Routine feature workers | `opus` at `high` effort | `WORKER_MODEL`, `WORKER_EFFORT` |
+| Trunk fixes, reviews, hard tasks | orchestrator's model — routed per task | `spawn --model "$ORCH_MODEL" [--effort max]` |
 
-The orchestrator decides the routing; the loop just passes the flags.
+The orchestrator decides the routing; the loop just passes the flags. Effort
+levels (`low|medium|high|extra|max`) set thinking depth per invocation. The
+budget tiering when opus workers burn too hot: `WORKER_MODEL=sonnet
+WORKER_EFFORT=max`.
 
 ---
 
@@ -279,7 +282,7 @@ orchestrate                     # relaunches itself into tmux session "orchestra
 Useful variants:
 
 ```sh
-ORCH_MODEL=opus WORKER_MODEL=sonnet orchestrate     # explicit model tiering
+WORKER_MODEL=sonnet WORKER_EFFORT=max orchestrate   # cheaper workers, deepest thinking
 ORCH_SYNC=1 orchestrate                             # remote mode: sync via origin
 MAX_ITERATIONS=30 MAX_COST_USD=25 orchestrate       # bounded experiment
 orchestrate --fg                                    # run in the foreground (debugging)
@@ -387,7 +390,7 @@ anywhere, and GitHub is the dashboard.
 2. Inside the container, clone the project and push-capable remote, then:
 
    ```sh
-   ORCH_SYNC=1 ORCH_MODEL=opus WORKER_MODEL=sonnet orchestrate /workspace/projects/yourproject
+   ORCH_SYNC=1 orchestrate /workspace/projects/yourproject
    ```
 
 3. Disconnect. With `ORCH_SYNC=1` the **outer loop** (deterministic bash, not

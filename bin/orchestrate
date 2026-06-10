@@ -14,9 +14,15 @@
 #   MAX_ITERATIONS=200          stop after N iterations (re-run to continue)
 #   MAX_COST_USD=0              stop when cumulative API cost exceeds this (0 = off;
 #                               subscription auth reports ~$0, so this mainly guards API keys)
-#   ORCH_MODEL=                 model for orchestrator iterations and for
-#                               `spawn --model "$ORCH_MODEL"` routing (default: CLI default)
-#   WORKER_MODEL=               default model for workers (per-task --model overrides)
+#   ORCH_MODEL=fable            model for orchestrator iterations and for
+#                               `spawn --model "$ORCH_MODEL"` routing — the strongest
+#                               model owns orchestration, reviews, and hard tasks
+#   WORKER_MODEL=opus           default model for workers (per-task --model overrides;
+#                               budget tiering: WORKER_MODEL=sonnet WORKER_EFFORT=max)
+#   ORCH_EFFORT=max             thinking depth for orchestrator iterations
+#                               (low|medium|high|extra|max)
+#   WORKER_EFFORT=high          default thinking depth for workers (per-task
+#                               --effort overrides)
 #   ORCH_SYNC=0                 1 = pull GOAL.md edits / question answers from origin
 #                               before each iteration and push state + integrated work
 #                               after — turns GitHub into the dashboard for remote runs
@@ -47,8 +53,10 @@ self="$(cd "$(dirname "$0")" && pwd)/orchestrate"
 
 MAX_ITERATIONS="${MAX_ITERATIONS:-200}"
 MAX_COST_USD="${MAX_COST_USD:-0}"
-ORCH_MODEL="${ORCH_MODEL:-}"
-WORKER_MODEL="${WORKER_MODEL:-}"
+ORCH_MODEL="${ORCH_MODEL:-fable}"
+WORKER_MODEL="${WORKER_MODEL:-opus}"
+ORCH_EFFORT="${ORCH_EFFORT:-max}"
+WORKER_EFFORT="${WORKER_EFFORT:-high}"
 ORCH_SYNC="${ORCH_SYNC:-0}"
 MAX_WORKERS="${MAX_WORKERS:-3}"
 MAX_WORKER_TURNS="${MAX_WORKER_TURNS:-150}"
@@ -60,7 +68,7 @@ SLEEP_MAX="${SLEEP_MAX:-300}"
 FIREWALL_EVERY="${FIREWALL_EVERY:-10}"
 MAX_CONSECUTIVE_ERRORS="${MAX_CONSECUTIVE_ERRORS:-3}"
 export MAX_WORKERS MAX_WORKER_TURNS WORKER_TIMEOUT_SECS WORKTREE_ROOT \
-       ORCH_MODEL WORKER_MODEL
+       ORCH_MODEL WORKER_MODEL WORKER_EFFORT
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
 
@@ -165,6 +173,7 @@ if (( ! fg )) && command -v tmux >/dev/null 2>&1; then
     cmd="$(printf '%q ' env \
         MAX_ITERATIONS="$MAX_ITERATIONS" MAX_COST_USD="$MAX_COST_USD" \
         ORCH_MODEL="$ORCH_MODEL" WORKER_MODEL="$WORKER_MODEL" \
+        ORCH_EFFORT="$ORCH_EFFORT" WORKER_EFFORT="$WORKER_EFFORT" \
         ORCH_SYNC="$ORCH_SYNC" \
         MAX_WORKERS="$MAX_WORKERS" MAX_WORKER_TURNS="$MAX_WORKER_TURNS" \
         WORKER_TIMEOUT_SECS="$WORKER_TIMEOUT_SECS" \
@@ -260,7 +269,7 @@ guard_goal() {
     chmod 444 GOAL.md 2>/dev/null || true
 }
 
-log_line "orchestrator loop starting in $repo (max $MAX_ITERATIONS iterations, sync=$ORCH_SYNC${ORCH_MODEL:+, model=$ORCH_MODEL})"
+log_line "orchestrator loop starting in $repo (max $MAX_ITERATIONS iterations, sync=$ORCH_SYNC${ORCH_MODEL:+, model=$ORCH_MODEL}${ORCH_EFFORT:+@$ORCH_EFFORT}, workers=$WORKER_MODEL${WORKER_EFFORT:+@$WORKER_EFFORT})"
 
 while :; do
     if [[ -f STOP ]]; then
@@ -324,6 +333,7 @@ while :; do
     cmd=(claude -p "$PROMPT" --dangerously-skip-permissions
          --max-turns "$ORCH_MAX_TURNS" --output-format json)
     [[ -n "$ORCH_MODEL" ]] && cmd+=(--model "$ORCH_MODEL")
+    [[ -n "$ORCH_EFFORT" ]] && cmd+=(--effort "$ORCH_EFFORT")
     run_with_timeout "$ITERATION_TIMEOUT_SECS" "${cmd[@]}" \
         </dev/null >"$out_json" 2>"$err_log" || rc=$?
 

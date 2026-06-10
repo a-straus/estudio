@@ -118,7 +118,8 @@ Do these in order. Skip steps that have nothing to do.
      exists.
    - Route models deliberately: routine implementation on the default
      ($WORKER_MODEL); trunk fixes, reviews, and genuinely hard tasks on
-     `--model "$ORCH_MODEL"`.
+     `--model "$ORCH_MODEL"`, adding `--effort max` when a task needs the
+     deepest reasoning (workers default to high effort).
 
 7. **Escalate when required — which is rarely.** Technical and data-model
    design is delegated to you: decide within GOAL.md's bounds and record it
@@ -239,7 +240,7 @@ below it is yours.
 
 | Command | What it does |
 |---------|--------------|
-| `spawn [--model <m>] <branch> "<brief>"` | Launch a headless worker on its own branch + worktree. Re-running for an existing branch resumes it. Refuses when capacity is full (exit 2) |
+| `spawn [--model <m>] [--effort <e>] <branch> "<brief>"` | Launch a headless worker on its own branch + worktree. `--effort low\|medium\|high\|extra\|max` sets thinking depth (default high). Re-running for an existing branch resumes it. Refuses when capacity is full (exit 2) |
 | `integrate <branch>` | Gate (completion marker, BLOCKED.md, commits, protected files, check.sh), then merge to base and clean up. Exits: 2 not finished · 3 blocked · 4 no commits · 5 check failed · 6 conflict · 7 protected files |
 | `abandon <branch>` | Discard a branch and its worktree without merging |
 | `list-agents` | Classify every worker branch: RUNNING / FINISHED / BLOCKED / FAILED / STALE / ORPHAN, with the action each needs |

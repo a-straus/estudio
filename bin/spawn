@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# spawn [--model <model>] <branch> "<task>" [base-ref]
+# spawn [--model <model>] [--effort <level>] <branch> "<task>" [base-ref]
 # Launch a headless worker agent on its own branch + worktree.
 #
-# Model routing: workers default to $WORKER_MODEL (or the CLI default if
-# unset); pass --model to put a specific task on a stronger model (trunk
-# fixes, reviews, gnarly tasks).
+# Model routing: workers default to $WORKER_MODEL at $WORKER_EFFORT (or the
+# CLI defaults if unset); pass --model to put a specific task on a stronger
+# model (trunk fixes, reviews, gnarly tasks) and --effort to set its
+# thinking depth (low|medium|high|extra|max).
 #
 # The worker runs `claude -p` non-interactively: it receives the task brief as
 # its prompt (plus the quality bar and escalation rules from GOAL.md §12/§13),
@@ -23,14 +24,19 @@
 set -euo pipefail
 . "$(dirname "$0")/_lib.sh"
 
+usage='usage: spawn [--model <model>] [--effort <level>] <branch> "<task>" [base-ref]'
 model="${WORKER_MODEL:-}"
-if [[ "${1:-}" == "--model" ]]; then
-    model="${2:?usage: spawn [--model <model>] <branch> \"<task>\" [base-ref]}"
-    shift 2
-fi
+effort="${WORKER_EFFORT:-}"
+while [[ "${1:-}" == --* ]]; do
+    case "$1" in
+        --model)  model="${2:?$usage}";  shift 2 ;;
+        --effort) effort="${2:?$usage}"; shift 2 ;;
+        *) die "$usage (unknown option: $1)" ;;
+    esac
+done
 
-branch="${1:?usage: spawn [--model <model>] <branch> \"<task>\" [base-ref]}"
-task="${2:?usage: spawn [--model <model>] <branch> \"<task>\" [base-ref]}"
+branch="${1:?$usage}"
+task="${2:?$usage}"
 base="${3:-HEAD}"
 
 MAX_WORKERS="${MAX_WORKERS:-3}"
@@ -177,7 +183,7 @@ echo "[worker:$branch] started \$(date '+%F %T')"
 echo "[worker:$branch] log: $log"
 ${timeout_prefix}claude -p --dangerously-skip-permissions \\
     --max-turns $MAX_WORKER_TURNS --verbose --output-format stream-json \\
-    ${model:+--model "$model"} \\
+    ${model:+--model "$model"} ${effort:+--effort "$effort"} \\
     < .worker-prompt.md 2>&1 | tee "$log"
 ec=\${PIPESTATUS[0]}
 echo "\$ec" > .worker-done
@@ -198,7 +204,7 @@ else
     echo "NOTE: tmux not found — worker running as background process $!"
 fi
 
-echo "Spawned worker on branch '$branch'${resume:+ (resuming existing branch)}${model:+ [model: $model]}"
+echo "Spawned worker on branch '$branch'${resume:+ (resuming existing branch)}${model:+ [model: $model]}${effort:+ [effort: $effort]}"
 echo "  worktree: $wt"
 echo "  log:      $log"
 echo "  watch:    tmux attach -t agents    (window '$branch')"
