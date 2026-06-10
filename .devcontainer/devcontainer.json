@@ -56,6 +56,6 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
   "postCreateCommand": "bash /workspace/.devcontainer/seed-claude-config.sh",
-  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh && (gh auth setup-git 2>/dev/null || echo 'WARN: gh auth setup-git failed — set GH_TOKEN_AGENT on the host (see README)')",
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh && (gh auth setup-git 2>/dev/null || echo 'WARN: gh auth setup-git failed — fill GH_TOKEN in .devcontainer/devcontainer.env and rebuild')",
   "waitFor": "postStartCommand"
 }
