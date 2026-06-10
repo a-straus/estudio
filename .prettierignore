@@ -1,0 +1,3 @@
+# Markdown files here are agent-facing templates; formatters mangle the
+# fill-in bullets and break orchestrate's unfilled-section greps.
+*.md
