@@ -1,5 +1,7 @@
 import fs from "node:fs";
+import { normalize } from "@estudio/shared";
 import { nowIso, type DB } from "../db/db.js";
+import { listGrammarTopicsForMatching } from "../db/grammar-queries.js";
 import { logger } from "../logger.js";
 import type { LlmService } from "../llm/service.js";
 import { extractPagePdf } from "../pdf/pages.js";
@@ -75,14 +77,23 @@ export async function runPdfIngestion(
   payload: PdfIngestionPayload,
 ): Promise<{ pages: Record<string, "done" | "failed"> }> {
   const source = db
-    .prepare("SELECT id, stored_path FROM source WHERE id = ?")
+    .prepare("SELECT id, title, ref, stored_path FROM source WHERE id = ?")
     .get(payload.sourceId) as
-    | { id: number; stored_path: string | null }
+    | {
+        id: number;
+        title: string | null;
+        ref: string | null;
+        stored_path: string | null;
+      }
     | undefined;
   if (!source?.stored_path) {
     throw new Error(`source ${payload.sourceId} not found or has no file`);
   }
   const pdf = fs.readFileSync(source.stored_path);
+  // Cheap, deterministic page→curriculum link: match grammar pages against the
+  // seeded topic list using the source's title/ref text. No extra LLM call.
+  const topics = listGrammarTopicsForMatching(db);
+  const sourceLabel = `${source.title ?? ""} ${source.ref ?? ""}`;
 
   let pages = db
     .prepare(
@@ -100,7 +111,7 @@ export async function runPdfIngestion(
       continue;
     }
     try {
-      await processPage(db, llm, source.id, page, pdf);
+      await processPage(db, llm, source.id, page, pdf, topics, sourceLabel);
       progress[page.page_no] = "done";
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -134,6 +145,8 @@ async function processPage(
   sourceId: number,
   page: PageRow,
   pdf: Buffer,
+  topics: { id: number; name: string }[],
+  sourceLabel: string,
 ): Promise<void> {
   const pagePdf = await extractPagePdf(pdf, page.page_no);
   const attachments = [{ kind: "pdf" as const, data: pagePdf }];
@@ -154,12 +167,45 @@ async function processPage(
       }),
     );
     insertExtractionItems(db, sourceId, words);
+  } else {
+    // Grammar page: link it to a seeded curriculum topic when one matches the
+    // source label. Left NULL when no confident match — never a new LLM call.
+    const topicId = matchGrammarTopic(topics, sourceLabel);
+    if (topicId !== null) {
+      db.prepare(
+        "UPDATE source_page SET grammar_topic_id = ?, updated_at = ? WHERE id = ?",
+      ).run(topicId, nowIso(), page.id);
+    }
   }
-  // Grammar pages keep grammar_topic_id null — curriculum linking is a later task.
 
   db.prepare(
     "UPDATE source_page SET status = 'done', error = NULL, updated_at = ? WHERE id = ?",
   ).run(nowIso(), page.id);
+}
+
+/**
+ * Deterministic topic match: normalize (lowercase + accent-strip) both sides
+ * and look for the topic's full name in the source label first, then fall back
+ * to a distinctive keyword (token ≥ 4 chars) from the topic name. First match
+ * by topic id wins; no match → null.
+ */
+function matchGrammarTopic(
+  topics: { id: number; name: string }[],
+  label: string,
+): number | null {
+  const haystack = normalize(label);
+  if (haystack.trim() === "") return null;
+  for (const t of topics) {
+    const name = normalize(t.name).trim();
+    if (name !== "" && haystack.includes(name)) return t.id;
+  }
+  for (const t of topics) {
+    const tokens = normalize(t.name)
+      .split(/[^\p{L}]+/u)
+      .filter((w) => w.length >= 4);
+    if (tokens.some((tok) => haystack.includes(tok))) return t.id;
+  }
+  return null;
 }
 
 /**

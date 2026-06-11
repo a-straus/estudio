@@ -7,6 +7,7 @@ import { normalize } from "@estudio/shared";
 import { openDb, type DB } from "../db/db.js";
 import { runMigrations } from "../db/migrate.js";
 import { insertSource, insertSourcePages } from "../db/queries.js";
+import { insertCurriculum } from "../db/grammar-queries.js";
 import { logger } from "../logger.js";
 import { LlmService } from "../llm/service.js";
 import { LlmError, type LlmProvider, type VisionParams } from "../llm/types.js";
@@ -202,6 +203,58 @@ describe("runPdfIngestion", () => {
     });
     expect(itemRows(sourceId)).toHaveLength(0);
     expect(calls.map((c) => c.task)).toEqual(["classify"]);
+  });
+
+  it("links a grammar page to a seeded topic when the source label matches", async () => {
+    insertCurriculum(db, [
+      {
+        name: "Subjuntivo",
+        topics: [{ name: "Subjuntivo", description: "triggers" }],
+      },
+    ]);
+    const topicId = (
+      db
+        .prepare("SELECT id FROM grammar_topic WHERE name = 'Subjuntivo'")
+        .get() as {
+        id: number;
+      }
+    ).id;
+    // Source titled to match the topic by keyword containment ("subjuntivo").
+    const sourceId = insertSource(db, {
+      type: "pdf",
+      title: "El subjuntivo: práctica",
+      ref: "subjuntivo.pdf",
+      storedPath: PARAGRAPH_PDF,
+    });
+    insertSourcePages(db, sourceId, 1);
+    const { llm } = makeLlm({ classify: () => '{"kind": "grammar"}' });
+
+    await runPdfIngestion(db, llm, { sourceId });
+
+    const [page] = pageRows(sourceId);
+    expect(page).toMatchObject({ kind: "grammar", grammar_topic_id: topicId });
+  });
+
+  it("leaves grammar_topic_id null when no seeded topic matches", async () => {
+    insertCurriculum(db, [
+      {
+        name: "Subjuntivo",
+        topics: [{ name: "Subjuntivo", description: "triggers" }],
+      },
+    ]);
+    const sourceId = insertSource(db, {
+      type: "pdf",
+      title: "Lectura general",
+      ref: "lectura.pdf",
+      storedPath: PARAGRAPH_PDF,
+    });
+    insertSourcePages(db, sourceId, 1);
+    const { llm } = makeLlm({ classify: () => '{"kind": "grammar"}' });
+
+    await runPdfIngestion(db, llm, { sourceId });
+
+    const [page] = pageRows(sourceId);
+    expect(page).toMatchObject({ kind: "grammar", grammar_topic_id: null });
   });
 
   it("groups extraction items into batches of ~50", async () => {

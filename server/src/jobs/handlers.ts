@@ -6,6 +6,7 @@ import {
   runTextIngestion,
   type TextIngestionPayload,
 } from "./textIngestion.js";
+import { JOB_TYPE_GRAMMAR_SEED, runGrammarSeed } from "./grammarSeed.js";
 
 /** Register the text_ingestion job handler. */
 export function registerTextIngestionHandler(
@@ -16,4 +17,13 @@ export function registerTextIngestionHandler(
   queue.register(JOB_TYPE_TEXT_INGESTION, (payload) =>
     runTextIngestion(db, llm, payload as TextIngestionPayload),
   );
+}
+
+/** Register the grammar_seed job handler. */
+export function registerGrammarSeedHandler(
+  queue: JobQueue,
+  db: DB,
+  llm: LlmService,
+): void {
+  queue.register(JOB_TYPE_GRAMMAR_SEED, () => runGrammarSeed(db, llm));
 }

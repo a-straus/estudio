@@ -1,0 +1,93 @@
+/* Grammar home (design/screens/grammar.md §3.7). Topic list grouped by theme
+   with a derived practice queue above it. Topics are not yet tappable into a
+   lesson — that's a later task. Every value references a token. */
+
+.grammar {
+  max-width: var(--measure-app);
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+}
+
+.grammar__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  margin-bottom: var(--space-3);
+}
+
+.grammar__status {
+  color: var(--color-ink-soft);
+  padding: var(--space-5) 0;
+}
+
+.grammar__empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-5);
+}
+
+/* ---- Sections ---- */
+.grammar__practice {
+  margin-bottom: var(--space-5);
+}
+
+.grammar__category {
+  margin-bottom: var(--space-5);
+}
+
+.grammar__section-header {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+  margin-bottom: var(--space-2);
+}
+
+.grammar__category-name {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-rule);
+  margin-bottom: var(--space-1);
+}
+
+/* ---- Topic rows ---- */
+.grammar__topics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.grammar__topic {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--hit-target);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.grammar__topic-name {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  color: var(--color-ink);
+}
+
+.grammar__topic-meta {
+  flex: 0 0 auto;
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  text-align: right;
+}
+
+.grammar__coming-soon {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  padding-top: var(--space-3);
+}
