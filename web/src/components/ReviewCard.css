@@ -1,0 +1,54 @@
+/* ReviewCard (D4). Cross-fade flip, no 3D. Prompt pinned; inner scroll. */
+
+.review-card {
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  background: var(--color-surface);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-5);
+}
+
+.review-card__prompt {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-ink-soft);
+  margin-bottom: var(--space-4);
+  flex-shrink: 0;
+}
+
+.review-card__body {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.review-card__faces {
+  display: grid;
+}
+
+.review-card__face {
+  grid-area: 1 / 1;
+  transition: opacity var(--motion-base) var(--motion-ease);
+}
+
+.review-card__face--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Cloze stem: studied language, italic; the blank roman in accent. */
+.cloze-stem {
+  font-family: var(--font-study);
+  font-style: italic;
+  font-size: var(--text-lg);
+  line-height: var(--leading-base);
+  color: var(--color-ink);
+}
+
+.cloze-stem__blank {
+  font-style: normal;
+  color: var(--color-accent);
+  letter-spacing: var(--tracking-meta);
+}
