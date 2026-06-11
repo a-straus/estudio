@@ -63,8 +63,8 @@
   font-size: var(--text-2xl);
 }
 
-@media (min-width: 960px) {
-  /* bp-desktop */
+@media (min-width: 640px) {
+  /* bp-tablet — mobile is below bp-tablet (D4 glossary) */
   .word-entry--hero .word-entry__headword {
     font-size: var(--text-3xl);
   }

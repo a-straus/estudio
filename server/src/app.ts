@@ -6,6 +6,7 @@ import express, {
   type Request,
   type Response,
 } from "express";
+import { MulterError } from "multer";
 import type { HealthResponse } from "@estudio/shared";
 import { listJobs } from "./db/queries.js";
 import type { DB } from "./db/db.js";
@@ -68,16 +69,33 @@ export function createApp(
     });
   }
 
-  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
-    logger.error("request", "request failed", {
-      method: req.method,
-      path: req.originalUrl,
-      err,
-    });
-    res.status(500).json({
-      error: { message: "Internal server error", code: "internal_error" },
-    });
-  });
+  app.use(errorHandler);
 
   return app;
+}
+
+/** Final error handler: known client errors get their own status, the rest 500. */
+export function errorHandler(
+  err: unknown,
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+): void {
+  if (err instanceof MulterError && err.code === "LIMIT_FILE_SIZE") {
+    res.status(413).json({
+      error: {
+        message: "uploaded file is too large (max 50 MB)",
+        code: "file_too_large",
+      },
+    });
+    return;
+  }
+  logger.error("request", "request failed", {
+    method: req.method,
+    path: req.originalUrl,
+    err,
+  });
+  res.status(500).json({
+    error: { message: "Internal server error", code: "internal_error" },
+  });
 }

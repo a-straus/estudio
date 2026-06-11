@@ -13,6 +13,7 @@ export function openDb(dataDir: string): DB {
   return db;
 }
 
+/** Second-precision ISO-8601 UTC, matching the SQL DEFAULT strftime format. */
 export function nowIso(): string {
-  return new Date().toISOString();
+  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }
