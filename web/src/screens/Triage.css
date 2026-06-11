@@ -1,0 +1,143 @@
+/* Triage screen (D3 §3.5). Reading list above; the thumb zone owns the
+   sticky tally/confirm footer (D5 thumb-zone rules). Every value is a token. */
+
+.triage {
+  max-width: var(--measure-app);
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+  /* Leave room for the fixed footer so the last row is never hidden. */
+  padding-bottom: calc(var(--space-8) + var(--hit-target));
+}
+
+.triage__status {
+  color: var(--color-ink-soft);
+  padding: var(--space-5) 0;
+}
+
+.triage__header {
+  padding-block: var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--color-rule);
+  margin-bottom: var(--space-4);
+}
+
+.triage__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+
+.triage__meta {
+  margin-top: var(--space-1);
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+}
+
+.triage__group {
+  margin-bottom: var(--space-5);
+}
+
+.triage__group-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.triage__group-label {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+}
+
+/* Bulk button is a quiet tertiary; keep it compact in the header row. */
+.triage__bulk {
+  min-height: 0;
+}
+
+@media (min-width: 960px) {
+  /* bp-desktop */
+  .triage__bulk {
+    min-height: 0;
+  }
+}
+
+/* Sticky thumb-zone footer (D5): fixed, paper background, top hairline. */
+.triage__footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-paper);
+  border-top: 1px solid var(--color-rule);
+}
+
+.triage__tally {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-soft);
+}
+
+.triage__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.triage__key-hint {
+  display: none;
+  margin-left: var(--space-1);
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+}
+
+@media (min-width: 960px) {
+  /* bp-desktop: keyboard hints appear */
+  .triage__key-hint {
+    display: inline;
+  }
+}
+
+/* Dedupe resolution cards — one elevated surface per collision. */
+.triage__dedupe-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.triage__dedupe {
+  background: var(--color-surface);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-4);
+}
+
+.triage__dedupe-note {
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+.triage__dedupe-note em {
+  font-family: var(--font-study);
+}
+
+.triage__dedupe-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.triage__dedupe-actions .btn {
+  flex: 1 1 0;
+}
