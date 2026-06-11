@@ -467,6 +467,7 @@ waits.
 | `bin/integrate` | Orchestrator | Gate + merge a finished branch (refuses unverified work) |
 | `bin/abandon` | Orchestrator | Discard a branch without merging |
 | `bin/list-agents` | — | Classify every worker branch and what it needs |
+| `bin/usage` | You | Read-only token/cost report over `logs/`: per iteration, per worker run, totals, per-model rollup |
 | `bin/agent` | You | Freeform interactive Claude session in tmux |
 | `bin/_lib.sh` | — | Shared helpers (worktree paths, markers, fingerprints) |
 

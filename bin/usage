@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# usage
+# Read-only token/cost report over logs/: one row per orchestrator iteration
+# (logs/orchestrator/iter-N.json) and one per worker run
+# (logs/<branch>.<ts>.jsonl — the final stream-json line is the result event),
+# then totals and a per-model rollup.
+#
+# Measurement only — no budgets, no enforcement, no new files. Subscription
+# (OAuth) auth reports ~$0 costs, so the token columns are the real burn
+# signal there. Truncated or crashed logs are skipped with a warning on
+# stderr, never a failure.
+set -euo pipefail
+. "$(dirname "$0")/_lib.sh"
+
+root="$(repo_root)"
+[[ -n "$root" ]] || die "not inside a git repository"
+logs="$root/logs"
+if [[ ! -d "$logs" ]]; then
+    echo "No logs/ directory in $root — nothing has run yet."
+    exit 0
+fi
+
+rows="$(mktemp)" modelrows="$(mktemp)"
+trap 'rm -f "$rows" "$modelrows"' EXIT
+
+emit() {    # emit <label> <result-json> → a report row + per-model rollup rows
+    local label="$1" json="$2" line
+    line="$(jq -r '
+        select(.type == "result") |
+        [ (.modelUsage // {} | keys | if length == 0 then "?" else join(",") end),
+          (.num_turns // "?"),
+          (.usage.input_tokens // 0),
+          (.usage.output_tokens // 0),
+          (.usage.cache_read_input_tokens // 0),
+          (.usage.cache_creation_input_tokens // 0),
+          (.total_cost_usd // 0),
+          ((.duration_ms // 0) / 1000 | round)
+        ] | @tsv' <<<"$json" 2>/dev/null)" || line=""
+    if [[ -z "$line" ]]; then
+        echo "WARNING: $label: no parseable result event — truncated or crashed run? Skipped." >&2
+        return 0
+    fi
+    printf '%s\t%s\n' "$label" "$line" >> "$rows"
+    jq -r '
+        .modelUsage // {} | to_entries[] |
+        [ .key, (.value.inputTokens // 0), (.value.outputTokens // 0),
+          (.value.cacheReadInputTokens // 0), (.value.cacheCreationInputTokens // 0),
+          (.value.costUSD // 0) ] | @tsv' <<<"$json" 2>/dev/null >> "$modelrows" || true
+}
+
+while IFS= read -r f; do
+    [[ -e "$f" ]] || continue
+    emit "orch:$(basename "$f" .json)" "$(cat "$f")"
+done < <(printf '%s\n' "$logs"/orchestrator/iter-*.json | sort -V)
+
+while IFS= read -r f; do
+    [[ -e "$f" ]] || continue
+    emit "worker:$(basename "$f" .jsonl)" "$(tail -1 "$f" 2>/dev/null)"
+done < <(printf '%s\n' "$logs"/*.jsonl | sort)
+
+if [[ ! -s "$rows" ]]; then
+    echo "No parseable runs found under $logs."
+    exit 0
+fi
+
+awk -F'\t' '
+BEGIN {
+    fmt = "%-38s %-32s %6s %10s %9s %12s %13s %9s %9s\n"
+    printf fmt, "source", "model", "turns", "input", "output",
+                "cache-read", "cache-create", "cost", "duration"
+}
+{
+    printf fmt, $1, $2, $3, $4, $5, $6, $7, sprintf("%.4f", $8), $9 "s"
+    in_t += $4; out_t += $5; cr += $6; cc += $7; cost += $8; dur += $9; n++
+}
+END {
+    printf fmt, "TOTAL (" n " runs)", "", "", in_t, out_t, cr, cc,
+                sprintf("%.4f", cost), dur "s"
+}' "$rows"
+
+echo ""
+echo "=== Per-model rollup ==="
+awk -F'\t' '
+{ runs[$1]++; in_t[$1] += $2; out_t[$1] += $3; cr[$1] += $4; cc[$1] += $5; cost[$1] += $6 }
+END {
+    fmt = "%-38s %6s %10s %9s %12s %13s %9s\n"
+    printf fmt, "model", "runs", "input", "output", "cache-read", "cache-create", "cost"
+    for (m in runs)
+        printf fmt, m, runs[m], in_t[m], out_t[m], cr[m], cc[m], sprintf("%.4f", cost[m])
+}' "$modelrows"

@@ -370,6 +370,8 @@ while :; do
     turns="$(jq -r '.num_turns // "?"' "$out_json" 2>/dev/null)" || turns="?"
     session="$(jq -r '.session_id // "?"' "$out_json" 2>/dev/null)" || session="?"
     result="$(jq -r '.result // empty' "$out_json" 2>/dev/null)" || result=""
+    in_tok="$(jq -r '.usage.input_tokens // 0' "$out_json" 2>/dev/null)" || in_tok="?"
+    out_tok="$(jq -r '.usage.output_tokens // 0' "$out_json" 2>/dev/null)" || out_tok="?"
 
     guard_goal
     state_commit
@@ -388,7 +390,7 @@ while :; do
     errors=0
 
     total_cost="$(awk -v a="$total_cost" -v b="$cost" 'BEGIN{printf "%.4f", a + b}')"
-    log_line "iteration $iter done — \$$cost ($turns turns, session $session)"
+    log_line "iteration $iter done — \$$cost ($turns turns, $in_tok in / $out_tok out tokens, session $session)"
     [[ -n "$result" ]] && printf '%s\n' "$result"
 
     sync_push
