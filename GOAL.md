@@ -98,7 +98,7 @@ lets it make decisions without asking you — don't skip it.
 
 - **Stack / languages / frameworks:** *(Mandated, preferred, or "agent's choice within `<constraints>`.")*
 - **Architecture notes / patterns:** *(Anything that must — or must not — be used.)*
-- **Design contract:** *(UI products: optionally fill DESIGN.md next to this file — identity, tokens, screens, components. Left unfilled, the orchestrator drafts it in the design phase and keeps it in sync as it builds.)*
+- **Design contract:** *(UI products: optionally fill the design/ templates next to this file — identity, tokens, screens, components. Left unfilled, the orchestrator drafts it in the design phase and keeps it in sync as it builds.)*
 - **Key entities / data model:** *(Core objects and their relationships.)*
 - **Integrations & dependencies:** *(APIs, services, auth model.)*
 - **Hard constraints:** *(Budget, infra, latency, data residency, offline support.)*
