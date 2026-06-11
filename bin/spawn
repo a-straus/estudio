@@ -234,6 +234,11 @@ cat > "$wt/.worker-run.sh" <<EOF
 #!/usr/bin/env bash
 set -uo pipefail
 cd "$wt"
+# Claude Code scrubs auth tokens from child-process environments, so workers
+# load credentials themselves from the gitignored container env file.
+if [ -z "\${CLAUDE_CODE_OAUTH_TOKEN:-}\${ANTHROPIC_API_KEY:-}" ] && [ -f "$root/.devcontainer/devcontainer.env" ]; then
+    set -a; . "$root/.devcontainer/devcontainer.env"; set +a
+fi
 echo "[worker:$branch] started \$(date '+%F %T')"
 echo "[worker:$branch] log: $log"
 ${timeout_prefix}claude -p --dangerously-skip-permissions \\
