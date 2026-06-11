@@ -21,7 +21,11 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
 
-### [PENDING] Runtime Anthropic API key for the app's LLM calls
+## Answered
+
+<!-- Resolved questions are moved here by the orchestrator for record-keeping. -->
+
+### [ANSWERED] Runtime Anthropic API key for the app's LLM calls
 
 The app's own LLM layer (PDF vision extraction, definitions, quiz generation, …) needs an `ANTHROPIC_API_KEY` at runtime — separate from the worker OAuth token, which only authenticates the build agents. There is no `.env` in the repo yet. Without it, the PDF ingestion pipeline can be built and tested against a mocked provider, but the GOAL.md §15 requirement "validated against the real scans in /docs/fixtures/workbook/" cannot be exercised end-to-end.
 
@@ -35,10 +39,6 @@ Nothing is blocked in the meantime — pipeline construction proceeds with mocke
 
 **Your answer:**
 I put it there for you. Build away! You're doing great work i can't wait to see it
-
-## Answered
-
-<!-- Resolved questions are moved here by the orchestrator for record-keeping. -->
 
 ### [ANSWERED] Worker auth broken — no API credentials in the container
 

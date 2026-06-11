@@ -14,23 +14,21 @@ Done levels (from GOAL.md §15):
 
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
-- **triage-ui**: batched (~50) triage screen per design/screens/triage.md: know/learn/skip, likely-known grouping, bulk actions, undo, batch confirm materializes word rows + dedupe surfacing; fills routes/triage.ts stub + shared/src/triage-api.ts; owns /web App.tsx + screens this round (spawned: 2026-06-11 ~11:55, plain spawn, schema excerpts pasted, `--include design/INDEX.md --include design/tokens.md --include design/screens/triage.md --include design/components.md --include design/interaction.md`)
-- **srs-api-wiring**: wire /server/src/srs/ pure functions to DB + HTTP: due-queue endpoint w/ new-card promotion, grade submission writing review_log + card_state, "forgot this" manual demotion; fills routes/srs.ts stub + shared/src/srs-api.ts; server-only, no /web (spawned: 2026-06-11 ~11:55, plain spawn, schema excerpts pasted, no --include)
-- **review-01**: audit the 4 integrations (bootstrap, sm2-engine, design-foundation, pdf-ingestion-pipeline) against GOAL.md/ARCHITECTURE.md/design — token discipline, component reuse, microcopy; findings → REVIEW.md (spawned: 2026-06-11 ~11:55, `--model "$ORCH_MODEL" --effort medium --include GOAL.md --include ARCHITECTURE.md --include design`)
+- **review-01-fixes**: apply review-01 findings #2,3,4,10,11,12 — migration 002 quiz_question exactly-one CHECK (table rebuild; sole schema-affecting task in flight), Multer 413 file_too_large, nowIso ms strip, triage retry ≥44px tap target, WordEntry hero breakpoint → 640px, Button busy default "…"; owns migrations/, routes/sources.ts, app.ts error handler, db/db.ts, web components — no screens/App.tsx/jobs/llm/prompts (spawned: 2026-06-11 ~12:50, `--model "$ORCH_MODEL" --effort high --include design/tokens.md --include design/components.md`)
+- **pdf-ingestion-live-validation**: run real ingestion end-to-end on both docs/fixtures/workbook/ PDFs (key from /workspace/.env), tune prompts/pdf_extraction.md, add §6.1 {{calibration_sample}} templating (findings #7), drop ingestion-time word_id on pending rows (#1), extractJson fence fix (#14), write docs/validation-pdf-ingestion.md with per-page outcomes + llm_call cost; owns /prompts, llm/prompts.ts, jobs/pdfIngestion.ts, script + doc — no routes/migrations//web (spawned: 2026-06-11 ~12:50, plain spawn, schema excerpts pasted, no --include)
+- **review-ui**: review screen per design/screens/review.md over the merged SRS API (GET /api/decks/:id/due, POST /api/reviews, POST /api/words/:id/demote; types in shared/src/srs-api.ts): due cards, API-assigned direction, MC default + flip-card fallback, three grades, both-definition reveal, "I forgot this"; owns web/src/screens/Review.* + reviewApi.ts + App.tsx (sole owner this round) (spawned: 2026-06-11 ~12:50, plain spawn, `--include design/INDEX.md --include design/tokens.md --include design/screens/review.md --include design/components.md --include design/interaction.md`)
 
 ## Backlog
 
 <!-- Phase 1 (GOAL.md §11 order: PDF ingestion → SRS review → raw text → quizzes → grammar); thinnest slice first, riskiest part of each slice first. Format: - description [priority] -->
 
-- **pdf-ingestion-live-validation** — once ANTHROPIC_API_KEY lands in .env (QUESTIONS.md): run the real ingestion end-to-end against both docs/fixtures/workbook/ PDFs, tune prompts, verify extraction quality [Must — gates Phase 1]
-- **review-ui** — review screen per design/screens/review.md: due cards, random direction, MC default + flip-card fallback, three grades, both-definition reveal, "I forgot this"; review_log writes [Must]
 - **library-ui** — library per design/screens/library.md: CRUD, accent-insensitive search, filters, manual add with auto-fill defs, delete (history retained), forgot-this, WordDetail provenance [Must]
-- **raw-text-ingestion** — paste text → same extraction/triage pipeline, language select/auto-detect [Must]
+- **raw-text-ingestion** — paste text → same extraction/triage pipeline, language select/auto-detect; brief also carries review-01 #5 (parameterize the hardcoded `language = 'es'` dedupe lookup) and #13 (delete the demo job handler) [Must]
 - **quiz-engine-ui** — quiz config/play/results per design/screens/quiz.md: def-match MC + LLM cloze with cached explanations (generated together), deterministic grading, miss → SRS failure + due now, flag-question, quiz_attempt [Must]
-- **grammar-curriculum** — curriculum seeding prompt (/prompts, versioned) → grammar_category/grammar_topic rows; grammar home with mastery-derived practice queue per design/screens/grammar.md [Must]
+- **grammar-curriculum** — curriculum seeding prompt (/prompts, versioned) → grammar_category/grammar_topic rows; grammar home with mastery-derived practice queue per design/screens/grammar.md; brief also carries review-01 #8 (set source_page.grammar_topic_id — grammar pages link to the curriculum) [Must]
 - **grammar-lessons-quizzes** — lesson generation (explanation+examples; quiz as quiz_question rows w/ lesson_id), MC/fill-in/conjugation/free-text grading (LLM), "explain why" everywhere, mastery tracking [Must]
 - **system-page** — System page per design/screens/system.md: recent errors (error_log), job statuses, LLM spend, DB/backup status; daily backup job [Must]
-- **docs-and-demo** — README cold start (clone→run→phone via LAN/Tailscale, "Where your data lives", backup/restore exercised), TODO-LATER.md, docs/demo.md script; LLM hot-swap proof [Must — Phase 1 gate]
+- **docs-and-demo** — README cold start (clone→run→phone via LAN/Tailscale, "Where your data lives", backup/restore exercised), TODO-LATER.md, docs/demo.md script; LLM hot-swap proof; covers review-01 #9 (no app README exists yet) [Must — Phase 1 gate]
 - review-02 after ~5 more integrations (`--model "$ORCH_MODEL" --effort medium --include GOAL.md --include ARCHITECTURE.md --include design`) [process]
 - Phase 2 (lesson audio → Ask → suggestions → voice) and Phase 3 (Gutenberg/KJV, calibration, Mochi-fixture-gated) decomposed when Phase 1 gate nears [later]
 
@@ -40,6 +38,9 @@ Note: `no-design` branch = human sandbox, not a worker branch (see DECISIONS.md)
 
 <!-- Format: - **branch-name**: description (merged: YYYY-MM-DD HH:MM) [task/feature/release done] -->
 
+- **triage-ui**: triage screen end-to-end (routes/triage.ts + db/triage-queries.ts + shared/src/triage-api.ts + web Triage screen): know/learn/skip, batch confirm materializes words with confirm-time lemma dedupe surfaced for keep/merge (merged: 2026-06-11 12:41, check.sh green on main — 179 tests) [task done]
+- **srs-api-wiring**: SM-2 engine wired to DB + HTTP: GET /api/decks/:id/due with new-card promotion, POST /api/reviews writing review_log + card_state, POST /api/words/:id/demote; shared/src/srs-api.ts types (merged: 2026-06-11 12:40, check.sh green on main — 179 tests) [task done]
+- **review-01**: audit of integrations 1–4 → REVIEW.md, 14 findings (3 contract should-fixes, 3 GOAL-fidelity, 3 design, 5 nits) + extensive clean-bill verification; all findings dispositioned in DECISIONS.md 2026-06-11, REVIEW.md removed (merged: 2026-06-11 12:41) [task done]
 - **pdf-ingestion-pipeline**: upload endpoint + ingestion job: PDF stored as source, per-page vision extraction via LlmProvider layer + anthropic adapter, page classification → source_page, candidates → extraction_item; per-page retry; prompts in /prompts; mocked-provider tests (merged: 2026-06-11 11:50, check.sh green on main after npm install — 142 tests; re-spawn 1 resolved the package-lock conflict) [task done]
 
 - **design-foundation**: design/tokens.md materialized as token stylesheet + components.md base components built as composable library in /web, with tests (merged: 2026-06-11, check.sh green on main after npm install — 116 tests) [task done]
