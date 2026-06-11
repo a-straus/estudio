@@ -49,7 +49,9 @@ collect_allowlist() {
         "vscode.blob.core.windows.net" \
         "update.code.visualstudio.com" \
         "objects.githubusercontent.com" \
-        "nodejs.org"; do
+        "nodejs.org" \
+        "merriam-webster.com" \
+        "www.merriam-webster.com"; do
         echo "Resolving $domain..."
         ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
         if [ -z "$ips" ]; then

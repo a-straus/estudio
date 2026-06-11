@@ -17,6 +17,8 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 ## Answered.
 -->
 
+- what is /lesson doing right now? Is this is a later phase? I have ingested words and it still doesnt work
+
 ## Pending
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
@@ -44,7 +46,7 @@ Sequencing if you agree: you do the Phase-1 review (that [PENDING] post is comin
 Until you reply here, I'm queuing **no** design tasks, as you asked.
 
 **Your answer:**
-
+I like the identity! It's just missing the polish that most sites have like a home page, nav bar, maybe a simple footer. I like https://www.merriam-webster.com/. I'll add that to your egress list. It's a bit too cartoonish and childlike but its a good base, too. Don't change the identity based on merriam webster. To do the design work, imagine you are a designer at apple and want to make this app polished to handoff to your boss.  Take another shot at it.
 ## Answered
 
 <!-- Resolved questions are moved here by the orchestrator for record-keeping. -->
