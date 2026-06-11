@@ -3,7 +3,10 @@ import { openDb } from "./db/db.js";
 import { runMigrations } from "./db/migrate.js";
 import { logger } from "./logger.js";
 import { JobQueue } from "./jobs/queue.js";
-import { registerTextIngestionHandler } from "./jobs/handlers.js";
+import {
+  registerGrammarSeedHandler,
+  registerTextIngestionHandler,
+} from "./jobs/handlers.js";
 import { registerPdfIngestionHandler } from "./jobs/pdfIngestion.js";
 import { createAnthropicProvider } from "./llm/anthropic.js";
 import { LlmService } from "./llm/service.js";
@@ -20,6 +23,7 @@ const llm = new LlmService(db, {
 const queue = new JobQueue(db);
 registerTextIngestionHandler(queue, db, llm);
 registerPdfIngestionHandler(queue, db, llm);
+registerGrammarSeedHandler(queue, db, llm);
 const reverted = queue.recoverRunningJobs();
 if (reverted > 0)
   logger.info("reverted running jobs to queued on boot", { count: reverted });
