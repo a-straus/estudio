@@ -20,7 +20,31 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 ## Pending
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
-- The code is great and I'm excited to test it. The thing I'm wondering is that when we're done with phase one here Is the UI gonna get an update to make it look a little more professional and polished? Because it does right now kind of just look like a V0 project, which is fine, but I would like to share this with some people, and I don't think it's at that position yet. So, are you aware of that? Are you happy with the design right now and the look of the UI? Do you want to tackle that when we've done phase three? Do you want to tackle it now? I'm curious your answer. But don't begin to make any design tasks until we've both figured this out and discussed it. 
+
+### [PENDING] UI visual polish — when and how (human-initiated discussion)
+
+> The code is great and I'm excited to test it. The thing I'm wondering is that when we're done with phase one here Is the UI gonna get an update to make it look a little more professional and polished? Because it does right now kind of just look like a V0 project, which is fine, but I would like to share this with some people, and I don't think it's at that position yet. So, are you aware of that? Are you happy with the design right now and the look of the UI? Do you want to tackle that when we've done phase three? Do you want to tackle it now? I'm curious your answer. But don't begin to make any design tasks until we've both figured this out and discussed it.
+
+**Orchestrator answer:**
+
+Honest assessment: yes, I'm aware, and no, I wouldn't call the current look "done." Everything was built with strict token/component discipline against the seeded design contract, and the reviews audited *conformance* (no raw values, component reuse, microcopy) — but conformance to a functional-first contract produces exactly what you're seeing: clean, consistent, V0. The contract's tokens and components were scoped to "usable on your phone," not "shareable." So the gap you're seeing is real and it lives in design/ (tokens.md + components.md), not scattered through the code — which is the good news.
+
+My recommendation: **do the polish pass at the Phase-1 boundary — i.e., right after your upcoming Phase-1 review, before Phase 2 build starts.** Two reasons:
+
+1. **It's cheapest now.** Because every screen composes the token stylesheet and shared component library, a polish pass is mostly: upgrade tokens.md (type scale, spacing rhythm, color depth, elevation, motion) + restyle the ~15 base components, and the seven existing screens inherit it. Per-screen sweeps after that are small. Waiting until Phase 3 means Ask/Lessons/Suggestions get built on the V0 look and retrofitted later — more screens to sweep, same work plus rework.
+2. **It matches your goal.** You want to share Phase 1 with people; Phase 1 *is* the screens that need to look good.
+
+What I need from you to do it well (drop answers here or in FEEDBACK.md after you've played with the app):
+- Which screens feel worst / matter most to show people?
+- Any reference apps whose look you'd point at (e.g. Duolingo's warmth, Anki's density, Linear's restraint)? One or two anchors beat adjectives.
+- Whether the seeded identity (design/INDEX.md D0/D1 — its personality and principles) still feels right, or whether the polish pass may evolve it. Replacing it wholesale is your call, not mine; evolving within it I can do.
+
+Sequencing if you agree: you do the Phase-1 review (that [PENDING] post is coming once review-03 + docs-and-demo land) → your reactions + the answers above become the polish contract amendments → one strong-model design-polish foundation task (tokens + components) → quick per-screen sweeps → then Phase 2, built against the upgraded contract.
+
+Until you reply here, I'm queuing **no** design tasks, as you asked.
+
+**Your answer:**
+
 ## Answered
 
 <!-- Resolved questions are moved here by the orchestrator for record-keeping. -->

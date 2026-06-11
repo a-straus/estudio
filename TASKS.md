@@ -73,3 +73,5 @@ Note: `no-design` and `codex-worker-engine` branches = human-owned (sandbox / sp
 ## Blocked
 
 <!-- Format: - description — REASON — needs: what would unblock it -->
+
+- UI visual polish pass (tokens/components upgrade + per-screen sweeps) — HUMAN DISCUSSION OPEN — needs: human reply to QUESTIONS.md "[PENDING] UI visual polish — when and how"; per their instruction, no design tasks are created until answered (iteration 53)
