@@ -1,9 +1,11 @@
 import type { Express, Request, Response } from "express";
 import type {
   CardSchedulingState,
+  ClozeReviewItem,
   DemoteResponse,
   DueQueueItem,
   DueQueueResponse,
+  DueQueueWithClozeResponse,
   ReviewDirection,
   ReviewGrade,
   SubmitReviewResponse,
@@ -13,6 +15,7 @@ import {
   countPromotedToday,
   deckExists,
   getCardState,
+  getClozeReviewsForWords,
   getDistractorCandidates,
   getDueCards,
   getNewCardsPerDay,
@@ -112,7 +115,7 @@ export function registerSrsRoutes(app: Express, db: DB): void {
       };
     });
 
-    const body: DueQueueResponse = { deckId, items };
+    const body: DueQueueWithClozeResponse = { deckId, items };
 
     // A small queue can't fill 3 multiple-choice distractors by itself —
     // ship spares from the rest of the deck so the client only falls back
@@ -126,6 +129,16 @@ export function registerSrsRoutes(app: Express, db: DB): void {
         DISTRACTOR_POOL_SIZE,
       );
     }
+
+    // review-02 #8: where a due word has a cached unflagged cloze question,
+    // offer it as an optional cloze-rendered review. Additive — words without
+    // one keep the existing MC/flip behavior.
+    const clozeReviews: ClozeReviewItem[] = getClozeReviewsForWords(
+      db,
+      items.map((i) => i.wordId),
+    );
+    if (clozeReviews.length > 0) body.clozeReviews = clozeReviews;
+
     res.json(body);
   });
 
@@ -135,12 +148,18 @@ export function registerSrsRoutes(app: Express, db: DB): void {
     const wordId = body.wordId;
     const direction = body.direction;
     const grade = body.grade;
+    // review-02 #8: a review rendered from a cached cloze quiz_question logs
+    // direction 'cloze' and carries the quiz_question_id.
+    const quizQuestionId = Number.isInteger(body.quizQuestionId)
+      ? (body.quizQuestionId as number)
+      : null;
+    const clozeReview = quizQuestionId !== null && direction === "cloze";
 
     if (!Number.isInteger(wordId)) {
       error(res, 400, "wordId must be an integer", "invalid_word_id");
       return;
     }
-    if (!DIRECTIONS.includes(direction)) {
+    if (!clozeReview && !DIRECTIONS.includes(direction)) {
       error(res, 400, "direction must be 'w2d' or 'd2w'", "invalid_direction");
       return;
     }
@@ -166,8 +185,9 @@ export function registerSrsRoutes(app: Express, db: DB): void {
     persistReviewOutcome(db, {
       nextState: result.nextState,
       logEntry: result.logEntry,
-      direction: direction as ReviewDirection,
+      direction: clozeReview ? "cloze" : (direction as ReviewDirection),
       newWordStatus: result.newWordStatus,
+      quizQuestionId: clozeReview ? quizQuestionId : null,
     });
 
     const response: SubmitReviewResponse = {

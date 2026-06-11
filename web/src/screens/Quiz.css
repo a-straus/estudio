@@ -1,0 +1,155 @@
+/* Quiz screen (D3 §3.3): configure → play → results. The Play region reuses
+   Review's session bar / card-region / options / actions classes; only the
+   Setup and Results regions are styled here. Every value names a D2 token. */
+
+.quiz {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 560px;
+  margin-inline: auto;
+  padding: var(--space-4);
+}
+
+.quiz__title {
+  font-family: var(--font-app);
+  font-size: var(--text-xl);
+  color: var(--color-ink);
+  margin-bottom: var(--space-5);
+}
+
+/* ---- Setup ---- */
+.quiz__setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 480px;
+}
+
+/* d2w question cue: a definition the app is asking about — app voice. */
+.quiz__cue {
+  font-family: var(--font-app);
+  font-size: var(--text-lg);
+  line-height: var(--leading-snug);
+  color: var(--color-ink);
+}
+
+/* ---- Play region needs a little breathing room under the fixed actions. */
+.quiz--play {
+  padding-bottom: calc(var(--space-8) + 2 * var(--hit-target));
+}
+
+/* ---- Results ---- */
+.quiz--results {
+  gap: var(--space-5);
+}
+
+.quiz__score {
+  font-family: var(--font-app);
+  font-size: var(--text-2xl);
+  color: var(--color-ink);
+}
+
+.quiz__results-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.quiz-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-rule);
+}
+
+/* Incorrect rows tint the row background only — no rule-left. */
+.quiz-result[data-correct="no"] {
+  background: var(--color-incorrect-wash);
+}
+
+.quiz-result__entry {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.quiz-result__mark {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+}
+
+.quiz-result[data-correct="yes"] .quiz-result__mark {
+  color: var(--color-correct);
+}
+
+.quiz-result[data-correct="no"] .quiz-result__mark {
+  color: var(--color-incorrect);
+}
+
+.quiz-result__answers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-ink-soft);
+}
+
+.quiz-result__correct {
+  color: var(--color-ink);
+}
+
+.quiz-result__explain-toggle {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: var(--space-1) 0;
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.quiz-result__explain-toggle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.quiz-result__explanation {
+  font-family: var(--font-study);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--color-ink);
+}
+
+.quiz__results-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Desktop (bp-desktop 960px): wider results column; answers sit in a right
+   column beside the entry instead of stacking. */
+@media (min-width: 960px) /* bp-desktop */ {
+  .quiz--results {
+    max-width: 680px;
+  }
+
+  .quiz-result {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    gap: var(--space-4);
+  }
+
+  .quiz-result__answers {
+    margin-top: 0;
+  }
+}

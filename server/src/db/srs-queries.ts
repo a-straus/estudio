@@ -235,13 +235,16 @@ export function persistReviewOutcome(
   params: {
     nextState: CardState;
     logEntry: ReviewLogFields;
-    direction: ReviewDirection;
+    /** `cloze` is valid only for reviews/misses rendered from a quiz_question. */
+    direction: ReviewDirection | "cloze";
     newWordStatus: SrsWordStatus;
     /**
      * Insert the card_state row instead of updating it — for demoting a word
      * that never entered review (e.g. triaged 'know', so it has no card yet).
      */
     createCardState?: boolean;
+    /** Set when the row was rendered from a cloze quiz_question (#8 / quiz). */
+    quizQuestionId?: number | null;
   },
 ): void {
   const now = nowIso();
@@ -258,8 +261,8 @@ export function persistReviewOutcome(
     "UPDATE word SET status = ?, updated_at = ? WHERE id = ?",
   );
   const insertLog = db.prepare(
-    `INSERT INTO review_log (word_id, ts, direction, grade, ease_after, interval_after, origin)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO review_log (word_id, ts, direction, grade, ease_after, interval_after, origin, quiz_question_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const { nextState, logEntry, direction, newWordStatus } = params;
   const tx = db.transaction(() => {
@@ -292,9 +295,81 @@ export function persistReviewOutcome(
       logEntry.ease_after,
       logEntry.interval_after,
       logEntry.origin,
+      params.quizQuestionId ?? null,
     );
   });
   tx();
+}
+
+export interface ClozeReviewRow {
+  wordId: number;
+  questionId: number;
+  stemBefore: string;
+  stemAfter: string;
+  options: string[];
+  correct: string;
+  explanation: string;
+}
+
+/**
+ * For the given due words, the newest unflagged cloze quiz_question per word
+ * (review-02 #8). Returns nothing for words with no cached cloze question, so
+ * the caller leaves the existing MC/flip rendering untouched (additive).
+ */
+export function getClozeReviewsForWords(
+  db: DB,
+  wordIds: number[],
+): ClozeReviewRow[] {
+  if (wordIds.length === 0) return [];
+  const placeholders = wordIds.map(() => "?").join(", ");
+  const rows = db
+    .prepare(
+      `SELECT word_id, id, payload, explanation
+       FROM quiz_question
+       WHERE style = 'cloze' AND flagged = 0 AND word_id IN (${placeholders})
+       ORDER BY id DESC`,
+    )
+    .all(...wordIds) as {
+    word_id: number;
+    id: number;
+    payload: string;
+    explanation: string;
+  }[];
+
+  const seen = new Set<number>();
+  const out: ClozeReviewRow[] = [];
+  for (const r of rows) {
+    if (seen.has(r.word_id)) continue; // keep only the newest per word
+    let parsed: {
+      stemBefore?: string;
+      stemAfter?: string;
+      options?: string[];
+      correct?: string;
+    };
+    try {
+      parsed = JSON.parse(r.payload);
+    } catch {
+      continue; // a malformed payload is simply not mixed in
+    }
+    if (
+      typeof parsed.correct !== "string" ||
+      !Array.isArray(parsed.options) ||
+      parsed.options.length === 0
+    ) {
+      continue;
+    }
+    seen.add(r.word_id);
+    out.push({
+      wordId: r.word_id,
+      questionId: r.id,
+      stemBefore: parsed.stemBefore ?? "",
+      stemAfter: parsed.stemAfter ?? "",
+      options: parsed.options,
+      correct: parsed.correct,
+      explanation: r.explanation,
+    });
+  }
+  return out;
 }
 
 function toCardState(r: CardStateRowDb): CardState {

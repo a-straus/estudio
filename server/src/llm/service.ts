@@ -13,7 +13,8 @@ export type LlmTask =
   | "page_classification"
   | "text_extraction"
   | "word_definition"
-  | "grammar_curriculum";
+  | "grammar_curriculum"
+  | "quiz_cloze";
 
 export interface TaskConfig {
   provider: string;
@@ -26,6 +27,7 @@ const TASK_DEFAULTS: Record<LlmTask, TaskConfig> = {
   text_extraction: { provider: "anthropic", model: "claude-fable-5" },
   word_definition: { provider: "anthropic", model: "claude-fable-5" },
   grammar_curriculum: { provider: "anthropic", model: "claude-fable-5" },
+  quiz_cloze: { provider: "anthropic", model: "claude-fable-5" },
 };
 
 const DEFAULT_MAX_ATTEMPTS = 3;
@@ -86,8 +88,16 @@ export class LlmService {
     };
   }
 
-  complete(task: LlmTask): Promise<string> {
-    return this.run(task);
+  /**
+   * `substitutions` fills `{{placeholder}}` slots in the task's prompt template
+   * (e.g. the target word for quiz_cloze). The recorded prompt_version still
+   * hashes the raw template, not the filled text.
+   */
+  complete(
+    task: LlmTask,
+    substitutions?: Record<string, string>,
+  ): Promise<string> {
+    return this.run(task, undefined, substitutions);
   }
 
   /**
