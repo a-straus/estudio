@@ -221,23 +221,22 @@ describe("runPdfIngestion", () => {
     expect(items.filter((i) => i.batch_no === 2)).toHaveLength(10);
   });
 
-  it("flags dedupe hits by normalized lemma without dropping the candidate", async () => {
-    const existingWordId = Number(
-      db
-        .prepare(
-          `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language, status, deck_id)
-           VALUES ('soñar', ?, 'soñar', ?, 'es', 'known', 1)`,
-        )
-        .run(normalize("soñar"), normalize("soñar")).lastInsertRowid,
-    );
+  it("never sets word_id at ingestion, even when a matching word exists", async () => {
+    // word_id is contractually set only when a learn/know decision materializes
+    // a word row at batch confirm; confirm-time dedupe (triage-queries.ts)
+    // recomputes lemma matches itself, so ingestion leaves word_id null and
+    // still surfaces every candidate.
+    db.prepare(
+      `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language, status, deck_id)
+       VALUES ('soñar', ?, 'soñar', ?, 'es', 'known', 1)`,
+    ).run(normalize("soñar"), normalize("soñar"));
     const sourceId = makeSource(PARAGRAPH_PDF, 1);
     const { llm } = makeLlm({
       extract: () =>
         JSON.stringify({
           words: [
-            word("soñaba", { lemma: "Soñar" }), // accent/case-insensitive lemma match
+            word("soñaba", { lemma: "Soñar" }), // would have matched the existing word
             word("madrugar"), // no existing word
-            word("soñar despierto", { lemma: null }), // no lemma: falls back to term
           ],
         }),
     });
@@ -245,14 +244,57 @@ describe("runPdfIngestion", () => {
     await runPdfIngestion(db, llm, { sourceId });
 
     const items = itemRows(sourceId);
-    expect(items).toHaveLength(3);
-    expect(items[0]).toMatchObject({
-      term: "soñaba",
-      word_id: existingWordId,
-      decision: "pending",
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({ term: "soñaba", decision: "pending" });
+    expect(items.every((i) => i.word_id === null)).toBe(true);
+  });
+
+  it("fills the calibration sample from known/mature words at the call site", async () => {
+    db.prepare(
+      `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language, status, deck_id)
+       VALUES ('madrugar', ?, 'madrugar', ?, 'es', 'known', 1)`,
+    ).run(normalize("madrugar"), normalize("madrugar"));
+    db.prepare(
+      `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language, status, deck_id)
+       VALUES ('soñar', ?, 'soñar', ?, 'es', 'mature', 1)`,
+    ).run(normalize("soñar"), normalize("soñar"));
+    const sourceId = makeSource(PARAGRAPH_PDF, 1);
+    const { llm, calls } = makeLlm({});
+
+    await runPdfIngestion(db, llm, { sourceId });
+
+    const extract = calls.find((c) => c.task === "extract")!;
+    expect(extract.params.prompt).toContain("madrugar, soñar");
+    expect(extract.params.prompt).not.toContain("{{calibration_sample}}");
+  });
+
+  it("renders the calibration placeholder cleanly when no known words exist", async () => {
+    const sourceId = makeSource(PARAGRAPH_PDF, 1);
+    const { llm, calls } = makeLlm({});
+
+    await runPdfIngestion(db, llm, { sourceId });
+
+    const extract = calls.find((c) => c.task === "extract")!;
+    expect(extract.params.prompt).not.toContain("{{calibration_sample}}");
+    expect(extract.params.prompt).toContain("No known or mastered words");
+  });
+
+  it("preserves backticks inside JSON values, stripping only outer fences", async () => {
+    const sourceId = makeSource(PARAGRAPH_PDF, 1);
+    const { llm } = makeLlm({
+      extract: () =>
+        "```json\n" +
+        JSON.stringify({
+          words: [word("código", { example: "Escribe `código` aquí." })],
+        }) +
+        "\n```",
     });
-    expect(items[1]!.word_id).toBeNull();
-    expect(items[2]!.word_id).toBeNull();
+
+    await runPdfIngestion(db, llm, { sourceId });
+
+    const items = itemRows(sourceId);
+    expect(items).toHaveLength(1);
+    expect(items[0]!.example).toBe("Escribe `código` aquí.");
   });
 
   it("records a per-page failure, finishes other pages, and throws", async () => {

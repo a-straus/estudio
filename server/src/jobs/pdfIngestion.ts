@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import { normalize } from "@estudio/shared";
 import { nowIso, type DB } from "../db/db.js";
 import { logger } from "../logger.js";
 import type { LlmService } from "../llm/service.js";
@@ -148,7 +147,9 @@ async function processPage(
 
   if (kind === "vocab") {
     const words = parseExtraction(
-      await llm.vision("pdf_extraction", attachments),
+      await llm.vision("pdf_extraction", attachments, {
+        calibration_sample: buildCalibrationSample(db),
+      }),
     );
     insertExtractionItems(db, sourceId, words);
   }
@@ -159,13 +160,41 @@ async function processPage(
   ).run(nowIso(), page.id);
 }
 
-/** Tolerate markdown fences / surrounding prose around the model's JSON. */
+/**
+ * Tolerate a markdown code fence / surrounding prose around the model's JSON.
+ * Strip only a leading/trailing fence — never backticks elsewhere, which could
+ * appear legitimately inside a JSON string value.
+ */
 function extractJson(text: string): unknown {
-  const trimmed = text.replace(/```(?:json)?/g, "").trim();
+  const trimmed = text
+    .trim()
+    .replace(/^```(?:json)?\s*/, "")
+    .replace(/\s*```$/, "")
+    .trim();
   const start = trimmed.search(/[{[]/);
   if (start === -1)
     throw new Error(`no JSON in LLM response: ${text.slice(0, 200)}`);
   return JSON.parse(trimmed.slice(start));
+}
+
+/**
+ * GOAL: every classification batch includes a sample of the owner's known and
+ * mastered words so the model can calibrate `likely_known`. Up to ~20 es words
+ * with status 'known' or 'mature'. Empty today (no such words yet) — renders a
+ * clean fallback instruction so the prompt stays coherent.
+ */
+function buildCalibrationSample(db: DB): string {
+  const rows = db
+    .prepare(
+      `SELECT term, lemma FROM word
+        WHERE language = 'es' AND status IN ('known', 'mature')
+        ORDER BY id LIMIT 20`,
+    )
+    .all() as { term: string; lemma: string | null }[];
+  if (rows.length === 0) {
+    return "(No known or mastered words recorded yet — estimate likely_known from typical B2 learner knowledge.)";
+  }
+  return rows.map((r) => r.lemma ?? r.term).join(", ");
 }
 
 function parseClassification(text: string): "vocab" | "grammar" {
@@ -203,9 +232,10 @@ function parseExtraction(text: string): CandidateWord[] {
 
 /**
  * Write candidates as pending extraction_item rows, batch_no grouping ~50
- * per source. Dedupe is a flag, never a drop: a normalized-lemma match
- * against existing word rows sets word_id on the candidate so triage can
- * surface "you already have this word" — decision stays pending.
+ * per source. word_id stays null at ingestion: per the data-model contract it
+ * is set only when a learn/know decision materializes a word row at batch
+ * confirm. Confirm-time dedupe (db/triage-queries.ts) recomputes lemma matches
+ * itself, so duplicates are still surfaced there — nothing is dropped here.
  */
 function insertExtractionItems(
   db: DB,
@@ -215,23 +245,17 @@ function insertExtractionItems(
   const { c: existing } = db
     .prepare("SELECT COUNT(*) AS c FROM extraction_item WHERE source_id = ?")
     .get(sourceId) as { c: number };
-  const findWord = db.prepare(
-    "SELECT id FROM word WHERE lemma_normalized = ? AND language = 'es'",
-  );
   const insert = db.prepare(
     `INSERT INTO extraction_item
        (source_id, term, lemma, part_of_speech, definition_es, definition_en,
         example, level, likely_known, batch_no, decision, word_id,
         created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?, ?)`,
   );
   const now = nowIso();
   db.transaction(() => {
     words.forEach((w, i) => {
       const batchNo = Math.floor((existing + i) / BATCH_SIZE) + 1;
-      const match = findWord.get(normalize(w.lemma ?? w.term)) as
-        | { id: number }
-        | undefined;
       insert.run(
         sourceId,
         w.term,
@@ -243,7 +267,6 @@ function insertExtractionItems(
         w.level,
         w.likelyKnown,
         batchNo,
-        match?.id ?? null,
         now,
         now,
       );
