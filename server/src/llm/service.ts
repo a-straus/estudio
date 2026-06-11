@@ -71,7 +71,14 @@ export class LlmService {
     const row = this.db
       .prepare("SELECT value FROM setting WHERE key = ?")
       .get(`llm.${task}`) as { value: string } | undefined;
-    const override = row ? (JSON.parse(row.value) as Partial<TaskConfig>) : {};
+    let override: Partial<TaskConfig> = {};
+    if (row) {
+      try {
+        override = JSON.parse(row.value) as Partial<TaskConfig>;
+      } catch {
+        // unparseable setting → fall back to env/default config
+      }
+    }
     return {
       provider:
         override.provider ?? this.env[`LLM_${envKey}_PROVIDER`] ?? def.provider,

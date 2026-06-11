@@ -164,8 +164,9 @@ export function setDecision(
 }
 
 /**
- * Apply a decision to every still-pending (unconfirmed) item of a batch that
- * falls in the given likely-known group. Returns the affected items.
+ * Apply a decision to every still-undecided (decision 'pending') item of a
+ * batch that falls in the given likely-known group. Items the user already
+ * decided individually are never overridden. Returns the affected items.
  */
 export function bulkDecision(
   db: DB,
@@ -182,7 +183,7 @@ export function bulkDecision(
   const affected: ExtractionItemView[] = [];
   db.transaction(() => {
     for (const it of all) {
-      if (it.decidedAt !== null) continue; // never re-decide a confirmed item
+      if (it.decision !== "pending") continue; // bulk never overrides a decision
       if (!inGroup(it.likelyKnown, group)) continue;
       update.run(decision, now, it.id);
       affected.push({ ...it, decision });
@@ -208,6 +209,30 @@ function findExistingWord(
       "SELECT id, term, definition_en AS definitionEn, status FROM word WHERE lemma_normalized = ? AND language = ? ORDER BY id LIMIT 1",
     )
     .get(lemmaNormalized, LANGUAGE) as
+    | { id: number; term: string; definitionEn: string | null; status: string }
+    | undefined;
+  return row ?? null;
+}
+
+/**
+ * Exact (term, language) lookup, mirroring the UNIQUE(term, language)
+ * constraint — catches homographs the lemma lookup misses (same term,
+ * different lemma).
+ */
+function findWordByTerm(
+  db: DB,
+  term: string,
+): {
+  id: number;
+  term: string;
+  definitionEn: string | null;
+  status: string;
+} | null {
+  const row = db
+    .prepare(
+      "SELECT id, term, definition_en AS definitionEn, status FROM word WHERE term = ? AND language = ? ORDER BY id LIMIT 1",
+    )
+    .get(term, LANGUAGE) as
     | { id: number; term: string; definitionEn: string | null; status: string }
     | undefined;
   return row ?? null;
@@ -270,6 +295,14 @@ function materializeWord(
  * learn/know decision that does NOT collide with an existing word, record
  * decided_at on skips, and leave collisions unresolved — returned as
  * dedupeHits for a human keep/merge decision. Pending items are left alone.
+ *
+ * Collisions are checked item by item INSIDE the transaction, against both
+ * lemma_normalized and the exact (term, language) key. That way a duplicate
+ * within the batch itself (the same word extracted on two pages) collides
+ * with the word just materialized for its first occurrence and surfaces as a
+ * dedupe hit, and a homograph (same term, different lemma) is caught before
+ * it can violate UNIQUE(term, language). Duplicates never 500 and never roll
+ * back the rest of the batch.
  */
 export function confirmBatch(
   db: DB,
@@ -288,41 +321,28 @@ export function confirmBatch(
     skipped: 0,
     dedupeHits: [],
   };
-
-  // Collisions are detected before the transaction (read-only) and excluded
-  // from materialization so a human resolves each one explicitly.
   const hits: DedupeHit[] = [];
-  const toMaterialize: { item: ExtractionItemView; status: "new" | "known" }[] =
-    [];
-  const toSkip: ExtractionItemView[] = [];
-  for (const item of items) {
-    if (item.decision === "skip") {
-      toSkip.push(item);
-      continue;
-    }
-    const existing = findExistingWord(db, lemmaKey(item));
-    if (existing) {
-      hits.push({ item, existingWord: existing });
-      continue;
-    }
-    toMaterialize.push({
-      item,
-      status: item.decision === "know" ? "known" : "new",
-    });
-  }
 
   db.transaction(() => {
-    for (const { item, status } of toMaterialize) {
+    for (const item of items) {
+      if (item.decision === "skip") {
+        db.prepare(
+          "UPDATE extraction_item SET decided_at = ?, updated_at = ? WHERE id = ?",
+        ).run(now, now, item.id);
+        response.skipped += 1;
+        continue;
+      }
+      const existing =
+        findExistingWord(db, lemmaKey(item)) ?? findWordByTerm(db, item.term);
+      if (existing) {
+        hits.push({ item, existingWord: existing });
+        continue;
+      }
+      const status = item.decision === "know" ? "known" : "new";
       materializeWord(db, item, status, deckId, now);
       response.materialized += 1;
       if (status === "known") response.known += 1;
       else response.learn += 1;
-    }
-    for (const item of toSkip) {
-      db.prepare(
-        "UPDATE extraction_item SET decided_at = ?, updated_at = ? WHERE id = ?",
-      ).run(now, now, item.id);
-      response.skipped += 1;
     }
   })();
 
@@ -350,7 +370,10 @@ export function resolveDedupe(
   if (item.decidedAt !== null) return "already_confirmed";
   if (item.decision !== "know" && item.decision !== "learn")
     return "not_dedupe";
-  const existing = findExistingWord(db, lemmaKey(item));
+  // Same lookup order as confirmBatch: lemma match first, then exact term
+  // (the homograph case, where only the term collides).
+  const existing =
+    findExistingWord(db, lemmaKey(item)) ?? findWordByTerm(db, item.term);
   if (!existing) return "not_dedupe";
 
   const now = nowIso();

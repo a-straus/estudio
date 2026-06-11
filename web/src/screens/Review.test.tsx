@@ -8,16 +8,14 @@ vi.mock("./reviewApi", () => ({
   ApiError: class extends Error {},
   fetchDueQueue: vi.fn(),
   submitReview: vi.fn(),
-  demoteWord: vi.fn(),
 }));
 
-import { Review } from "./Review";
+import { buildChoiceOptions, Review } from "./Review";
 import * as api from "./reviewApi";
 
 const mockApi = api as unknown as {
   fetchDueQueue: ReturnType<typeof vi.fn>;
   submitReview: ReturnType<typeof vi.fn>;
-  demoteWord: ReturnType<typeof vi.fn>;
 };
 
 function due(
@@ -62,7 +60,6 @@ const scheduled = {
 beforeEach(() => {
   vi.clearAllMocks();
   mockApi.submitReview.mockResolvedValue(scheduled);
-  mockApi.demoteWord.mockResolvedValue(scheduled);
 });
 
 describe("Review screen", () => {
@@ -130,16 +127,42 @@ describe("Review screen", () => {
     );
   });
 
-  it("calls demote when the user taps 'I forgot this'", async () => {
+  it("offers no 'I forgot this' action — demotion lives in Library, not here", async () => {
     mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
     render(<Review deckId={1} />);
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "I forgot this" }),
-    );
+    await screen.findByText("arpón");
+    expect(screen.queryByRole("button", { name: "I forgot this" })).toBeNull();
+    // The single quiet pre-answer action is "Don't know".
+    expect(screen.getByRole("button", { name: "Don’t know" })).toBeTruthy();
+  });
 
-    await waitFor(() => expect(mockApi.demoteWord).toHaveBeenCalledWith(1));
-    expect(await screen.findByText("2 of 4")).toBeTruthy();
+  it("uses deck distractors to build options when the queue is small", async () => {
+    mockApi.fetchDueQueue.mockResolvedValue({
+      ...queue([
+        due({ wordId: 1, term: "arpón" }),
+        due({ wordId: 2, term: "barco" }),
+      ]),
+      distractors: [
+        { wordId: 11, term: "casa", definitionEn: "meaning of casa" },
+        { wordId: 12, term: "dato", definitionEn: "meaning of dato" },
+      ],
+    });
+    render(<Review deckId={1} />);
+
+    // Multiple choice, not flip: 1 queue distractor + 2 deck distractors.
+    fireEvent.click(await screen.findByText("meaning of arpón"));
+    expect(screen.getByText("meaning of casa")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Flip to check" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
+
+    await waitFor(() =>
+      expect(mockApi.submitReview).toHaveBeenCalledWith({
+        wordId: 1,
+        direction: "w2d",
+        grade: "good",
+      }),
+    );
   });
 
   it("shows the empty state when nothing is due", async () => {
@@ -169,5 +192,47 @@ describe("Review screen", () => {
     render(<Review deckId={1} />);
 
     expect(await screen.findByText(/Couldn't load your decks/)).toBeTruthy();
+  });
+});
+
+describe("buildChoiceOptions", () => {
+  const cards = fourCardQueue().items;
+
+  it("shuffles the correct option's slot instead of pinning it per card", () => {
+    const card = cards[0];
+    // Two rng streams that produce different permutations.
+    const low = buildChoiceOptions(card, cards, "w2d", [], () => 0)!;
+    const high = buildChoiceOptions(card, cards, "w2d", [], () => 0.999)!;
+
+    for (const set of [low, high]) {
+      expect(set.options).toHaveLength(4);
+      expect(set.options.filter((o) => o === "meaning of arpón")).toHaveLength(
+        1,
+      );
+      expect(set.options[set.correctIndex]).toBe("meaning of arpón");
+    }
+    expect(low.correctIndex).not.toBe(high.correctIndex);
+  });
+
+  it("pads with deck distractors and only returns null when both run dry", () => {
+    const small = cards.slice(0, 2);
+    const distractors = [
+      { wordId: 11, term: "casa", definitionEn: "meaning of casa" },
+      { wordId: 12, term: "dato", definitionEn: "meaning of dato" },
+    ];
+    const set = buildChoiceOptions(
+      small[0],
+      small,
+      "w2d",
+      distractors,
+      () => 0,
+    );
+    expect(set).not.toBeNull();
+    expect(set!.options).toContain("meaning of casa");
+
+    // Queue of 2 with a single distractor → only 2 distractors → flip.
+    expect(
+      buildChoiceOptions(small[0], small, "w2d", distractors.slice(0, 1)),
+    ).toBeNull();
   });
 });

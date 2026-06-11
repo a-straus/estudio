@@ -196,6 +196,28 @@ describe("POST /api/sources/:id/extraction-items/bulk-decision", () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("invalid_group");
   });
+
+  it("never overrides decisions the user already made by hand", async () => {
+    const skipped = seedItem(sourceId, { term: "uno", likelyKnown: 0.1 });
+    const known = seedItem(sourceId, { term: "dos", likelyKnown: 0.1 });
+    seedItem(sourceId, { term: "tres", likelyKnown: 0.1 }); // still pending
+    await request(app)
+      .patch(`/api/extraction-items/${skipped}`)
+      .send({ decision: "skip" });
+    await request(app)
+      .patch(`/api/extraction-items/${known}`)
+      .send({ decision: "know" });
+
+    const res = await request(app)
+      .post(`/api/sources/${sourceId}/extraction-items/bulk-decision`)
+      .send({ batchNo: 1, group: "probably_new", decision: "learn" });
+    expect(res.status).toBe(200);
+    // Only the still-pending item is affected.
+    expect(res.body.items.map((i: { term: string }) => i.term)).toEqual([
+      "tres",
+    ]);
+    expect(res.body.tally).toEqual({ know: 1, learn: 1, skip: 1, pending: 0 });
+  });
 });
 
 describe("POST /api/sources/:id/extraction-items/confirm", () => {
@@ -303,6 +325,78 @@ describe("POST /api/sources/:id/extraction-items/confirm", () => {
     expect(db.prepare("SELECT COUNT(*) AS c FROM word").get()).toEqual({
       c: 1,
     });
+  });
+
+  it("surfaces within-batch duplicates as dedupe hits and confirms the rest", async () => {
+    // The same word extracted on two pages → two items in one batch.
+    const first = seedItem(sourceId, { term: "arpón", lemma: "arpón" });
+    const second = seedItem(sourceId, { term: "arpón", lemma: "arpón" });
+    const other = seedItem(sourceId, { term: "barco" });
+    for (const id of [first, second, other]) {
+      await request(app)
+        .patch(`/api/extraction-items/${id}`)
+        .send({ decision: "learn" });
+    }
+
+    const res = await request(app)
+      .post(`/api/sources/${sourceId}/extraction-items/confirm`)
+      .send({ batchNo: 1 });
+    expect(res.status).toBe(200); // never a 500 for duplicates
+    expect(res.body.materialized).toBe(2); // first arpón + barco
+    expect(res.body.dedupeHits).toHaveLength(1);
+    expect(res.body.dedupeHits[0].item.id).toBe(second);
+    // The hit points at the word the first occurrence just materialized.
+    expect(res.body.dedupeHits[0].existingWord.term).toBe("arpón");
+
+    const words = db.prepare("SELECT term FROM word ORDER BY id").all() as {
+      term: string;
+    }[];
+    expect(words.map((w) => w.term)).toEqual(["arpón", "barco"]);
+    // The duplicate stays unconfirmed for a human keep/merge decision.
+    const dup = db
+      .prepare("SELECT decided_at FROM extraction_item WHERE id = ?")
+      .get(second) as { decided_at: string | null };
+    expect(dup.decided_at).toBeNull();
+  });
+
+  it("surfaces homographs (same term, different lemma) as dedupe hits", async () => {
+    // Existing word 'como' (lemma 'como'); the candidate 'como' has lemma
+    // 'comer' — missed by a lemma-only check, caught by the exact-term check.
+    const now = nowIso();
+    db.prepare(
+      `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language, definition_en, status, deck_id, created_at, updated_at)
+       VALUES ('como', 'como', 'como', 'como', 'es', 'like, as', 'learning', 1, ?, ?)`,
+    ).run(now, now);
+
+    const homograph = seedItem(sourceId, { term: "como", lemma: "comer" });
+    const other = seedItem(sourceId, { term: "barco" });
+    for (const id of [homograph, other]) {
+      await request(app)
+        .patch(`/api/extraction-items/${id}`)
+        .send({ decision: "learn" });
+    }
+
+    const res = await request(app)
+      .post(`/api/sources/${sourceId}/extraction-items/confirm`)
+      .send({ batchNo: 1 });
+    expect(res.status).toBe(200); // never a 500
+    expect(res.body.materialized).toBe(1); // barco confirms
+    expect(res.body.dedupeHits).toHaveLength(1);
+    expect(res.body.dedupeHits[0].item.id).toBe(homograph);
+    expect(res.body.dedupeHits[0].existingWord.term).toBe("como");
+
+    // The homograph hit is resolvable: merge links it to the existing word.
+    const merge = await request(app)
+      .post(`/api/extraction-items/${homograph}/resolve-dedupe`)
+      .send({ resolution: "merge" });
+    expect(merge.status).toBe(200);
+    expect(merge.body.wordId).toBe(
+      (
+        db.prepare("SELECT id FROM word WHERE term = 'como'").get() as {
+          id: number;
+        }
+      ).id,
+    );
   });
 });
 

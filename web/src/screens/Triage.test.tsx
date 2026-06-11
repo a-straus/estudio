@@ -191,6 +191,80 @@ describe("Triage screen", () => {
     );
   });
 
+  it("labels the confirm button with the learn count only", async () => {
+    mockApi.fetchBatch.mockResolvedValue(
+      batch([
+        item({ id: 1, term: "arpón", decision: "learn" }),
+        item({ id: 2, term: "barco", decision: "know" }),
+        item({ id: 3, term: "scud", decision: "skip" }),
+      ]),
+    );
+    render(<Triage sourceId={1} />);
+
+    // 1 learn → "Keep 1 word", not 2 (know is archived, not kept).
+    expect(
+      await screen.findByRole("button", { name: /Keep 1 word/ }),
+    ).toBeTruthy();
+  });
+
+  it("scopes the bulk button count to still-undecided items", async () => {
+    mockApi.fetchBatch.mockResolvedValue(
+      batch([
+        item({ id: 1, term: "arpón", likelyKnown: 0.1 }),
+        item({ id: 2, term: "barco", likelyKnown: 0.1, decision: "skip" }),
+        item({ id: 3, term: "casa", likelyKnown: 0.1, decision: "know" }),
+      ]),
+    );
+    render(<Triage sourceId={1} />);
+
+    // 3 in the group, but 2 are already decided by hand → "Learn all 1".
+    expect(await screen.findByText(/PROBABLY NEW · 3/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Learn all 1/ })).toBeTruthy();
+  });
+
+  it("folds resolved dedupe hits into the kept-words summary", async () => {
+    mockApi.fetchBatch.mockResolvedValue(
+      batch([item({ id: 1, term: "arpón", decision: "learn" })]),
+    );
+    mockApi.confirmBatch.mockResolvedValue({
+      materialized: 0,
+      known: 0,
+      learn: 0,
+      skipped: 0,
+      dedupeHits: [
+        {
+          item: item({ id: 1, term: "arpón", decision: "learn" }),
+          existingWord: {
+            id: 9,
+            term: "arpon",
+            definitionEn: "harpoon",
+            status: "learning",
+          },
+        },
+      ],
+    } satisfies ConfirmResponse);
+    mockApi.resolveDedupe.mockResolvedValue(
+      item({
+        id: 1,
+        term: "arpón",
+        decision: "learn",
+        decidedAt: "now",
+        wordId: 10,
+      }),
+    );
+
+    render(<Triage sourceId={1} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Keep 1 word/ }));
+
+    expect(await screen.findByText(/Already in your library/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Keep both" }));
+
+    // The post-resolution summary counts the kept word, not the stale 0.
+    expect(
+      await screen.findByText(/Kept 1 word · 0 known archived · 0 skipped/),
+    ).toBeTruthy();
+  });
+
   it("shows the empty state when there is nothing to sort", async () => {
     mockApi.fetchBatch.mockResolvedValue({
       source: { id: 1, title: "Moby-Dick" },

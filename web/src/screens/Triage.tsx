@@ -167,8 +167,9 @@ export function Triage({ sourceId }: TriageProps) {
 
   const bulk = useCallback(
     async (group: TriageGroup, decision: TriageDecision) => {
+      // Only still-undecided items — bulk never overrides a hand decision.
       const affected = items.filter(
-        (it) => it.decidedAt === null && groupOf(it) === group,
+        (it) => it.decision === "pending" && groupOf(it) === group,
       );
       if (affected.length === 0) return;
       const prior = affected.map((it) => ({
@@ -226,7 +227,7 @@ export function Triage({ sourceId }: TriageProps) {
       setUndoStack([]);
       if (res.dedupeHits.length === 0) {
         setToast({
-          text: `Kept ${res.materialized} ${res.materialized === 1 ? "word" : "words"}.`,
+          text: `Kept ${res.learn} ${res.learn === 1 ? "word" : "words"}.`,
           variant: "info",
         });
       }
@@ -246,6 +247,17 @@ export function Triage({ sourceId }: TriageProps) {
       try {
         await resolveDedupe(hit.item.id, resolution);
         setDedupeHits((hits) => hits.filter((h) => h.item.id !== hit.item.id));
+        // A resolved hit is now a kept word (new row or merged into an
+        // existing one) — fold it into the summary counts.
+        setSummary(
+          (s) =>
+            s && {
+              ...s,
+              materialized: s.materialized + 1,
+              learn: hit.item.decision === "learn" ? s.learn + 1 : s.learn,
+              known: hit.item.decision === "know" ? s.known + 1 : s.known,
+            },
+        );
       } catch (err) {
         setToast({
           text:
@@ -366,7 +378,7 @@ export function Triage({ sourceId }: TriageProps) {
     return (
       <main className="triage">
         <EmptyState
-          message={`Kept ${summary.materialized} ${summary.materialized === 1 ? "word" : "words"} · ${summary.known} known archived · ${summary.skipped} skipped.`}
+          message={`Kept ${summary.learn} ${summary.learn === 1 ? "word" : "words"} · ${summary.known} known archived · ${summary.skipped} skipped.`}
         >
           <Button variant="primary" onClick={() => void load()}>
             {batchNo < batchCount ? "Next batch" : "Done"}
@@ -412,22 +424,33 @@ export function Triage({ sourceId }: TriageProps) {
     },
   ];
 
+  const sortedCount = tally.know + tally.learn + tally.skip;
+
   return (
     <main className="triage">
       <header className="triage__header">
         <h1 className="triage__title">{source?.title ?? "Extraction"}</h1>
         <p className="triage__meta">
-          Batch {batchNo} of {Math.max(batchCount, batchNo)} ·{" "}
-          {tally.know + tally.learn + tally.skip} of {items.length} sorted
+          Batch {batchNo} of {Math.max(batchCount, batchNo)} · {sortedCount} of{" "}
+          {items.length} sorted
         </p>
+        <div className="triage__progress-track" aria-hidden="true">
+          <div
+            className="triage__progress-fill"
+            style={{
+              width: `${items.length ? (sortedCount / items.length) * 100 : 0}%`,
+            }}
+          />
+        </div>
       </header>
 
       <div className="triage__groups">
         {groups.map((g) => {
           const groupItems = flow.filter((it) => groupOf(it) === g.key);
           if (groupItems.length === 0) return null;
+          // Bulk only touches still-undecided items; the count says so.
           const pendingInGroup = groupItems.filter(
-            (it) => it.decidedAt === null,
+            (it) => it.decision === "pending",
           ).length;
           return (
             <section className="triage__group" key={g.key}>
@@ -438,7 +461,6 @@ export function Triage({ sourceId }: TriageProps) {
                 {pendingInGroup > 0 && (
                   <Button
                     variant="quiet"
-                    className="triage__bulk"
                     onClick={() => void bulk(g.key, g.decision)}
                   >
                     {g.bulkLabel} {pendingInGroup}
@@ -498,8 +520,8 @@ export function Triage({ sourceId }: TriageProps) {
               busyLabel="Keeping…"
               onClick={() => void confirm()}
             >
-              Keep {tally.know + tally.learn}{" "}
-              {tally.know + tally.learn === 1 ? "word" : "words"}
+              {/* Kept = learn only; known-archived words are counted apart. */}
+              Keep {tally.learn} {tally.learn === 1 ? "word" : "words"}
             </Button>
           )}
         </div>

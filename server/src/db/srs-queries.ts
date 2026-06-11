@@ -4,7 +4,11 @@
 
 import type { ReviewDirection } from "@estudio/shared";
 import { nowIso, type DB } from "./db.js";
-import type { CardState, ReviewLogFields, SrsWordStatus } from "../srs/types.js";
+import type {
+  CardState,
+  ReviewLogFields,
+  SrsWordStatus,
+} from "../srs/types.js";
 
 export const NEW_CARDS_PER_DAY_SETTING = "new_cards_per_day";
 
@@ -37,7 +41,9 @@ export interface WordReviewData {
 }
 
 export function deckExists(db: DB, deckId: number): boolean {
-  return db.prepare("SELECT 1 FROM deck WHERE id = ?").get(deckId) !== undefined;
+  return (
+    db.prepare("SELECT 1 FROM deck WHERE id = ?").get(deckId) !== undefined
+  );
 }
 
 /** new-cards/day from `setting`, falling back to 20 when unset or unparseable. */
@@ -46,8 +52,21 @@ export function getNewCardsPerDay(db: DB): number {
     .prepare("SELECT value FROM setting WHERE key = ?")
     .get(NEW_CARDS_PER_DAY_SETTING) as { value: string } | undefined;
   if (!row) return 20;
-  const parsed = JSON.parse(row.value);
-  return typeof parsed === "number" ? parsed : 20;
+  try {
+    const parsed = JSON.parse(row.value);
+    return typeof parsed === "number" ? parsed : 20;
+  } catch {
+    return 20;
+  }
+}
+
+/**
+ * Truncate an ISO timestamp to the project's second-precision convention
+ * (nowIso in db.ts). SM-2 returns ms-precision strings; strip them here so
+ * nothing ms-precision reaches the database.
+ */
+export function toSecondPrecision(iso: string): string {
+  return iso.replace(/\.\d{1,3}Z$/, "Z");
 }
 
 /** card_state rows in the deck whose due_at is on or before `nowIsoString`. */
@@ -105,7 +124,42 @@ export function getCardState(db: DB, wordId: number): CardState | null {
 }
 
 export function wordExists(db: DB, wordId: number): boolean {
-  return db.prepare("SELECT 1 FROM word WHERE id = ?").get(wordId) !== undefined;
+  return (
+    db.prepare("SELECT 1 FROM word WHERE id = ?").get(wordId) !== undefined
+  );
+}
+
+/**
+ * Up to `limit` other words from the deck, randomly ordered — spare
+ * multiple-choice distractors for sessions whose queue is too small to fill
+ * an option set on its own.
+ */
+export function getDistractorCandidates(
+  db: DB,
+  deckId: number,
+  excludeWordIds: number[],
+  limit: number,
+): { wordId: number; term: string; definitionEn: string | null }[] {
+  const placeholders = excludeWordIds.map(() => "?").join(", ");
+  const exclude = excludeWordIds.length
+    ? `AND id NOT IN (${placeholders})`
+    : "";
+  const rows = db
+    .prepare(
+      `SELECT id, term, definition_en FROM word
+       WHERE deck_id = ? ${exclude}
+       ORDER BY RANDOM() LIMIT ?`,
+    )
+    .all(deckId, ...excludeWordIds, limit) as {
+    id: number;
+    term: string;
+    definition_en: string | null;
+  }[];
+  return rows.map((r) => ({
+    wordId: r.id,
+    term: r.term,
+    definitionEn: r.definition_en,
+  }));
 }
 
 /** Review-card fields for the given word ids, keyed by word id. */
@@ -160,7 +214,7 @@ export function persistPromotions(
         p.word_id,
         p.ease,
         p.interval_days,
-        p.due_at,
+        toSecondPrecision(p.due_at),
         p.reps,
         nowIsoString,
         nowIsoString,
@@ -183,9 +237,18 @@ export function persistReviewOutcome(
     logEntry: ReviewLogFields;
     direction: ReviewDirection;
     newWordStatus: SrsWordStatus;
+    /**
+     * Insert the card_state row instead of updating it — for demoting a word
+     * that never entered review (e.g. triaged 'know', so it has no card yet).
+     */
+    createCardState?: boolean;
   },
 ): void {
   const now = nowIso();
+  const insertCard = db.prepare(
+    `INSERT INTO card_state (word_id, ease, interval_days, due_at, reps, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  );
   const updateCard = db.prepare(
     `UPDATE card_state
      SET ease = ?, interval_days = ?, due_at = ?, reps = ?, updated_at = ?
@@ -200,14 +263,26 @@ export function persistReviewOutcome(
   );
   const { nextState, logEntry, direction, newWordStatus } = params;
   const tx = db.transaction(() => {
-    updateCard.run(
-      nextState.ease,
-      nextState.interval_days,
-      nextState.due_at,
-      nextState.reps,
-      now,
-      nextState.word_id,
-    );
+    if (params.createCardState) {
+      insertCard.run(
+        nextState.word_id,
+        nextState.ease,
+        nextState.interval_days,
+        nextState.due_at,
+        nextState.reps,
+        now,
+        now,
+      );
+    } else {
+      updateCard.run(
+        nextState.ease,
+        nextState.interval_days,
+        nextState.due_at,
+        nextState.reps,
+        now,
+        nextState.word_id,
+      );
+    }
     updateWord.run(newWordStatus, now, nextState.word_id);
     insertLog.run(
       logEntry.word_id,

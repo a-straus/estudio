@@ -8,22 +8,24 @@ import type {
   ReviewGrade,
   SubmitReviewResponse,
 } from "@estudio/shared";
-import type { DB } from "../db/db.js";
+import { nowIso, type DB } from "../db/db.js";
 import {
   countPromotedToday,
   deckExists,
   getCardState,
+  getDistractorCandidates,
   getDueCards,
   getNewCardsPerDay,
   getNewWords,
   getWordReviewData,
   persistPromotions,
   persistReviewOutcome,
+  toSecondPrecision,
   wordExists,
 } from "../db/srs-queries.js";
 import { applyManualDemotion, applyReview } from "../srs/sm2.js";
-import { buildReviewSession } from "../srs/queue.js";
-import type { CardState, SrsWordStatus } from "../srs/types.js";
+import { buildReviewSession, INITIAL_EASE } from "../srs/queue.js";
+import type { CardState, ReviewResult, SrsWordStatus } from "../srs/types.js";
 
 const GRADES: ReviewGrade[] = ["fail", "good", "easy"];
 const DIRECTIONS: ReviewDirection[] = ["w2d", "d2w"];
@@ -31,6 +33,21 @@ const DIRECTIONS: ReviewDirection[] = ["w2d", "d2w"];
 // Manual demotion has no review direction, but review_log.direction is NOT
 // NULL, so we record the default word→def ('w2d') direction.
 const DEMOTION_DIRECTION: ReviewDirection = "w2d";
+
+// Spare distractors shipped with a too-small queue (see DueQueueResponse).
+const DISTRACTOR_POOL_SIZE = 8;
+
+/** SM-2 emits ms-precision timestamps; clamp them to the project convention. */
+function atSecondPrecision(result: ReviewResult): ReviewResult {
+  return {
+    ...result,
+    nextState: {
+      ...result.nextState,
+      due_at: toSecondPrecision(result.nextState.due_at),
+    },
+    logEntry: { ...result.logEntry, ts: toSecondPrecision(result.logEntry.ts) },
+  };
+}
 
 function error(res: Response, status: number, message: string, code: string) {
   res.status(status).json({ error: { message, code } });
@@ -62,7 +79,7 @@ export function registerSrsRoutes(app: Express, db: DB): void {
     }
 
     const now = new Date();
-    const nowIsoString = now.toISOString();
+    const nowIsoString = nowIso();
     const dueCards = getDueCards(db, deckId, nowIsoString);
     const newWords = getNewWords(db, deckId);
     const session = buildReviewSession({
@@ -96,6 +113,19 @@ export function registerSrsRoutes(app: Express, db: DB): void {
     });
 
     const body: DueQueueResponse = { deckId, items };
+
+    // A small queue can't fill 3 multiple-choice distractors by itself —
+    // ship spares from the rest of the deck so the client only falls back
+    // to flip cards when the DECK is too small.
+    const usableDefinitions = items.filter((i) => i.definitionEn).length;
+    if (items.length > 0 && (items.length < 4 || usableDefinitions < 4)) {
+      body.distractors = getDistractorCandidates(
+        db,
+        deckId,
+        items.map((i) => i.wordId),
+        DISTRACTOR_POOL_SIZE,
+      );
+    }
     res.json(body);
   });
 
@@ -115,7 +145,12 @@ export function registerSrsRoutes(app: Express, db: DB): void {
       return;
     }
     if (!GRADES.includes(grade)) {
-      error(res, 400, "grade must be 'fail', 'good' or 'easy'", "invalid_grade");
+      error(
+        res,
+        400,
+        "grade must be 'fail', 'good' or 'easy'",
+        "invalid_grade",
+      );
       return;
     }
 
@@ -125,7 +160,9 @@ export function registerSrsRoutes(app: Express, db: DB): void {
       return;
     }
 
-    const result = applyReview(state, grade as ReviewGrade, new Date());
+    const result = atSecondPrecision(
+      applyReview(state, grade as ReviewGrade, new Date()),
+    );
     persistReviewOutcome(db, {
       nextState: result.nextState,
       logEntry: result.logEntry,
@@ -146,23 +183,25 @@ export function registerSrsRoutes(app: Express, db: DB): void {
       error(res, 404, "Word not found", "not_found");
       return;
     }
-    const state = getCardState(db, wordId);
-    if (!state) {
-      error(
-        res,
-        409,
-        "Word has no card_state; it has not entered review yet",
-        "no_card_state",
-      );
-      return;
-    }
+    // "I forgot this" works on ANY library word: a word that never entered
+    // review (e.g. triaged 'know') gets a card created at the demoted ease,
+    // due now, and flips to 'learning' — same outcome as an existing card.
+    const existing = getCardState(db, wordId);
+    const state: CardState = existing ?? {
+      word_id: wordId,
+      ease: INITIAL_EASE,
+      interval_days: 0,
+      due_at: nowIso(),
+      reps: 0,
+    };
 
-    const result = applyManualDemotion(state, new Date());
+    const result = atSecondPrecision(applyManualDemotion(state, new Date()));
     persistReviewOutcome(db, {
       nextState: result.nextState,
       logEntry: result.logEntry,
       direction: DEMOTION_DIRECTION,
       newWordStatus: result.newWordStatus,
+      createCardState: existing === null,
     });
 
     const response: DemoteResponse = {
