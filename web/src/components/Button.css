@@ -1,0 +1,80 @@
+/* Button (D4). */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--hit-target);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  background: none;
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-snug);
+  color: var(--color-ink);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
+}
+
+@media (min-width: 960px) {
+  /* bp-desktop: 36px allowed */
+  .btn {
+    min-height: 36px;
+  }
+}
+
+.btn--primary {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: oklch(from var(--color-accent) calc(l + 0.04) c h);
+}
+
+.btn--primary:active:not(:disabled) {
+  background: oklch(from var(--color-accent) calc(l - 0.04) c h);
+}
+
+.btn--secondary {
+  border-color: var(--color-rule-strong);
+  color: var(--color-ink);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  border-color: var(--color-ink-faint);
+}
+
+.btn--quiet {
+  color: var(--color-accent);
+}
+
+.btn--quiet:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.btn--danger {
+  border-color: var(--color-incorrect);
+  color: var(--color-incorrect);
+}
+
+.btn--danger:hover:not(:disabled) {
+  border-color: var(--color-incorrect);
+}
+
+.btn:disabled {
+  background: none;
+  color: var(--color-ink-faint);
+  border-color: var(--color-rule);
+  cursor: default;
+}
+
+.btn--quiet:disabled {
+  border-color: transparent;
+}

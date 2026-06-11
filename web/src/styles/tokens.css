@@ -1,0 +1,129 @@
+/* Design tokens — materialized verbatim from design/tokens.md (D2).
+   Single source of truth: every visual value in the app references these.
+   No webfont, no font network requests — identity survives stack substitution. */
+
+:root {
+  /* ---- Type families ---- */
+  --font-serif:
+    Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia,
+    "Times New Roman", serif;
+  --font-sans:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* Semantic aliases — use these, not the raw families */
+  --font-study: var(
+    --font-serif
+  ); /* studied-language text: headwords, examples, stems */
+  --font-app: var(
+    --font-sans
+  ); /* app voice: glosses, buttons, labels, body UI */
+  --font-meta: var(
+    --font-mono
+  ); /* machine voice: tags, counts, jobs, costs, key hints */
+
+  /* ---- Type scale ---- */
+  --text-xs: 12px; /* meta tags, key hints */
+  --text-sm: 14px; /* secondary UI, table meta */
+  --text-base: 16px; /* body UI, glosses, options */
+  --text-md: 18px; /* lesson body, example sentences */
+  --text-lg: 22px; /* section titles, library headwords */
+  --text-xl: 28px; /* screen titles, triage headwords */
+  --text-2xl: 34px; /* review-card headword (mobile) */
+  --text-3xl: 42px; /* review-card headword (desktop) */
+
+  --leading-tight: 1.15; /* headwords, titles */
+  --leading-snug: 1.35; /* options, table rows, meta */
+  --leading-base: 1.5; /* UI body, glosses */
+  --leading-loose: 1.65; /* lesson long-form reading */
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+
+  --tracking-meta: 0.04em; /* mono tag lines and small-cap labels */
+
+  /* ---- Color · light (default) ---- */
+  --color-paper: oklch(0.975 0.004 95); /* page background */
+  --color-surface: oklch(0.995 0.002 95); /* active card / raised row */
+  --color-ink: oklch(0.24 0.012 95); /* primary text */
+  --color-ink-soft: oklch(0.45 0.012 95); /* secondary text, glosses in lists */
+  --color-ink-faint: oklch(
+    0.58 0.01 95
+  ); /* meta, disabled text, placeholders */
+  --color-rule: oklch(0.89 0.006 95); /* hairlines, default borders */
+  --color-rule-strong: oklch(
+    0.78 0.008 95
+  ); /* input borders, emphasized rules */
+
+  --color-accent: oklch(
+    0.42 0.09 265
+  ); /* ink blue: primary actions, selection, links */
+  --color-accent-ink: oklch(0.985 0.002 95); /* text on accent */
+  --color-accent-wash: oklch(
+    0.945 0.018 265
+  ); /* selected-option fill, active nav */
+
+  --color-correct: oklch(0.45 0.09 155); /* verdict green */
+  --color-correct-wash: oklch(0.95 0.018 155);
+  --color-incorrect: oklch(0.45 0.09 25); /* verdict red */
+  --color-incorrect-wash: oklch(0.95 0.018 25);
+
+  --color-focus: var(--color-accent); /* 2px outline, 2px offset */
+
+  /* ---- Spacing ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ---- Radii ---- */
+  --radius-1: 3px; /* buttons, inputs, options */
+  --radius-2: 6px; /* cards, toasts */
+  --radius-pill: 999px; /* progress bars, count pills */
+
+  /* ---- Shadows ---- */
+  --shadow-1: 0 1px 2px oklch(0.24 0.012 95 / 0.08); /* active card */
+  --shadow-2: 0 4px 16px oklch(0.24 0.012 95 / 0.14); /* toast, dialog */
+
+  /* ---- Hit targets & layout ---- */
+  --hit-target: 44px; /* min height of every mobile control */
+  --measure-reading: 680px; /* lesson / long-form column max width */
+  --measure-app: 1120px; /* general desktop content max width */
+  --indent-entry: 20px; /* the signature hanging indent */
+
+  /* ---- Motion ---- */
+  --motion-fast: 120ms; /* state fills, selection */
+  --motion-base: 200ms; /* view transitions, card advance */
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-theme="dark"] {
+  /* Lamplit-desk dark: warm near-black paper, same hue logic, color tokens only */
+  --color-paper: oklch(0.205 0.008 95);
+  --color-surface: oklch(0.245 0.009 95);
+  --color-ink: oklch(0.93 0.006 95);
+  --color-ink-soft: oklch(0.74 0.008 95);
+  --color-ink-faint: oklch(0.6 0.008 95);
+  --color-rule: oklch(0.32 0.009 95);
+  --color-rule-strong: oklch(0.42 0.01 95);
+
+  --color-accent: oklch(0.74 0.08 265);
+  --color-accent-ink: oklch(0.205 0.008 95);
+  --color-accent-wash: oklch(0.3 0.035 265);
+
+  --color-correct: oklch(0.72 0.09 155);
+  --color-correct-wash: oklch(0.29 0.03 155);
+  --color-incorrect: oklch(0.72 0.09 25);
+  --color-incorrect-wash: oklch(0.3 0.03 25);
+
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-2: 0 4px 16px oklch(0 0 0 / 0.5);
+}

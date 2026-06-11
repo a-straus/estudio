@@ -1,0 +1,96 @@
+/* JobStatus (D4). The machine's voice: all mono, colored only when failing. */
+
+.job-status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-family: var(--font-meta);
+}
+
+.job-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+  /* Optically align with the first line of the stage text. */
+  margin-top: calc(var(--space-2) - 2px);
+}
+
+.job-status__dot--running {
+  background: var(--color-accent);
+  /* The only looped animation in the app. */
+  animation: job-pulse 1.2s var(--motion-ease) infinite;
+}
+
+@keyframes job-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .job-status__dot--running {
+    animation: none;
+  }
+}
+
+.job-status__dot--queued {
+  background: var(--color-rule-strong);
+}
+
+.job-status__dot--done {
+  background: var(--color-correct);
+}
+
+.job-status__dot--failed {
+  background: var(--color-incorrect);
+}
+
+.job-status__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.job-status__stage {
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-ink);
+}
+
+.job-status--failed .job-status__stage {
+  color: var(--color-incorrect);
+}
+
+.job-status__track {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-rule);
+  overflow: hidden;
+}
+
+.job-status__fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  transition: width var(--motion-base) var(--motion-ease);
+}
+
+.job-status__cost {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  line-height: var(--leading-snug);
+  color: var(--color-ink-faint);
+}
+
+.job-status__actions {
+  display: flex;
+  gap: var(--space-3);
+}

@@ -1,0 +1,103 @@
+/* WordEntry — the signature object (D4). Never colored, never animated. */
+
+.word-entry {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-app);
+}
+
+.word-entry__headword {
+  font-family: var(--font-study);
+  font-weight: var(--weight-bold);
+  font-style: normal;
+  color: var(--color-ink);
+  line-height: var(--leading-tight);
+}
+
+.word-entry__lemma {
+  font-weight: var(--weight-regular);
+  color: var(--color-ink-soft);
+}
+
+.word-entry__tagline {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  line-height: var(--leading-snug);
+  margin-top: var(--space-1);
+}
+
+.word-entry__gloss {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--color-ink);
+  margin-top: var(--space-2);
+}
+
+.word-entry__gloss--es {
+  font-family: var(--font-study);
+  font-style: normal;
+}
+
+.word-entry__gloss--es + .word-entry__gloss {
+  margin-top: var(--space-1);
+}
+
+.word-entry__example {
+  font-family: var(--font-study);
+  font-style: italic;
+  font-size: var(--text-md);
+  line-height: var(--leading-base);
+  color: var(--color-ink-soft);
+  /* The signature hanging indent. */
+  padding-left: var(--indent-entry);
+  text-indent: calc(-1 * var(--indent-entry));
+  margin-top: var(--space-2);
+}
+
+/* hero — review/quiz cards; gloss hidden (it's the question) */
+.word-entry--hero .word-entry__headword {
+  font-size: var(--text-2xl);
+}
+
+@media (min-width: 960px) {
+  /* bp-desktop */
+  .word-entry--hero .word-entry__headword {
+    font-size: var(--text-3xl);
+  }
+}
+
+/* full — triage current row, word detail */
+.word-entry--full .word-entry__headword {
+  font-size: var(--text-xl);
+}
+
+/* compact — lists, summaries: single line, gloss ellipsized */
+.word-entry--compact {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.word-entry--compact .word-entry__headword {
+  font-size: var(--text-base);
+}
+
+.word-entry--compact .word-entry__tagline {
+  margin-top: 0;
+}
+
+.word-entry--compact .word-entry__gloss {
+  margin-top: 0;
+  color: var(--color-ink-soft);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
