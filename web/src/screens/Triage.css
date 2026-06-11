@@ -117,6 +117,73 @@
   }
 }
 
+/* "Everything sorted" rest state — shown above the sticky footer once every
+   candidate has a decision and the Keep action is ready. */
+.triage__ready {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+  padding: var(--space-7) var(--space-4);
+}
+
+.triage__ready-headline {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-ink);
+}
+
+.triage__ready-detail {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-soft);
+}
+
+/* Post-confirm summary — what was kept, and the way onward to review. */
+.triage--summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  min-height: 70vh;
+  text-align: center;
+}
+
+.triage__summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.triage__summary-headline {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-ink);
+}
+
+.triage__summary-detail {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-soft);
+}
+
+.triage__summary-next {
+  font-size: var(--text-base);
+  color: var(--color-ink-soft);
+}
+
+.triage__summary-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+  inline-size: min(100%, var(--measure-reading));
+}
+
 /* Dedupe resolution cards — one elevated surface per collision. */
 .triage__dedupe-list {
   display: flex;

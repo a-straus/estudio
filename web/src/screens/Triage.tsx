@@ -16,6 +16,7 @@ import {
   type WordEntryData,
 } from "../components";
 import {
+  ApiError,
   bulkDecide,
   confirmBatch,
   fetchBatch,
@@ -55,6 +56,7 @@ function groupOf(item: ExtractionItemView): TriageGroup {
 export function Triage({ sourceId }: TriageProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorCode, setLoadErrorCode] = useState<string | null>(null);
   const [source, setSource] = useState<{ id: number; title: string | null }>();
   const [batchNo, setBatchNo] = useState(1);
   const [batchCount, setBatchCount] = useState(0);
@@ -75,6 +77,7 @@ export function Triage({ sourceId }: TriageProps) {
     async (which?: number) => {
       setLoading(true);
       setLoadError(null);
+      setLoadErrorCode(null);
       try {
         const data = await fetchBatch(sourceId, which);
         setSource(data.source);
@@ -90,6 +93,7 @@ export function Triage({ sourceId }: TriageProps) {
         setLoadError(
           err instanceof Error ? err.message : "Couldn't load this batch.",
         );
+        setLoadErrorCode(err instanceof ApiError ? err.code : null);
       } finally {
         setLoading(false);
       }
@@ -115,11 +119,17 @@ export function Triage({ sourceId }: TriageProps) {
   }, [items]);
 
   const allDecided = items.length > 0 && tally.pending === 0;
+  const pendingExists = items.some((it) => it.decision === "pending");
+  // Nothing left to triage: either the source extracted no candidates, or every
+  // candidate was already confirmed in a previous visit.
+  const nothingExtracted = items.length === 0;
+  const allConfirmed =
+    items.length > 0 && items.every((it) => it.decidedAt !== null);
   const nothingToSort =
-    !loading &&
-    !loadError &&
-    (items.length === 0 || items.every((it) => it.decidedAt !== null)) &&
-    !summary;
+    !loading && !loadError && !summary && (nothingExtracted || allConfirmed);
+
+  const goReview = useCallback(() => window.location.assign("/review"), []);
+  const goLibrary = useCallback(() => window.location.assign("/library"), []);
 
   const applyDecisions = useCallback((updated: ExtractionItemView[]) => {
     setItems((prev) => {
@@ -336,6 +346,22 @@ export function Triage({ sourceId }: TriageProps) {
   }
 
   if (loadError) {
+    // An unknown/invalid source is a dead end — don't offer a pointless reload;
+    // route the user somewhere useful instead.
+    if (loadErrorCode === "not_found") {
+      return (
+        <main className="triage">
+          <EmptyState message="That extraction isn't available. It may have been removed.">
+            <Button variant="primary" onClick={goReview}>
+              Go to review
+            </Button>
+            <Button variant="quiet" onClick={goLibrary}>
+              Open library
+            </Button>
+          </EmptyState>
+        </main>
+      );
+    }
     return (
       <main className="triage">
         <EmptyState
@@ -373,17 +399,49 @@ export function Triage({ sourceId }: TriageProps) {
     );
   }
 
-  // Confirm finished cleanly (or all dupes resolved) — offer the next batch.
+  // Confirm finished cleanly (or all dupes resolved) — tell the user what
+  // happened and point them at the obvious next step: reviewing the words they
+  // just kept.
   if (summary && dedupeHits.length === 0) {
+    const kept = summary.learn;
+    const detailParts: string[] = [];
+    if (summary.known > 0) {
+      detailParts.push(`${summary.known} already known, archived`);
+    }
+    if (summary.skipped > 0) {
+      detailParts.push(`${summary.skipped} skipped`);
+    }
+    const moreBatches = batchNo < batchCount;
     return (
-      <main className="triage">
-        <EmptyState
-          message={`Kept ${summary.learn} ${summary.learn === 1 ? "word" : "words"} · ${summary.known} known archived · ${summary.skipped} skipped.`}
-        >
-          <Button variant="primary" onClick={() => void load()}>
-            {batchNo < batchCount ? "Next batch" : "Done"}
+      <main className="triage triage--summary">
+        <div className="triage__summary">
+          <p className="triage__summary-headline">
+            {kept > 0
+              ? `${kept} ${kept === 1 ? "word" : "words"} added to your review queue`
+              : "No new words added this time"}
+          </p>
+          {detailParts.length > 0 && (
+            <p className="triage__summary-detail">{detailParts.join(" · ")}</p>
+          )}
+          <p className="triage__summary-next">
+            {kept > 0
+              ? "Start a review session to begin learning them."
+              : "Head to review to keep studying what's due."}
+          </p>
+        </div>
+        <div className="triage__summary-actions">
+          <Button variant="primary" onClick={goReview}>
+            Review now
           </Button>
-        </EmptyState>
+          {moreBatches && (
+            <Button variant="secondary" onClick={() => void load()}>
+              Sort the next batch
+            </Button>
+          )}
+          <Button variant="quiet" onClick={goLibrary}>
+            Back to library
+          </Button>
+        </div>
         {toast && (
           <Toast variant={toast.variant} onDismiss={() => setToast(null)}>
             {toast.text}
@@ -399,7 +457,20 @@ export function Triage({ sourceId }: TriageProps) {
         <header className="triage__header">
           <h1 className="triage__title">{source?.title ?? "Extraction"}</h1>
         </header>
-        <EmptyState message="Nothing to sort. Ingest something new?" />
+        <EmptyState
+          message={
+            allConfirmed
+              ? "You've already sorted every word from this extraction."
+              : "Nothing to sort here yet."
+          }
+        >
+          <Button variant="primary" onClick={goReview}>
+            Go to review
+          </Button>
+          <Button variant="quiet" onClick={goLibrary}>
+            Open library
+          </Button>
+        </EmptyState>
       </main>
     );
   }
@@ -444,37 +515,29 @@ export function Triage({ sourceId }: TriageProps) {
         </div>
       </header>
 
-      <div className="triage__groups">
-        {groups.map((g) => {
-          const groupItems = flow.filter((it) => groupOf(it) === g.key);
-          if (groupItems.length === 0) return null;
-          // Bulk only touches still-undecided items; the count says so.
-          const pendingInGroup = groupItems.filter(
-            (it) => it.decision === "pending",
-          ).length;
-          return (
-            <section className="triage__group" key={g.key}>
-              <div className="triage__group-header">
-                <span className="triage__group-label">
-                  {g.label} · {groupItems.length}
-                </span>
-                {pendingInGroup > 0 && (
+      {pendingExists ? (
+        <div className="triage__groups">
+          {groups.map((g) => {
+            // A decided word leaves the visible queue immediately — only the
+            // still-undecided candidates are shown.
+            const groupItems = flow.filter(
+              (it) => groupOf(it) === g.key && it.decision === "pending",
+            );
+            if (groupItems.length === 0) return null;
+            return (
+              <section className="triage__group" key={g.key}>
+                <div className="triage__group-header">
+                  <span className="triage__group-label">
+                    {g.label} · {groupItems.length}
+                  </span>
                   <Button
                     variant="quiet"
                     onClick={() => void bulk(g.key, g.decision)}
                   >
-                    {g.bulkLabel} {pendingInGroup}
+                    {g.bulkLabel} {groupItems.length}
                   </Button>
-                )}
-              </div>
-              {groupItems.map((it) => {
-                const state =
-                  it.decision !== "pending"
-                    ? "decided"
-                    : it.id === currentId
-                      ? "current"
-                      : "upcoming";
-                return (
+                </div>
+                {groupItems.map((it) => (
                   <div
                     key={it.id}
                     ref={(el) => {
@@ -484,21 +547,26 @@ export function Triage({ sourceId }: TriageProps) {
                   >
                     <TriageRow
                       word={toWordEntry(it)}
-                      state={state}
-                      decision={
-                        it.decision === "pending" ? undefined : it.decision
-                      }
+                      state={it.id === currentId ? "current" : "upcoming"}
                       onKnow={() => void decide(it, "know")}
                       onLearn={() => void decide(it, "learn")}
                       onSkip={() => void decide(it, "skip")}
                     />
                   </div>
-                );
-              })}
-            </section>
-          );
-        })}
-      </div>
+                ))}
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="triage__ready">
+          <p className="triage__ready-headline">Everything sorted</p>
+          <p className="triage__ready-detail">
+            {tally.learn} to learn · {tally.know} known · {tally.skip} skipped.
+            Keep your words below.
+          </p>
+        </div>
+      )}
 
       <footer className="triage__footer">
         <span className="triage__tally">
