@@ -214,6 +214,10 @@ Commit it and exit. The orchestrator serializes all model changes.
   refused for branches that touch them. GOAL.md is the human's spec;
   ARCHITECTURE.md changes go through the orchestrator's schema gate (see
   above), and the design contract is amended only by the orchestrator.
+- Never modify check.sh, unless your brief explicitly says to create it and
+  it does not exist yet — integration is automatically refused for branches
+  that change an existing check.sh. If a build/test step must change, write
+  BLOCKED.md instead.
 EOF
 
 # ── Write the runner and launch ───────────────────────────────────────────────

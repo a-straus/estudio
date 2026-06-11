@@ -12,8 +12,8 @@
 #   5  check.sh failed on the branch — re-spawn with a brief to fix it
 #   6  merge conflict (aborted, base left clean) — re-spawn against current base
 #   7  branch modifies protected state files (GOAL.md / TASKS.md / QUESTIONS.md /
-#      DECISIONS.md / ARCHITECTURE.md / FEEDBACK.md / design/) — re-spawn with
-#      a brief to drop those changes, or abandon
+#      DECISIONS.md / ARCHITECTURE.md / FEEDBACK.md / design/) or an existing
+#      check.sh — re-spawn with a brief to drop those changes, or abandon
 set -euo pipefail
 . "$(dirname "$0")/_lib.sh"
 
@@ -93,6 +93,22 @@ if [[ -n "$protected" ]]; then
     printf '    %s\n' $protected >&2
     echo "Re-spawn with a brief to remove those changes" >&2
     echo "(git checkout $base -- <file> && git commit), or abandon the branch." >&2
+    exit 7
+fi
+
+# check.sh is the verification gate itself — a worker whose tests fail must
+# not be able to weaken it on the same branch it gates. The orchestrator owns
+# the file: workers may CREATE it (the bootstrap build task, when base has
+# none) but never modify an existing one; legitimate evolutions are applied
+# by the orchestrator directly on the base branch. Accepted residual: workers
+# can still delete or weaken the test files check.sh invokes — that is
+# covered by the periodic review tasks, not enforced here.
+if git -C "$root" cat-file -e "$base:check.sh" 2>/dev/null \
+        && [[ -n "$(git -C "$root" diff --name-only "$base..$branch" -- check.sh)" ]]; then
+    echo "REFUSED: '$branch' modifies check.sh — the verification gate is owned by" >&2
+    echo "the orchestrator; changes to it go through the orchestrator, never a worker" >&2
+    echo "branch. Re-spawn with a brief to drop the change" >&2
+    echo "(git checkout $base -- check.sh && git commit), or abandon the branch." >&2
     exit 7
 fi
 

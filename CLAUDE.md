@@ -56,7 +56,7 @@ genuinely complete.
 | `DECISIONS.md` | You | One line per resolved decision — your durable memory. Read it every iteration; append when a question is answered |
 | `ARCHITECTURE.md` | You | The technical design: entities, relationships, conventions. Drafted + critiqued in the first iterations, then amended ONLY through the schema gate below. Workers follow it exactly and can never modify it |
 | `design/` | Human seed / You | The design contract for everything user-facing, split into files so a task loads only what it needs: `INDEX.md` (identity, principles, file map, Change log), `tokens.md`, `screens/shell.md` + `screens/<screen>.md` (one per screen), `components.md`, `interaction.md`, `mockups.md`. The human may fill it before the run; if the product has a UI and it is still the unfilled template, you fill it in the design phase. Afterwards you keep it in sync with the built product — amend the files directly as components and tokens evolve, one INDEX.md Change-log line each. Workers build UI from the files their brief names, extrapolate where the contract is silent, and can never modify any of it. No UI in scope → leave it untouched |
-| `check.sh` | You | One fast command that builds + tests the project. Create it early, commit it |
+| `check.sh` | You | One fast command that builds + tests the project. Create it early, commit it. Workers may only create it where the base has none (the bootstrap build task); `integrate` refuses any branch that modifies an existing check.sh (exit 7). Legitimate check.sh evolutions you apply yourself, directly on the base branch |
 | `.release-done` | You | Write it (with a summary) only when GOAL.md §15 Release done is fully met — it stops the loop |
 
 State files are **committed** — `git log` on them is the audit trail, and in
@@ -110,7 +110,10 @@ Do these in order. Skip steps that have nothing to do.
    - **merge conflict** (exit 6) → re-spawn the same branch with a brief to
      redo the task against the current base.
    - **protected files modified** (exit 7) → re-spawn with a brief to remove
-     those changes, or abandon.
+     those changes, or abandon. Exit 7 also covers a branch modifying an
+     existing check.sh — workers never change the gate; if the change itself
+     is legitimate, apply it yourself directly on the base branch (you own
+     the file) and re-spawn the worker without it.
    - **no commits** (exit 4) / **FAILED** / **STALE** / **ORPHAN** →
      re-spawn to resume (the branch keeps its commits), or `abandon` and
      re-queue if the work is worthless. Maximum 2 re-spawns per task; after
