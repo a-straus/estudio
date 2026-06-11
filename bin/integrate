@@ -85,9 +85,21 @@ fi
 # the design contract (design/) is amended only by the orchestrator on the
 # base branch. (DESIGN.md stays in the pathspec to catch a worker recreating
 # the old single-file contract.)
-protected="$(git -C "$root" diff --name-only "$base..$branch" -- \
-    GOAL.md TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md DESIGN.md \
-    FEEDBACK.md design/)"
+# A file is a violation only if the worker touched it (three-dot diff: since
+# the merge-base) AND its branch content still differs from the base tip
+# (two-dot diff). Either test alone false-positives:
+#   - two-dot alone blames the worker for the orchestrator's own post-fork
+#     commits (e.g. finalizing ARCHITECTURE.md after the branch forked);
+#   - three-dot alone permanently damns a branch that re-synced a file back
+#     to base's exact content (history still shows the touch, but the merge
+#     introduces no change).
+protected_diff() {  # protected_diff <range> — worker-relevant pathspec diff
+    git -C "$root" diff --name-only "$1" -- \
+        GOAL.md TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md DESIGN.md \
+        FEEDBACK.md design/
+}
+protected="$(comm -12 <(protected_diff "$base...$branch" | sort) \
+                      <(protected_diff "$base..$branch"  | sort))"
 if [[ -n "$protected" ]]; then
     echo "REFUSED: '$branch' modifies protected state files:" >&2
     printf '    %s\n' $protected >&2
@@ -104,6 +116,7 @@ fi
 # can still delete or weaken the test files check.sh invokes — that is
 # covered by the periodic review tasks, not enforced here.
 if git -C "$root" cat-file -e "$base:check.sh" 2>/dev/null \
+        && [[ -n "$(git -C "$root" diff --name-only "$base...$branch" -- check.sh)" ]] \
         && [[ -n "$(git -C "$root" diff --name-only "$base..$branch" -- check.sh)" ]]; then
     echo "REFUSED: '$branch' modifies check.sh — the verification gate is owned by" >&2
     echo "the orchestrator; changes to it go through the orchestrator, never a worker" >&2

@@ -25,7 +25,9 @@
 # design files a brief names, or GOAL.md + design for reviewers). All source
 # code is always present.
 #
-# Exit codes: 0 spawned · 1 usage/state error · 2 capacity full
+# Exit codes: 0 spawned · 1 usage/state error · 2 capacity full ·
+#             3 architecture in flight (CRITIQUE.md on base, or uncommitted
+#               ARCHITECTURE.md / design/ changes) — reconcile & commit first
 set -euo pipefail
 . "$(dirname "$0")/_lib.sh"
 
@@ -72,6 +74,28 @@ fi
 if (( $(running_workers "$root") >= MAX_WORKERS )); then
     echo "ERROR: worker capacity full ($MAX_WORKERS running). Integrate or wait first." >&2
     exit 2
+fi
+
+# ── Architecture-in-flight guard ──────────────────────────────────────────────
+# Workers fork from a commit and never see what lands on base afterwards. If
+# the architecture is still being settled when a worker forks, it builds
+# against a schema that is about to change (the bootstrap/stale-ARCHITECTURE
+# incident). Two tripwires:
+#   1. CRITIQUE.md on the base branch = the critique has been integrated but
+#      not yet reconciled — ARCHITECTURE.md/design are about to move.
+#   2. Uncommitted ARCHITECTURE.md or design/ changes = the contract on disk
+#      is ahead of HEAD; a worker forked now would be blind to it.
+main_base="$(base_branch "$root")"
+if git -C "$root" cat-file -e "$main_base:CRITIQUE.md" 2>/dev/null; then
+    echo "ERROR: CRITIQUE.md exists on '$main_base' — the architecture critique has" >&2
+    echo "not been reconciled yet. Finish the reconcile pass (adopt/reject findings," >&2
+    echo "finalize ARCHITECTURE.md, git rm CRITIQUE.md, commit) before spawning workers." >&2
+    exit 3
+fi
+if [[ -n "$(git -C "$root" status --porcelain -- ARCHITECTURE.md design 2>/dev/null)" ]]; then
+    echo "ERROR: ARCHITECTURE.md or design/ has uncommitted changes — workers fork" >&2
+    echo "from a commit and would never see them. Commit the contract, then spawn." >&2
+    exit 3
 fi
 
 # ── Create or reattach the worktree ──────────────────────────────────────────

@@ -41,6 +41,9 @@
 #   SLEEP_SECONDS=20            base sleep between iterations
 #   SLEEP_MAX=300               max sleep when nothing is changing (adaptive backoff)
 #   FIREWALL_EVERY=10           re-resolve firewall allowlist every N iterations
+#   NET_RETRY_MAX=10            consecutive failed API reachability probes before
+#                               aborting (each probe failure: firewall refresh +
+#                               backoff, without charging the iteration budget)
 #   WORKTREE_ROOT=~/worktrees   where worker worktrees live (outside /workspace)
 #
 # While running:
@@ -74,6 +77,7 @@ ORCH_MAX_TURNS="${ORCH_MAX_TURNS:-100}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-20}"
 SLEEP_MAX="${SLEEP_MAX:-300}"
 FIREWALL_EVERY="${FIREWALL_EVERY:-10}"
+NET_RETRY_MAX="${NET_RETRY_MAX:-10}"
 MAX_CONSECUTIVE_ERRORS="${MAX_CONSECUTIVE_ERRORS:-3}"
 export MAX_WORKERS MAX_WORKER_TURNS WORKER_TIMEOUT_SECS WORKTREE_ROOT \
        ORCH_MODEL WORKER_MODEL WORKER_EFFORT
@@ -197,6 +201,7 @@ if (( ! fg )) && command -v tmux >/dev/null 2>&1; then
         ITERATION_TIMEOUT_SECS="$ITERATION_TIMEOUT_SECS" \
         ORCH_MAX_TURNS="$ORCH_MAX_TURNS" SLEEP_SECONDS="$SLEEP_SECONDS" \
         SLEEP_MAX="$SLEEP_MAX" FIREWALL_EVERY="$FIREWALL_EVERY" \
+        NET_RETRY_MAX="$NET_RETRY_MAX" \
         MAX_CONSECUTIVE_ERRORS="$MAX_CONSECUTIVE_ERRORS" \
         WORKTREE_ROOT="$WORKTREE_ROOT" \
         bash "$self" --fg "$repo")"
@@ -227,10 +232,15 @@ cd "$repo"
 
 # A trigger, not a spec: the canonical iteration procedure lives in CLAUDE.md
 # (auto-loaded by `claude -p` from the project cwd). Restating it here is how
-# the two drift apart — keep this prompt free of procedural content.
-PROMPT='Run ONE orchestrator iteration for this repository, exactly as
-specified in the Orchestrator guide (CLAUDE.md). When the pass is complete,
-print a short status report and exit.'
+# the two drift apart — keep this prompt free of procedural content. The
+# iteration number is injected per-iteration (the session cannot know it and
+# will otherwise guess, mislabeling its reports relative to iter-N.json).
+iteration_prompt() {    # iteration_prompt <n>
+    printf 'Run ONE orchestrator iteration for this repository, exactly as
+specified in the Orchestrator guide (CLAUDE.md). This is iteration #%s —
+use exactly that number when titling your status report. When the pass is
+complete, print the short status report and exit.' "$1"
+}
 
 # Resume numbering after the highest existing iteration so re-runs never
 # overwrite old logs; MAX_ITERATIONS still means "N iterations this run".
@@ -243,6 +253,7 @@ done
 iter=$iter_base
 total_cost=0
 errors=0
+net_fails=0
 sleep_s="$SLEEP_SECONDS"
 
 backlog_count() {
@@ -323,6 +334,32 @@ while :; do
 
     sync_pull
 
+    # Fail fast on a dead network. The incident mode this guards against:
+    # the firewall/network bridge dies, `claude -p` then spins ~27 minutes in
+    # its internal connect-retry stack (0 tokens exchanged) before failing
+    # with ConnectionRefused — burning the whole runner window and the
+    # iteration budget. Probe the API in seconds instead; on failure, try a
+    # firewall refresh, back off, and retry without charging the budget.
+    if ! api_reachable; then
+        iter=$((iter - 1))   # nothing ran; don't consume the slot
+        net_fails=$((net_fails + 1))
+        if (( net_fails >= NET_RETRY_MAX )); then
+            log_line "aborting: API unreachable after $net_fails consecutive probes — fix the network/firewall and re-run."
+            exit 1
+        fi
+        if [[ -x /usr/local/bin/init-firewall.sh ]]; then
+            sudo -n /usr/local/bin/init-firewall.sh >/dev/null 2>&1 \
+                && log_line "firewall allowlist refreshed after failed API probe" \
+                || log_line "WARNING: firewall refresh failed"
+        fi
+        net_sleep=$(( SLEEP_SECONDS * 2 * net_fails ))
+        (( net_sleep > SLEEP_MAX )) && net_sleep="$SLEEP_MAX"
+        log_line "API unreachable (probe $net_fails/$NET_RETRY_MAX) — retrying in ${net_sleep}s"
+        sleep "$net_sleep"
+        continue
+    fi
+    net_fails=0
+
     # Cheap idle fast-path: humans are slow. If the only possible work is
     # waiting on a [PENDING] answer (no workers running or finished, nothing
     # in the backlog), poll in bash instead of burning an iteration.
@@ -361,7 +398,7 @@ while :; do
     rc=0
     out_json="logs/orchestrator/iter-$iter.json"
     err_log="logs/orchestrator/iter-$iter.err"
-    cmd=(claude -p "$PROMPT" --dangerously-skip-permissions
+    cmd=(claude -p "$(iteration_prompt "$iter")" --dangerously-skip-permissions
          --max-turns "$ORCH_MAX_TURNS" --output-format json)
     [[ -n "$ORCH_MODEL" ]] && cmd+=(--model "$ORCH_MODEL")
     [[ -n "$effort" ]] && cmd+=(--effort "$effort")
@@ -383,6 +420,9 @@ while :; do
         errors=$((errors + 1))
         log_line "iteration $iter FAILED (exit $rc, error #$errors/$MAX_CONSECUTIVE_ERRORS) — see $err_log"
         tail -5 "$err_log" 2>/dev/null || true
+        case "$result" in *"Unable to connect"*|*ConnectionRefused*)
+            log_line "(network death mid-run — the preflight probe gates the next attempt)" ;;
+        esac
         if (( errors >= MAX_CONSECUTIVE_ERRORS )); then
             log_line "aborting: $errors consecutive failed iterations. Fix the cause and re-run."
             exit 1

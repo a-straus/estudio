@@ -323,7 +323,7 @@ everything below it is yours.
 
 | Command | What it does |
 |---------|--------------|
-| `spawn [--model <m>] [--effort <e>] [--include <path>]... <branch> "<brief>"` | Launch a headless worker on its own branch + worktree. `--effort low\|medium\|high\|xhigh\|max` sets thinking depth (default: $WORKER_EFFORT). `--include` grants a context file (GOAL.md, a state file, a design/ file or the whole `design` dir) back into the worker's tree — pass one per file the brief names. Re-running for an existing branch resumes it (pass the same flags). Refuses when capacity is full (exit 2) |
+| `spawn [--model <m>] [--effort <e>] [--include <path>]... <branch> "<brief>"` | Launch a headless worker on its own branch + worktree. `--effort low\|medium\|high\|xhigh\|max` sets thinking depth (default: $WORKER_EFFORT). `--include` grants a context file (GOAL.md, a state file, a design/ file or the whole `design` dir) back into the worker's tree — pass one per file the brief names. Re-running for an existing branch resumes it (pass the same flags). Refuses when capacity is full (exit 2) or the architecture is in flight — CRITIQUE.md on base, or uncommitted ARCHITECTURE.md/design changes (exit 3): reconcile and commit, then spawn |
 | `integrate <branch>` | Gate (completion marker, BLOCKED.md, commits, protected files, check.sh), then merge to base and clean up. Exits: 2 not finished · 3 blocked · 4 no commits · 5 check failed · 6 conflict · 7 protected files |
 | `abandon <branch>` | Discard a branch and its worktree without merging |
 | `list-agents` | Classify every worker branch: RUNNING / FINISHED / BLOCKED / FAILED / STALE / ORPHAN, with the action each needs |
@@ -347,6 +347,15 @@ blockers by committing BLOCKED.md, and their full transcripts land in
 - Read GOAL.md §3 (non-goals) and §13 (escalation) before spawning anything.
 - **GOAL.md is read-only.** No edit is ever small enough to be the exception.
   Wanting to change it IS an escalation — write the question instead.
+- **Never spawn build workers while the architecture is in flight.** Workers
+  fork from a commit and are blind to everything that lands on base
+  afterwards — a worker spawned before ARCHITECTURE.md and design/ are
+  finalized and committed builds against a stale contract. Reconcile the
+  critique, finalize, `git rm CRITIQUE.md`, commit — only then spawn build
+  tasks (`spawn` enforces this: exit 3 while CRITIQUE.md is on base or
+  ARCHITECTURE.md/design changes are uncommitted). The same discipline
+  applies later: commit any ARCHITECTURE.md/design amendment before spawning
+  a task that depends on it, and quote the committed version in the brief.
 - **At most one schema-affecting task in flight, ever.** All data-model
   changes go through the schema gate; no brief grants schema changes unless
   the gate approved them. The design contract (design/) needs no gate but
