@@ -12,6 +12,8 @@ import type { DB } from "./db/db.js";
 import type { JobQueue } from "./jobs/queue.js";
 import { logger } from "./logger.js";
 import { registerSourceRoutes } from "./routes/sources.js";
+import { registerSrsRoutes } from "./routes/srs.js";
+import { registerTriageRoutes } from "./routes/triage.js";
 
 // web/dist sits two levels up from both server/src/ and server/dist/.
 const webDistDir = fileURLToPath(new URL("../../web/dist/", import.meta.url));
@@ -50,6 +52,8 @@ export function createApp(
   if (opts.queue && opts.dataDir) {
     registerSourceRoutes(app, db, opts.queue, opts.dataDir);
   }
+  registerSrsRoutes(app, db);
+  registerTriageRoutes(app, db);
 
   app.use("/api", (_req: Request, res: Response) => {
     res
