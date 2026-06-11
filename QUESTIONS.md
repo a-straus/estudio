@@ -74,6 +74,10 @@ see FEEDBACK.md ## Processed for the task each maps to):
 **Your answer (optional — reactions welcome, but I'm proceeding):**
 
 
+## Answered
+
+<!-- Resolved questions are moved here by the orchestrator for record-keeping. -->
+
 ### [ANSWERED] What is /lesson doing right now? I ingested words and it still doesn't work
 
 > what is /lesson doing right now? Is this is a later phase? I have ingested words and it still doesnt work
@@ -88,10 +92,6 @@ This is also a UX gap I'm closing: the curriculum-seeded-on-first-run vs.
 manual-button question (review-03 nit #6) and a clearer empty state, plus the
 home/nav work, will make this discoverable instead of a dead end. Flagged in the
 Phase-1 review checklist above.
-
-## Answered
-
-<!-- Resolved questions are moved here by the orchestrator for record-keeping. -->
 
 ### [ANSWERED] UI visual polish — when and how (human-initiated discussion)
 
