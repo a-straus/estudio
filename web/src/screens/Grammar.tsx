@@ -27,11 +27,35 @@ function masteryLabel(t: GrammarTopicView): string {
   return parts.length > 0 ? parts.join(" · ") : "unread";
 }
 
+/** Tapping a topic opens its lesson (generated on first open, cached after). */
+function lessonHref(topic: GrammarTopicView): string {
+  return `/grammar/topics/${topic.id}/lesson`;
+}
+
 function TopicRow({ topic }: { topic: GrammarTopicView }) {
   return (
     <li className="grammar__topic">
-      <span className="grammar__topic-name">{topic.name}</span>
-      <span className="grammar__topic-meta">{masteryLabel(topic)}</span>
+      <a className="grammar__topic-link" href={lessonHref(topic)}>
+        <span className="grammar__topic-name">{topic.name}</span>
+        <span className="grammar__topic-meta">{masteryLabel(topic)}</span>
+      </a>
+    </li>
+  );
+}
+
+function PracticeRow({ topic }: { topic: GrammarTopicView }) {
+  return (
+    <li className="grammar__topic">
+      <a className="grammar__topic-link" href={lessonHref(topic)}>
+        <span className="grammar__topic-name">{topic.name}</span>
+        <span className="grammar__topic-meta">{masteryLabel(topic)}</span>
+      </a>
+      <Button
+        variant="quiet"
+        onClick={() => window.location.assign(lessonHref(topic))}
+      >
+        Review
+      </Button>
     </li>
   );
 }
@@ -159,7 +183,7 @@ export function Grammar({ pollIntervalMs = 1000 }: GrammarProps) {
               <h2 className="grammar__section-header">PRACTICE NEXT</h2>
               <ul className="grammar__topics">
                 {practiceQueue.map((t) => (
-                  <TopicRow key={`pq-${t.id}`} topic={t} />
+                  <PracticeRow key={`pq-${t.id}`} topic={t} />
                 ))}
               </ul>
             </section>
@@ -179,8 +203,6 @@ export function Grammar({ pollIntervalMs = 1000 }: GrammarProps) {
               </ul>
             </section>
           ))}
-
-          <p className="grammar__coming-soon">Lessons coming soon.</p>
         </>
       )}
     </main>

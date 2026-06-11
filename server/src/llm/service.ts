@@ -14,7 +14,9 @@ export type LlmTask =
   | "text_extraction"
   | "word_definition"
   | "grammar_curriculum"
-  | "quiz_cloze";
+  | "grammar_lesson"
+  | "quiz_cloze"
+  | "quiz_grading";
 
 export interface TaskConfig {
   provider: string;
@@ -27,7 +29,9 @@ const TASK_DEFAULTS: Record<LlmTask, TaskConfig> = {
   text_extraction: { provider: "anthropic", model: "claude-fable-5" },
   word_definition: { provider: "anthropic", model: "claude-fable-5" },
   grammar_curriculum: { provider: "anthropic", model: "claude-fable-5" },
+  grammar_lesson: { provider: "anthropic", model: "claude-fable-5" },
   quiz_cloze: { provider: "anthropic", model: "claude-fable-5" },
+  quiz_grading: { provider: "anthropic", model: "claude-fable-5" },
 };
 
 const DEFAULT_MAX_ATTEMPTS = 3;

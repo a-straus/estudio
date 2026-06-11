@@ -1,5 +1,6 @@
 import "./App.css";
 import { Grammar } from "./screens/Grammar";
+import { Lesson } from "./screens/Lesson";
 import { Ingest } from "./screens/Ingest";
 import { Library } from "./screens/Library";
 import { Quiz } from "./screens/Quiz";
@@ -28,6 +29,16 @@ function readReviewDeckId(): number | null {
   return Number.isInteger(id) && id > 0 ? id : 1;
 }
 
+// /grammar/topics/:id/lesson opens a topic's lesson (generated on first open).
+function readLessonTopicId(): number | null {
+  const match = window.location.pathname.match(
+    /^\/grammar\/topics\/(\d+)\/lesson/,
+  );
+  if (!match) return null;
+  const id = Number(match[1]);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 export function App() {
   const sourceId = readSourceId();
   if (sourceId !== null) {
@@ -45,6 +56,11 @@ export function App() {
 
   if (window.location.pathname.startsWith("/ingest")) {
     return <Ingest />;
+  }
+
+  const lessonTopicId = readLessonTopicId();
+  if (lessonTopicId !== null) {
+    return <Lesson topicId={lessonTopicId} />;
   }
 
   if (window.location.pathname.startsWith("/grammar")) {

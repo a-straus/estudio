@@ -1,0 +1,283 @@
+/* Grammar lesson + lesson quiz (design/screens/grammar.md §3.7, quiz.md §3.3).
+   Reading column to --measure-reading; Spanish examples in study serif italic
+   with the signature hanging indent. Every value references a token. */
+
+.lesson {
+  max-width: var(--measure-app);
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+}
+
+.lesson__back {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: var(--space-2) 0;
+  min-height: var(--hit-target);
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+
+.lesson__back:hover {
+  color: var(--color-accent);
+}
+
+.lesson__status {
+  color: var(--color-ink-soft);
+  padding: var(--space-5) 0;
+}
+
+/* ---- Reading ---- */
+.lesson__reading {
+  max-width: var(--measure-reading);
+  margin-inline: auto;
+}
+
+.lesson__title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  margin-bottom: var(--space-4);
+}
+
+.lesson__body {
+  font-family: var(--font-app);
+  font-size: var(--text-md);
+  line-height: var(--leading-loose);
+  color: var(--color-ink);
+  margin-bottom: var(--space-4);
+}
+
+.lesson__examples {
+  list-style: none;
+  margin: var(--space-4) 0;
+  padding: 0;
+}
+
+.lesson__example {
+  padding-left: var(--indent-entry);
+  text-indent: calc(-1 * var(--indent-entry));
+  margin-bottom: var(--space-3);
+}
+
+.lesson__example-es {
+  display: block;
+  font-family: var(--font-study);
+  font-style: italic;
+  font-size: var(--text-md);
+  line-height: var(--leading-base);
+  color: var(--color-ink);
+}
+
+.lesson__example-en {
+  display: block;
+  padding-left: var(--indent-entry);
+  text-indent: 0;
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  color: var(--color-ink-soft);
+}
+
+.lesson__cta {
+  max-width: var(--measure-reading);
+  margin: var(--space-6) auto 0;
+}
+
+/* ---- Practice ---- */
+.lesson--practice {
+  max-width: var(--measure-reading);
+}
+
+.lesson-quiz__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lesson-quiz__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.lesson-quiz__progress-text {
+  flex: 0 0 auto;
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+}
+
+.lesson-quiz__progress-track {
+  flex: 1 1 auto;
+  height: 3px;
+  background: var(--color-rule);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.lesson-quiz__progress-fill {
+  height: 100%;
+  background: var(--color-accent);
+  transition: width var(--motion-base) var(--motion-ease);
+}
+
+.lesson-quiz__instruction {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+.lesson-quiz__prompt {
+  font-family: var(--font-study);
+  font-size: var(--text-lg);
+  line-height: var(--leading-snug);
+  color: var(--color-ink);
+}
+
+.lesson-quiz__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lesson-quiz__reveal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-2);
+  background: var(--color-correct-wash);
+}
+
+.lesson-quiz__reveal[data-correct="no"] {
+  background: var(--color-incorrect-wash);
+}
+
+.lesson-quiz__verdict {
+  font-family: var(--font-app);
+  font-weight: var(--weight-medium);
+  color: var(--color-correct);
+}
+
+.lesson-quiz__reveal[data-correct="no"] .lesson-quiz__verdict {
+  color: var(--color-incorrect);
+}
+
+.lesson-quiz__correct {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+.lesson-quiz__correct-text {
+  font-family: var(--font-study);
+  font-style: italic;
+  color: var(--color-ink);
+}
+
+.lesson-quiz__feedback {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--color-ink);
+}
+
+.lesson-quiz__explanation {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+  color: var(--color-ink-soft);
+}
+
+.lesson-quiz__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.lesson-quiz__grade-error {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-incorrect);
+}
+
+/* ---- Results ---- */
+.lesson--results {
+  max-width: var(--measure-reading);
+}
+
+.lesson__score {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  margin-top: var(--space-3);
+}
+
+.lesson__mastery {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-soft);
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.lesson__results-list {
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+}
+
+.lesson-result {
+  padding: var(--space-3);
+  border-radius: var(--radius-2);
+  margin-bottom: var(--space-2);
+}
+
+.lesson-result[data-correct="no"] {
+  background: var(--color-incorrect-wash);
+}
+
+.lesson-result__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.lesson-result__prompt {
+  font-family: var(--font-study);
+  font-size: var(--text-base);
+  color: var(--color-ink);
+}
+
+.lesson-result__mark {
+  flex: 0 0 auto;
+  font-family: var(--font-meta);
+}
+
+.lesson-result__correct {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  margin-top: var(--space-1);
+}
+
+.lesson-result__explanation {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+  color: var(--color-ink-soft);
+  margin-top: var(--space-1);
+}
+
+.lesson__results-actions {
+  display: flex;
+  gap: var(--space-3);
+}

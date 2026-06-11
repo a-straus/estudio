@@ -90,8 +90,11 @@ describe("Grammar screen", () => {
     // Mastery meta: a quizzed topic shows count + percent; an untouched one "unread".
     expect(screen.getByText("quizzed twice · 80%")).toBeTruthy();
     expect(screen.getAllByText("unread").length).toBeGreaterThan(0);
-    // Topics are not dead-end links yet.
-    expect(screen.getByText("Lessons coming soon.")).toBeTruthy();
+    // Topics link into their lesson.
+    const link = screen
+      .getAllByRole("link")
+      .find((a) => a.getAttribute("href") === "/grammar/topics/10/lesson");
+    expect(link).toBeTruthy();
   });
 
   it("offers seeding from the empty state and reloads when the job finishes", async () => {

@@ -8,8 +8,15 @@ import { logger } from "../logger.js";
 import {
   countGrammarCategories,
   getGrammarHome,
+  getLatestLesson,
+  getLessonById,
+  getLessonQuestions,
   insertCurriculum,
+  insertLesson,
+  insertLessonAttempt,
+  insertLessonQuestion,
   listGrammarTopicsForMatching,
+  updateTopicMastery,
 } from "./grammar-queries.js";
 
 let dataDir: string;
@@ -153,5 +160,109 @@ describe("grammar queries", () => {
       "Cláusulas si",
       "Contraste",
     ]);
+  });
+
+  describe("lessons", () => {
+    function makeTopic(): number {
+      insertCurriculum(db, CURRICULUM);
+      return topicId("Emoción");
+    }
+
+    it("stores and serves a lesson + its quiz set; getLatest returns the newest", () => {
+      const id = makeTopic();
+      const first = insertLesson(db, {
+        topicId: id,
+        content: { explanation: "old", examples: [] },
+        promptVersion: "abc",
+      });
+      const second = insertLesson(db, {
+        topicId: id,
+        content: {
+          explanation: "new",
+          examples: [{ es: "Hola", en: "Hi" }],
+        },
+        promptVersion: "abc",
+      });
+      expect(getLatestLesson(db, id)!.id).toBe(second);
+      expect(getLatestLesson(db, id)!.content.explanation).toBe("new");
+
+      insertLessonQuestion(db, {
+        topicId: id,
+        lessonId: second,
+        style: "fill_in",
+        payload: { style: "fill_in", prompt: "____", correct: "x" },
+        explanation: "why",
+        promptVersion: "abc",
+      });
+      const withName = getLessonById(db, second)!;
+      expect(withName.topicName).toBe("Emoción");
+      const qs = getLessonQuestions(db, second);
+      expect(qs).toHaveLength(1);
+      expect(qs[0]!.payload.correct).toBe("x");
+      // questions on the old lesson are not returned for the new one.
+      expect(getLessonQuestions(db, first)).toHaveLength(0);
+    });
+
+    it("excludes flagged lesson questions from the served set", () => {
+      const id = makeTopic();
+      const lessonId = insertLesson(db, {
+        topicId: id,
+        content: { explanation: "x", examples: [] },
+        promptVersion: "abc",
+      });
+      const qid = insertLessonQuestion(db, {
+        topicId: id,
+        lessonId,
+        style: "free_text",
+        payload: { style: "free_text", prompt: "?" },
+        explanation: "why",
+        promptVersion: "abc",
+      });
+      db.prepare("UPDATE quiz_question SET flagged = 1 WHERE id = ?").run(qid);
+      expect(getLessonQuestions(db, lessonId)).toHaveLength(0);
+    });
+
+    // mastery = 0.7 * mastery + 0.3 * score
+    it("updates mastery via the EMA and returns before/after", () => {
+      const id = makeTopic();
+      // From 0: 0.7*0 + 0.3*1 = 0.3
+      let res = updateTopicMastery(db, id, 1);
+      expect(res.masteryBefore).toBe(0);
+      expect(res.mastery).toBeCloseTo(0.3, 10);
+
+      // From 0.3 with a perfect score: 0.7*0.3 + 0.3*1 = 0.51
+      res = updateTopicMastery(db, id, 1);
+      expect(res.masteryBefore).toBeCloseTo(0.3, 10);
+      expect(res.mastery).toBeCloseTo(0.51, 10);
+
+      // A zero score pulls it down: 0.7*0.51 + 0.3*0 = 0.357
+      res = updateTopicMastery(db, id, 0);
+      expect(res.mastery).toBeCloseTo(0.357, 10);
+
+      // The column reflects the latest value.
+      const row = db
+        .prepare("SELECT mastery FROM grammar_topic WHERE id = ?")
+        .get(id) as { mastery: number };
+      expect(row.mastery).toBeCloseTo(0.357, 10);
+    });
+
+    it("records a lesson attempt against the topic", () => {
+      const id = makeTopic();
+      const attemptId = insertLessonAttempt(db, {
+        topicId: id,
+        style: "fill_in",
+        answers: [{ questionId: 1, given: "x", correct: true }],
+      });
+      const row = db
+        .prepare("SELECT topic_id, style, deck_id FROM quiz_attempt WHERE id = ?")
+        .get(attemptId) as {
+        topic_id: number;
+        style: string;
+        deck_id: number | null;
+      };
+      expect(row.topic_id).toBe(id);
+      expect(row.style).toBe("fill_in");
+      expect(row.deck_id).toBeNull();
+    });
   });
 });

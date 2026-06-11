@@ -11,6 +11,7 @@ import type { HealthResponse } from "@estudio/shared";
 import { listJobs } from "./db/queries.js";
 import type { DB } from "./db/db.js";
 import type { JobQueue } from "./jobs/queue.js";
+import type { LlmService } from "./llm/service.js";
 import { logger } from "./logger.js";
 import { registerGrammarRoutes } from "./routes/grammar.js";
 import { registerQuizRoutes } from "./routes/quiz.js";
@@ -25,7 +26,12 @@ const webDistDir = fileURLToPath(new URL("../../web/dist/", import.meta.url));
 
 export function createApp(
   db: DB,
-  opts: { serveWeb?: boolean; queue?: JobQueue; dataDir?: string } = {},
+  opts: {
+    serveWeb?: boolean;
+    queue?: JobQueue;
+    dataDir?: string;
+    llm?: LlmService;
+  } = {},
 ): Express {
   const app = express();
   app.use(express.json());
@@ -60,7 +66,7 @@ export function createApp(
   registerSrsRoutes(app, db);
   registerTriageRoutes(app, db);
   registerWordRoutes(app, db);
-  registerGrammarRoutes(app, db, opts.queue);
+  registerGrammarRoutes(app, db, opts.queue, opts.llm);
   registerQuizRoutes(app, db, opts.queue);
   if (opts.dataDir) {
     registerSystemRoutes(app, db, opts.dataDir);
