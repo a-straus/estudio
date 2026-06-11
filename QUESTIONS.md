@@ -20,7 +20,7 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 ## Pending
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
-
+- The code is great and I'm excited to test it. The thing I'm wondering is that when we're done with phase one here Is the UI gonna get an update to make it look a little more professional and polished? Because it does right now kind of just look like a V0 project, which is fine, but I would like to share this with some people, and I don't think it's at that position yet. So, are you aware of that? Are you happy with the design right now and the look of the UI? Do you want to tackle that when we've done phase three? Do you want to tackle it now? I'm curious your answer. But don't begin to make any design tasks until we've both figured this out and discussed it. 
 ## Answered
 
 <!-- Resolved questions are moved here by the orchestrator for record-keeping. -->
