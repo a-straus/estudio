@@ -109,11 +109,14 @@ Do these in order. Skip steps that have nothing to do.
      failure output in the brief.
    - **merge conflict** (exit 6) → re-spawn the same branch with a brief to
      redo the task against the current base.
-   - **protected files modified** (exit 7) → re-spawn with a brief to remove
-     those changes, or abandon. Exit 7 also covers a branch modifying an
-     existing check.sh — workers never change the gate; if the change itself
-     is legitimate, apply it yourself directly on the base branch (you own
-     the file) and re-spawn the worker without it.
+   - **check.sh modified** (exit 7) → workers never change the gate. If the
+     change itself is legitimate, apply it yourself directly on the base
+     branch (you own the file) and re-spawn the worker without it; otherwise
+     re-spawn with a brief to drop it, or abandon. (Other protected state
+     files never cause a refusal: `integrate` strips worker changes to them
+     during the merge — base's version always wins — and prints a NOTE
+     listing what it dropped. Read that NOTE: if the worker was trying to
+     communicate something through those files, re-brief it.)
    - **no commits** (exit 4) / **FAILED** / **STALE** / **ORPHAN** →
      re-spawn to resume (the branch keeps its commits), or `abandon` and
      re-queue if the work is worthless. Maximum 2 re-spawns per task; after
@@ -323,8 +326,8 @@ everything below it is yours.
 
 | Command | What it does |
 |---------|--------------|
-| `spawn [--model <m>] [--effort <e>] [--include <path>]... <branch> "<brief>"` | Launch a headless worker on its own branch + worktree. `--effort low\|medium\|high\|xhigh\|max` sets thinking depth (default: $WORKER_EFFORT). `--include` grants a context file (GOAL.md, a state file, a design/ file or the whole `design` dir) back into the worker's tree — pass one per file the brief names. Re-running for an existing branch resumes it (pass the same flags). Refuses when capacity is full (exit 2) or the architecture is in flight — CRITIQUE.md on base, or uncommitted ARCHITECTURE.md/design changes (exit 3): reconcile and commit, then spawn |
-| `integrate <branch>` | Gate (completion marker, BLOCKED.md, commits, protected files, check.sh), then merge to base and clean up. Exits: 2 not finished · 3 blocked · 4 no commits · 5 check failed · 6 conflict · 7 protected files |
+| `spawn [--model <m>] [--effort <e>] [--include <path>]... <branch> "<brief>"` | Launch a headless worker on its own branch + worktree. `--effort low\|medium\|high\|xhigh\|max` sets thinking depth (default: $WORKER_EFFORT). `--include` grants a context file (GOAL.md, a state file, a design/ file or the whole `design` dir) back into the worker's tree — pass one per file the brief names. Re-running for an existing branch resumes it (pass the same flags); a stale `.worker-done` marker is archived to `.worker-done.prev` automatically. Refuses when capacity is full (exit 2) or when state is in flight — CRITIQUE.md on base, or uncommitted changes to any state file (GOAL.md, TASKS.md, QUESTIONS.md, DECISIONS.md, FEEDBACK.md, ARCHITECTURE.md, design/) (exit 3): commit the state, then spawn |
+| `integrate <branch>` | Gate (completion marker, BLOCKED.md, commits, check.sh), then merge to base and clean up. Worker changes to protected state files are stripped during the merge (base's version kept, NOTE printed) — they never refuse the merge. Exits: 2 not finished · 3 blocked · 4 no commits · 5 check failed · 6 conflict outside protected paths · 7 modified an existing check.sh |
 | `abandon <branch>` | Discard a branch and its worktree without merging |
 | `list-agents` | Classify every worker branch: RUNNING / FINISHED / BLOCKED / FAILED / STALE / ORPHAN, with the action each needs |
 
@@ -352,8 +355,8 @@ blockers by committing BLOCKED.md, and their full transcripts land in
   afterwards — a worker spawned before ARCHITECTURE.md and design/ are
   finalized and committed builds against a stale contract. Reconcile the
   critique, finalize, `git rm CRITIQUE.md`, commit — only then spawn build
-  tasks (`spawn` enforces this: exit 3 while CRITIQUE.md is on base or
-  ARCHITECTURE.md/design changes are uncommitted). The same discipline
+  tasks (`spawn` enforces this: exit 3 while CRITIQUE.md is on base or any
+  state file has uncommitted changes). The same discipline
   applies later: commit any ARCHITECTURE.md/design amendment before spawning
   a task that depends on it, and quote the committed version in the brief.
 - **At most one schema-affecting task in flight, ever.** All data-model
