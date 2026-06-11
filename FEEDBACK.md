@@ -25,6 +25,8 @@ Altitude guide:
 
 <!-- - one item per dash; date them if you like -->
 
+- 2026-06-10 — PDF processing must go through the vision path (GOAL §6.1 already mandates the vision-capable LLM, no OCR step). Model preference for the scan-reading task: Anthropic reports Claude Fable 5 (`claude-fable-5`) is strong at vision — default the app's PDF-extraction LLM config to a Fable-class model and validate it against the fixtures in `docs/fixtures/workbook/`. This is the app's `LlmProvider` config, not the worker/orchestrator models.
+
 ## Processed
 
 <!-- Moved here by the orchestrator with what it did about each. -->
