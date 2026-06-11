@@ -14,6 +14,7 @@ Format:
 - YYYY-MM-DD — <decision> (source: QUESTIONS.md "<title>" | autonomous per §11)
 -->
 
+- 2026-06-11 — The `codex-worker-engine` git branch is human-authored infra work (commit ed7ee27 by the owner: routes gpt-*/codex* worker models through `codex exec` in bin/spawn, plus Dockerfile/firewall additions — files the orchestrator never edits). Not a worker branch: never integrate or abandon it; like `no-design`, ignore its ORPHAN status in list-agents. The human merges it when ready. (autonomous)
 - 2026-06-10 — The `no-design` git branch is a human sandbox (orchestration-infra variant, predates this run), not a worker branch; `list-agents` reports it as ORPHAN but it is never integrated or abandoned — leave it untouched. (autonomous)
 - 2026-06-10 — App's `pdf_extraction` (vision/scan-reading) LLM task defaults to `claude-fable-5`; LLM model config is per-task, validated against `docs/fixtures/workbook/`. (source: FEEDBACK.md 2026-06-10)
 - 2026-06-10 — Human-seeded design/ contract adopted as-is (★ files all present and filled, synced to GOAL v2). Known deliberate gap per its Change log: Phase 2 surfaces (Ask, Suggestions, lesson audio, voice questions) unspecified — orchestrator extends the contract when Phase 2 approaches. (autonomous per §11)

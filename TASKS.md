@@ -14,23 +14,24 @@ Done levels (from GOAL.md §15):
 
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
-- **quiz-engine-ui**: Quiz config/play/results per design/screens/quiz.md + review-02 #8 (Review screen "Explain why" + cached-cloze mix-in). Owns: routes/quiz.ts (new) + app.ts registration, db/quiz-queries.ts (new), shared/src/quiz-api.ts (new) + shared index export, jobs/quizGen.ts (new) + handlers.ts + server/src/index.ts (registration), prompts/quiz_cloze.md (new), llm/service.ts (add `quiz_cloze` task to LlmTask + TASK_DEFAULTS only), web Quiz.* + quizApi.ts + App.tsx /quiz route, AND Review.tsx/reviewApi.ts/Review.css + srs.ts/srs-queries.ts (cloze mix-in into due queue + Explain-why) — NOT triage/words/grammar/system routes or queries, migrations, other prompts (spawned: 2026-06-11 ~21:15, plain spawn, schema excerpts pasted, `--include design/INDEX.md --include design/tokens.md --include design/screens/quiz.md --include design/screens/review.md --include design/components.md --include design/interaction.md`)
+- **grammar-lessons-quizzes**: lesson generation job (explanation+examples as lesson rows; quiz as quiz_question rows w/ lesson_id), lesson screen, MC/fill-in/conjugation/free-text answering with LLM grading for free-form styles, "explain why" everywhere, mastery tracking from attempts. Owns: routes/grammar.ts + db/grammar-queries.ts + shared/src/grammar-api.ts (extend), jobs/lessonGen.ts (new) + handlers.ts + server/src/index.ts registration, prompts/grammar_lesson.md + quiz_grading.md (new), llm/service.ts (add `grammar_lesson` + `quiz_grading` to LlmTask + TASK_DEFAULTS only), db/quiz-queries.ts + routes/quiz.ts (extend for lesson-set serving/grading if needed), web Grammar.* + grammarApi.ts + new Lesson screen + App.tsx route — NOT triage/words/system/srs routes or queries, migrations, other prompts (spawned: 2026-06-11 ~14:45, plain spawn, schema excerpts pasted, `--include design/INDEX.md --include design/tokens.md --include design/screens/grammar.md --include design/screens/quiz.md --include design/components.md --include design/interaction.md`)
 
 
 ## Backlog
 
 <!-- Phase 1 (GOAL.md §11 order: PDF ingestion → SRS review → raw text → quizzes → grammar); thinnest slice first, riskiest part of each slice first. Format: - description [priority] -->
 
-- **grammar-lessons-quizzes** — lesson generation (explanation+examples; quiz as quiz_question rows w/ lesson_id), MC/fill-in/conjugation/free-text grading (LLM), "explain why" everywhere, mastery tracking; WAIT for quiz-engine-ui (both touch app.ts route registration, App.tsx, jobs/handlers.ts + server/src/index.ts job registration, and llm/service.ts LlmTask — serialized to avoid file conflicts; spawn once quiz-engine-ui integrates) [Must]
 - **docs-and-demo** — README cold start (clone→run→phone via LAN/Tailscale, "Where your data lives", backup/restore exercised), TODO-LATER.md, docs/demo.md script; LLM hot-swap proof; covers review-01 #9 (no app README exists yet); WAIT for system-page (backup job must exist to exercise restore) and the other Phase-1 Musts (docs describe the finished slice) [Must — Phase 1 gate]
-- review-03 after ~5 more integrations (`--model "$ORCH_MODEL" --effort medium --include GOAL.md --include ARCHITECTURE.md --include design`) [process]
+- review-03 once grammar-lessons-quizzes lands (5 integrations since review-02: grammar-curriculum, review-02-fixes, system-page, quiz-engine-ui, grammar-lessons-quizzes) (`--model "$ORCH_MODEL" --effort medium --include GOAL.md --include ARCHITECTURE.md --include design`) [process]
 - Phase 2 (lesson audio → Ask → suggestions → voice) and Phase 3 (Gutenberg/KJV, calibration, Mochi-fixture-gated) decomposed when Phase 1 gate nears [later]
 
-Note: `no-design` branch = human sandbox, not a worker branch (see DECISIONS.md); ignore its ORPHAN status in list-agents.
+Note: `no-design` and `codex-worker-engine` branches = human-owned (sandbox / spawn-engine infra work on bin/spawn + Dockerfile + firewall), not worker branches (see DECISIONS.md); ignore their ORPHAN status in list-agents.
 
 ## Done
 
 <!-- Format: - **branch-name**: description (merged: YYYY-MM-DD HH:MM) [task/feature/release done] -->
+
+- **quiz-engine-ui**: Quiz config/play/results per design/screens/quiz.md (routes/quiz.ts, db/quiz-queries.ts, shared/quiz-api.ts, jobs/quizGen.ts, prompts/quiz_cloze.md, web Quiz.*) + review-02 #8: Review screen "Explain why" + cached-cloze mix-in into due queue (merged: 2026-06-11 14:37, check.sh green on main — 328 tests) [task done]
 
 - **system-page**: System screen per design/screens/system.md (recent errors from error_log, job statuses, LLM spend from llm_call, DB/backup status) + daily timestamped DB backup job (jobs/backup.ts, enqueue-if-due on boot + daily interval); routes/system.ts + db/system-queries.ts + shared/system-api.ts + web System screen + /system route (merged: 2026-06-11 21:08, check.sh green on main — 302 tests) [task done]
 
