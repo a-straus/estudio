@@ -121,10 +121,30 @@
 
 /* The inline "retry" reads as part of the sentence. */
 .triage-row__retry {
+  position: relative;
   min-height: 0;
   padding: 0;
   font-size: var(--text-sm);
   vertical-align: baseline;
+}
+
+/* Below bp-tablet the visual stays inline but a ::before overlay restores the
+   --hit-target tap area (D4 Button: min-height --hit-target on mobile). */
+.triage-row__retry::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: max(100%, var(--hit-target));
+  height: var(--hit-target);
+}
+
+@media (min-width: 640px) {
+  /* bp-tablet */
+  .triage-row__retry::before {
+    content: none;
+  }
 }
 
 @media (min-width: 960px) {

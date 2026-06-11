@@ -33,7 +33,7 @@ describe("runMigrations with the real migrations", () => {
     const db = openTmpDb(dataDir);
     const applied = runMigrations(db, dataDir);
 
-    expect(applied).toEqual(["001_init.sql"]);
+    expect(applied).toEqual(["001_init.sql", "002_quiz_question_check.sql"]);
     const tables = (
       db
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -121,6 +121,36 @@ describe("runMigrations with the real migrations", () => {
     expect(() => insertReview("bogus")).toThrow(/CHECK/);
   });
 
+  it("enforces exactly one of word_id/topic_id on quiz_question", () => {
+    const dataDir = makeTmpDir();
+    const db = openTmpDb(dataDir);
+    runMigrations(db, dataDir);
+
+    db.prepare(
+      "INSERT INTO word (term, term_normalized, language, status, deck_id) VALUES ('hola', 'hola', 'es', 'new', 1)",
+    ).run();
+    db.prepare("INSERT INTO grammar_category (name) VALUES ('Verbs')").run();
+    db.prepare(
+      "INSERT INTO grammar_topic (category_id, name) VALUES (1, 'Pretérito')",
+    ).run();
+
+    const insert = (wordId: number | null, topicId: number | null) =>
+      db
+        .prepare(
+          "INSERT INTO quiz_question (word_id, topic_id, style, payload, explanation, prompt_version) VALUES (?, ?, 'cloze', '{}', 'because', 'v1')",
+        )
+        .run(wordId, topicId);
+
+    expect(() => insert(null, null)).toThrow(/CHECK/);
+    expect(() => insert(1, 1)).toThrow(/CHECK/);
+    // Exactly one side set is accepted, in either direction.
+    insert(1, null);
+    insert(null, 1);
+    expect(db.prepare("SELECT COUNT(*) AS c FROM quiz_question").get()).toEqual(
+      { c: 2 },
+    );
+  });
+
   it("enforces UNIQUE(term, language) on word", () => {
     const dataDir = makeTmpDir();
     const db = openTmpDb(dataDir);
@@ -202,12 +232,15 @@ describe("runMigrations with fixture migrations", () => {
     // A run with nothing pending takes no backup; a run with a new pending file does.
     runMigrations(db, dataDir, migrationsDir);
     expect(fs.readdirSync(backupsDir)).toHaveLength(1);
+    // Backup stamps are second-precision, so clear the first backup rather
+    // than running two backed-up migrations within the same second.
+    fs.rmSync(path.join(backupsDir, backups[0]!));
     fs.writeFileSync(
       path.join(migrationsDir, "002_more.sql"),
       "INSERT INTO t (v) VALUES ('x');",
     );
     runMigrations(db, dataDir, migrationsDir);
     backups = fs.readdirSync(backupsDir);
-    expect(backups).toHaveLength(2);
+    expect(backups).toHaveLength(1);
   });
 });

@@ -7,7 +7,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   /** Busy: label swaps to its "…ing" form and the button disables. */
   busy?: boolean;
-  /** Label shown while busy, e.g. "Saving…". */
+  /** Label shown while busy, e.g. "Saving…". Defaults to the label + "…". */
   busyLabel?: string;
 }
 
@@ -30,7 +30,7 @@ export function Button({
       disabled={disabled || busy}
       {...rest}
     >
-      {busy && busyLabel ? busyLabel : children}
+      {busy ? (busyLabel ?? <>{children}…</>) : children}
     </button>
   );
 }

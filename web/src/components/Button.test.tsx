@@ -31,6 +31,19 @@ describe("Button", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("busy without busyLabel appends an ellipsis and disables", () => {
+    const onClick = vi.fn();
+    render(
+      <Button busy onClick={onClick}>
+        Save
+      </Button>,
+    );
+    const button = screen.getByRole("button", { name: "Save…" });
+    expect(button).toHaveProperty("disabled", true);
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   it("defaults to type=button so it never submits forms", () => {
     render(<Button>Next</Button>);
     expect(screen.getByRole("button").getAttribute("type")).toBe("button");
