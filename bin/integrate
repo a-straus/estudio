@@ -10,10 +10,15 @@
 #   3  worker committed BLOCKED.md — handle the escalation, then re-spawn or abandon
 #   4  no new commits on the branch — re-spawn or abandon
 #   5  check.sh failed on the branch — re-spawn with a brief to fix it
-#   6  merge conflict (aborted, base left clean) — re-spawn against current base
-#   7  branch modifies protected state files (GOAL.md / TASKS.md / QUESTIONS.md /
-#      DECISIONS.md / ARCHITECTURE.md / FEEDBACK.md / design/) or an existing
-#      check.sh — re-spawn with a brief to drop those changes, or abandon
+#   6  merge conflict outside protected paths (aborted, base left clean) —
+#      re-spawn against current base
+#   7  branch modifies an existing check.sh — re-spawn with a brief to drop
+#      that change, or abandon
+#
+# Protected state files (GOAL.md / TASKS.md / QUESTIONS.md / DECISIONS.md /
+# ARCHITECTURE.md / FEEDBACK.md / design/) no longer refuse the merge: the
+# merge takes base's version of every protected path unconditionally and
+# reports what was stripped. Worker content structurally cannot land there.
 set -euo pipefail
 . "$(dirname "$0")/_lib.sh"
 
@@ -80,21 +85,19 @@ if (( commits == 0 )); then
 fi
 
 # State files are owned by the human (GOAL.md) and the orchestrator (the
-# rest). Workers may read them; branches that modify them never merge.
-# ARCHITECTURE.md changes only enter through the orchestrator's schema gate;
-# the design contract (design/) is amended only by the orchestrator on the
-# base branch. (DESIGN.md stays in the pathspec to catch a worker recreating
-# the old single-file contract.)
-protected="$(git -C "$root" diff --name-only "$base..$branch" -- \
-    GOAL.md TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md DESIGN.md \
-    FEEDBACK.md design/)"
-if [[ -n "$protected" ]]; then
-    echo "REFUSED: '$branch' modifies protected state files:" >&2
-    printf '    %s\n' $protected >&2
-    echo "Re-spawn with a brief to remove those changes" >&2
-    echo "(git checkout $base -- <file> && git commit), or abandon the branch." >&2
-    exit 7
-fi
+# rest). Workers may read them; worker versions of them never merge. This is
+# enforced by construction, not refusal: the merge below takes base's version
+# of every protected path unconditionally (strip-on-merge) and reports what
+# it stripped. The old refuse-and-resync gate (exit 7) had two failure modes
+# this kills: a two-dot diff blamed workers for the orchestrator's own
+# post-fork commits, and a branch that ever synced a state file livelocked
+# chasing a base tip the orchestrator moves every iteration (the bootstrap
+# incident, iterations 6-15). ARCHITECTURE.md changes still enter only
+# through the orchestrator's schema gate; the design contract (design/) is
+# amended only by the orchestrator on the base branch. (DESIGN.md stays in
+# the pathspec to catch a worker recreating the old single-file contract.)
+protected_paths=(GOAL.md TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md \
+                 DESIGN.md FEEDBACK.md design/)
 
 # check.sh is the verification gate itself — a worker whose tests fail must
 # not be able to weaken it on the same branch it gates. The orchestrator owns
@@ -104,6 +107,7 @@ fi
 # can still delete or weaken the test files check.sh invokes — that is
 # covered by the periodic review tasks, not enforced here.
 if git -C "$root" cat-file -e "$base:check.sh" 2>/dev/null \
+        && [[ -n "$(git -C "$root" diff --name-only "$base...$branch" -- check.sh)" ]] \
         && [[ -n "$(git -C "$root" diff --name-only "$base..$branch" -- check.sh)" ]]; then
     echo "REFUSED: '$branch' modifies check.sh — the verification gate is owned by" >&2
     echo "the orchestrator; changes to it go through the orchestrator, never a worker" >&2
@@ -138,13 +142,46 @@ git -C "$root" log --oneline "$base..$branch"
 echo ""
 
 git -C "$root" checkout -q "$base"
-if ! git -C "$root" merge --no-ff "$branch" -m "Integrate: $branch"; then
-    git -C "$root" merge --abort 2>/dev/null || true
-    echo "REFUSED: merge conflict between '$branch' and '$base' (merge aborted," >&2
-    echo "'$base' is clean). Re-spawn '$branch' with a brief to redo the task" >&2
-    echo "against the current '$base', or abandon it." >&2
-    exit 6
+if ! git -C "$root" merge --no-ff --no-commit "$branch"; then
+    # Conflicts confined to protected paths are not the worker's problem —
+    # base's version wins below regardless. Any other conflict aborts.
+    all_conf="$(git -C "$root" diff --name-only --diff-filter=U | sort)"
+    prot_conf="$(git -C "$root" diff --name-only --diff-filter=U -- \
+        "${protected_paths[@]}" | sort)"
+    if [[ -z "$all_conf" || "$all_conf" != "$prot_conf" ]]; then
+        git -C "$root" merge --abort 2>/dev/null || true
+        echo "REFUSED: merge conflict between '$branch' and '$base' (merge aborted," >&2
+        echo "'$base' is clean). Re-spawn '$branch' with a brief to redo the task" >&2
+        echo "against the current '$base', or abandon it." >&2
+        exit 6
+    fi
 fi
+
+# Strip-on-merge: reset every protected path the merge would change back to
+# base's version; protected paths the branch added (absent on base) are
+# dropped. HEAD is still $base here (--no-commit), so checkout HEAD both
+# resolves protected conflicts and reverts staged protected changes.
+stripped="$({ git -C "$root" diff --cached --name-only -- "${protected_paths[@]}";
+              git -C "$root" diff --name-only --diff-filter=U -- "${protected_paths[@]}"; } \
+            | sort -u)"
+if [[ -n "$stripped" ]]; then
+    while IFS= read -r f; do
+        [[ -n "$f" ]] || continue
+        if git -C "$root" cat-file -e "$base:$f" 2>/dev/null; then
+            git -C "$root" checkout "$base" -- "$f"
+        else
+            git -C "$root" rm -q -f --cached -- "$f" 2>/dev/null || true
+            rm -f "$root/$f"
+        fi
+    done <<< "$stripped"
+    echo ""
+    echo "NOTE: dropped worker changes to protected state files (base's version kept):"
+    printf '    %s\n' $stripped
+    echo "If the worker was trying to communicate something through these, re-brief it."
+    echo ""
+fi
+
+git -C "$root" commit -q -m "Integrate: $branch"
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 

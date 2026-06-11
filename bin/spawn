@@ -25,7 +25,9 @@
 # design files a brief names, or GOAL.md + design for reviewers). All source
 # code is always present.
 #
-# Exit codes: 0 spawned · 1 usage/state error · 2 capacity full
+# Exit codes: 0 spawned · 1 usage/state error · 2 capacity full ·
+#             3 architecture in flight (CRITIQUE.md on base, or uncommitted
+#               ARCHITECTURE.md / design/ changes) — reconcile & commit first
 set -euo pipefail
 . "$(dirname "$0")/_lib.sh"
 
@@ -63,15 +65,49 @@ if worker_window_live "$branch"; then
     die "a worker for '$branch' is already running (tmux window '$branch')"
 fi
 
+# A finished worker whose merge was refused (integrate exit 5/6/7) is
+# re-spawned on the same branch — that is integrate's prescribed remedy, so
+# a stale completion marker must not deadlock it (the bootstrap incident:
+# integrate said "re-spawn", spawn said "integrate first"). Archive the
+# marker and proceed; the .prev file keeps the prior exit code for forensics.
 if [[ -f "$wt/.worker-done" ]]; then
-    echo "ERROR: '$branch' already has a finished worker awaiting action." >&2
-    echo "Run 'integrate $branch' or 'abandon $branch' first." >&2
-    exit 1
+    echo "NOTE: '$branch' has a finished worker (exit $(head -1 "$wt/.worker-done" 2>/dev/null))."
+    echo "      Re-spawning anyway — archiving marker to .worker-done.prev."
+    echo "      If you meant to merge its work instead, run 'integrate $branch'."
+    mv "$wt/.worker-done" "$wt/.worker-done.prev"
 fi
 
 if (( $(running_workers "$root") >= MAX_WORKERS )); then
     echo "ERROR: worker capacity full ($MAX_WORKERS running). Integrate or wait first." >&2
     exit 2
+fi
+
+# ── Architecture-in-flight guard ──────────────────────────────────────────────
+# Workers fork from a commit and never see what lands on base afterwards. If
+# the architecture is still being settled when a worker forks, it builds
+# against a schema that is about to change (the bootstrap/stale-ARCHITECTURE
+# incident). Two tripwires:
+#   1. CRITIQUE.md on the base branch = the critique has been integrated but
+#      not yet reconciled — ARCHITECTURE.md/design are about to move.
+#   2. Uncommitted state-file changes (any of them, not just the contract) =
+#      the state on disk is ahead of HEAD; a worker forked now would be blind
+#      to it (the iteration-5 stale fork: bootstrap spawned one commit before
+#      the reconciled ARCHITECTURE.md landed).
+main_base="$(base_branch "$root")"
+if git -C "$root" cat-file -e "$main_base:CRITIQUE.md" 2>/dev/null; then
+    echo "ERROR: CRITIQUE.md exists on '$main_base' — the architecture critique has" >&2
+    echo "not been reconciled yet. Finish the reconcile pass (adopt/reject findings," >&2
+    echo "finalize ARCHITECTURE.md, git rm CRITIQUE.md, commit) before spawning workers." >&2
+    exit 3
+fi
+state_paths=(GOAL.md TASKS.md QUESTIONS.md DECISIONS.md FEEDBACK.md \
+             ARCHITECTURE.md design)
+if [[ -n "$(git -C "$root" status --porcelain -- "${state_paths[@]}" 2>/dev/null)" ]]; then
+    echo "ERROR: state files have uncommitted changes — workers fork from a commit" >&2
+    echo "and would never see them. Commit the state, then spawn:" >&2
+    git -C "$root" status --porcelain -- "${state_paths[@]}" 2>/dev/null \
+        | sed 's/^/    /' >&2
+    exit 3
 fi
 
 # ── Create or reattach the worktree ──────────────────────────────────────────

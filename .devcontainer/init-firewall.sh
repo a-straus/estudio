@@ -2,6 +2,93 @@
 set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
 IFS=$'\n\t'       # Stricter word splitting
 
+# ── Phase 1: collect the allowlist BEFORE touching the firewall ──────────────
+# This script also runs as a periodic REFRESH under its own previous firewall.
+# An earlier version flushed the rules first and fetched the allowlist after —
+# but `iptables -F` does not reset the default DROP policies left by the
+# previous run, so the GitHub/DNS fetches ran against a default-DROP firewall
+# with an empty allowlist, failed, and `set -e` aborted mid-rebuild, leaving
+# the container with no egress at all (every API call → ConnectionRefused).
+# Collect everything first, while the previous allowlist still permits it;
+# only then tear down and rebuild — the rebuild makes no network calls.
+
+ALLOWLIST="$(mktemp)"
+trap 'rm -f "$ALLOWLIST"' EXIT
+
+collect_allowlist() {
+    : > "$ALLOWLIST"
+
+    echo "Fetching GitHub IP ranges..."
+    local gh_ranges cidr domain ips ip
+    gh_ranges=$(curl -s --max-time 20 https://api.github.com/meta) || return 1
+    if [ -z "$gh_ranges" ]; then
+        echo "ERROR: Failed to fetch GitHub IP ranges"
+        return 1
+    fi
+    if ! echo "$gh_ranges" | jq -e '.web and .api and .git' >/dev/null; then
+        echo "ERROR: GitHub API response missing required fields"
+        return 1
+    fi
+    while read -r cidr; do
+        if [[ ! "$cidr" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}$ ]]; then
+            echo "ERROR: Invalid CIDR range from GitHub meta: $cidr"
+            return 1
+        fi
+        echo "$cidr" >> "$ALLOWLIST"
+    done < <(echo "$gh_ranges" | jq -r '(.web + .api + .git)[]' | aggregate -q)
+
+    for domain in \
+        "registry.npmjs.org" \
+        "api.anthropic.com" \
+        "claude.ai" \
+        "console.anthropic.com" \
+        "sentry.io" \
+        "statsig.anthropic.com" \
+        "statsig.com" \
+        "marketplace.visualstudio.com" \
+        "vscode.blob.core.windows.net" \
+        "update.code.visualstudio.com" \
+        "objects.githubusercontent.com" \
+        "nodejs.org"; do
+        echo "Resolving $domain..."
+        ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
+        if [ -z "$ips" ]; then
+            echo "WARN: Failed to resolve $domain — skipping"
+            continue
+        fi
+        while read -r ip; do
+            if [[ ! "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+                echo "ERROR: Invalid IP from DNS for $domain: $ip"
+                return 1
+            fi
+            echo "$ip" >> "$ALLOWLIST"
+        done <<< "$ips"
+    done
+
+    # An empty allowlist would brick the orchestrator — treat as failure.
+    grep -q . "$ALLOWLIST" || return 1
+}
+
+if ! collect_allowlist; then
+    # Refresh-recovery path: the current firewall may already be broken (e.g.
+    # a previous partial run left default-DROP with no allow rules). Open
+    # OUTPUT just long enough to re-fetch, then rebuild below. On a second
+    # failure this is a genuine network/DNS outage: fail CLOSED, never open.
+    echo "WARN: allowlist collection failed under the current firewall —"
+    echo "temporarily opening egress to retry (refresh recovery path)"
+    iptables -P OUTPUT ACCEPT
+    iptables -F OUTPUT
+    if ! collect_allowlist; then
+        iptables -P OUTPUT DROP
+        echo "ERROR: allowlist collection failed even with open egress —"
+        echo "genuine network/DNS outage. Firewall left closed; fix and re-run."
+        exit 1
+    fi
+fi
+echo "Collected $(wc -l < "$ALLOWLIST") allowlist entries; rebuilding firewall..."
+
+# ── Phase 2: teardown + rebuild (no network calls from here on) ──────────────
+
 # 1. Extract Docker DNS info BEFORE any flushing
 DOCKER_DNS_RULES=$(iptables-save -t nat | grep "127\.0\.0\.11" || true)
 
@@ -36,60 +123,12 @@ iptables -A INPUT -p udp --sport 53 -j ACCEPT
 iptables -A INPUT -i lo -j ACCEPT
 iptables -A OUTPUT -o lo -j ACCEPT
 
-# Create ipset with CIDR support
+# Create ipset with CIDR support and load the pre-collected entries
 ipset create allowed-domains hash:net
-
-# Fetch GitHub meta information and aggregate + add their IP ranges
-echo "Fetching GitHub IP ranges..."
-gh_ranges=$(curl -s https://api.github.com/meta)
-if [ -z "$gh_ranges" ]; then
-    echo "ERROR: Failed to fetch GitHub IP ranges"
-    exit 1
-fi
-
-if ! echo "$gh_ranges" | jq -e '.web and .api and .git' >/dev/null; then
-    echo "ERROR: GitHub API response missing required fields"
-    exit 1
-fi
-
-echo "Processing GitHub IPs..."
-while read -r cidr; do
-    if [[ ! "$cidr" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}$ ]]; then
-        echo "ERROR: Invalid CIDR range from GitHub meta: $cidr"
-        exit 1
-    fi
-    echo "Adding GitHub range $cidr"
-    ipset add -exist allowed-domains "$cidr"
-done < <(echo "$gh_ranges" | jq -r '(.web + .api + .git)[]' | aggregate -q)
-
-# Resolve and add other allowed domains
-for domain in \
-    "registry.npmjs.org" \
-    "api.anthropic.com" \
-    "claude.ai" \
-    "console.anthropic.com" \
-    "sentry.io" \
-    "statsig.anthropic.com" \
-    "statsig.com" \
-    "marketplace.visualstudio.com" \
-    "vscode.blob.core.windows.net" \
-    "update.code.visualstudio.com"; do
-    echo "Resolving $domain..."
-    ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
-    if [ -z "$ips" ]; then
-        echo "WARN: Failed to resolve $domain — skipping"
-        continue
-    fi
-    
-    while read -r ip; do
-        if [[ ! "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-            echo "ERROR: Invalid IP from DNS for $domain: $ip"
-            exit 1
-        fi
-        echo "Adding $ip for $domain"
-        ipset add -exist allowed-domains "$ip"
-    done < <(echo "$ips")
-done
+while read -r entry; do
+    [ -n "$entry" ] || continue
+    ipset add -exist allowed-domains "$entry"
+done < "$ALLOWLIST"
 
 # Get host IP from default route
 HOST_IP=$(ip route | grep default | cut -d" " -f3)

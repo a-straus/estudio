@@ -38,9 +38,11 @@ worker_branches() { # worker_branches <root>
 
 # ── tmux helpers (always matched by exact window name, operated on by id) ────
 
-window_id() {       # window_id <name> → @id or empty
+window_id() {       # window_id <name> → @id or empty; always exits 0 —
+    # callers test the output, and under `set -euo pipefail` a missing tmux
+    # server/session must not abort the caller mid-cleanup.
     tmux list-windows -t agents -F '#{window_id} #{window_name}' 2>/dev/null \
-        | awk -v n="$1" '$2 == n {print $1; exit}'
+        | awk -v n="$1" '$2 == n {print $1; exit}' || true
 }
 
 worker_window_live() {  # worker_window_live <branch>
@@ -120,12 +122,23 @@ state_fingerprint() {   # state_fingerprint <root>
 }
 
 # timeout(1) exists in the container (coreutils) but not on stock macOS;
-# degrade to no timeout rather than failing.
+# degrade to no timeout rather than failing. -k: SIGKILL 30s after the TERM
+# if the command ignores it — a hung claude must never outlive its budget.
 run_with_timeout() {    # run_with_timeout <secs> <cmd...>
     local secs="$1"; shift
     if command -v timeout >/dev/null 2>&1; then
-        timeout "$secs" "$@"
+        timeout -k 30 "$secs" "$@"
     else
         "$@"
     fi
+}
+
+# True when the Anthropic API answers at the TCP/TLS level within seconds.
+# Any HTTP response counts (401/404 are fine — we only care that the
+# connection is not refused or black-holed). Without this probe, a dead
+# network burns ~30 minutes inside claude's internal retry stack (0 tokens)
+# before surfacing as "API Error: Unable to connect (ConnectionRefused)".
+api_reachable() {
+    curl -s -o /dev/null --connect-timeout 5 --max-time 15 \
+        "${ANTHROPIC_BASE_URL:-https://api.anthropic.com}/v1/models"
 }
