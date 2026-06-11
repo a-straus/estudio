@@ -85,12 +85,16 @@ command -v claude >/dev/null 2>&1 || die "claude CLI not found in PATH"
 command -v jq >/dev/null 2>&1 || die "jq not found in PATH (required to parse iteration results)"
 
 # Copy state-file templates into the project if they're not there yet.
-for f in GOAL.md TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md DESIGN.md FEEDBACK.md; do
+for f in GOAL.md TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md FEEDBACK.md; do
     if [[ ! -f "$repo/$f" && -f "$sandbox/$f" ]]; then
         cp "$sandbox/$f" "$repo/$f"
         echo "Copied $f template to $repo/$f"
     fi
 done
+if [[ ! -d "$repo/design" && -d "$sandbox/design" ]]; then
+    cp -R "$sandbox/design" "$repo/design"
+    echo "Copied design/ template to $repo/design"
+fi
 
 [[ -f "$repo/GOAL.md" ]] || die "no GOAL.md in $repo and no template to copy"
 
@@ -150,7 +154,7 @@ git -C "$repo" worktree prune
 # it); the orchestrator keeps TASKS/QUESTIONS/DECISIONS committed as it works.
 chmod u+w "$repo/GOAL.md" 2>/dev/null || true
 state_changed=0
-for f in GOAL.md TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md DESIGN.md FEEDBACK.md; do
+for f in GOAL.md TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md FEEDBACK.md; do
     [[ -f "$repo/$f" ]] || continue
     if ! git -C "$repo" ls-files --error-unmatch "$f" >/dev/null 2>&1 \
             || ! git -C "$repo" diff --quiet HEAD -- "$f" 2>/dev/null; then
@@ -158,9 +162,13 @@ for f in GOAL.md TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md DESIGN.md FE
         state_changed=1
     fi
 done
+if [[ -d "$repo/design" ]] && [[ -n "$(git -C "$repo" status --porcelain -- design 2>/dev/null)" ]]; then
+    git -C "$repo" add -- design
+    state_changed=1
+fi
 if (( state_changed )); then
     git -C "$repo" commit -q -m "orchestrator: adopt/update state files" || true
-    echo "Committed state files (GOAL/TASKS/QUESTIONS/DECISIONS/ARCHITECTURE/DESIGN/FEEDBACK)."
+    echo "Committed state files (GOAL/TASKS/QUESTIONS/DECISIONS/ARCHITECTURE/FEEDBACK/design)."
 fi
 
 # GOAL.md is the human's spec — keep it read-only on disk as a tripwire.
@@ -264,7 +272,8 @@ sync_push() {
 # Safety net: the orchestrator is instructed to commit its state changes, but
 # a timed-out iteration must not lose board state.
 state_commit() {
-    git add -- TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md DESIGN.md FEEDBACK.md 2>/dev/null || true
+    git add -- TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md FEEDBACK.md 2>/dev/null || true
+    git add -- design 2>/dev/null || true
     if ! git diff --cached --quiet 2>/dev/null; then
         git commit -q -m "orchestrator: state sync (iteration $iter)" || true
     fi

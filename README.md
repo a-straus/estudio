@@ -44,21 +44,23 @@ Two properties make this survive long runs:
 Before any feature work, the first two iterations are a design phase: the
 orchestrator drafts `ARCHITECTURE.md` from your GOAL.md §8 (entities,
 relationships, conventions) — and, when the product has a UI, settles
-`DESIGN.md` in the same pass (see below) — then spawns a **fresh-context
+the design contract in `design/` in the same pass (see below) — then spawns a **fresh-context
 critic on the strong model** whose only job is to attack the draft — missing
 entities, scope creep, simpler alternatives. The orchestrator reconciles the
 critique, records contested calls in `DECISIONS.md`, and only then decomposes
 the backlog. Two minds, one uncontaminated by the other's assumptions.
 
-### The design contract (DESIGN.md)
+### The design contract (design/)
 
-`DESIGN.md` is to the UI what `ARCHITECTURE.md` is to the data model: the
-single file that keeps N parallel workers building one product instead of
-N products. It is a template with the same shape as GOAL.md — sections for
-identity, principles, **design tokens**, screens, components, and microcopy
-— and three ways to use it:
+`design/` is to the UI what `ARCHITECTURE.md` is to the data model: the
+contract that keeps N parallel workers building one product instead of
+N products. It is a directory of templates — `INDEX.md` (identity,
+principles, file map), `tokens.md` (**design tokens**), `screens/` (one
+file per screen), `components.md`, `interaction.md` (microcopy),
+`mockups.md` — split into files so each worker loads only the sections its
+task needs instead of the whole spec. Three ways to use it:
 
-- **You have a design** → fill it in (or paste a spec covering the same
+- **You have a design** → fill the files (or paste a spec covering the same
   sections) before starting. It becomes the law for everything user-facing.
 - **UI product, no design** → leave the template unfilled; the orchestrator
   drafts every section in the design phase and you review it at the
@@ -66,18 +68,21 @@ identity, principles, **design tokens**, screens, components, and microcopy
 - **No UI** → ignore it; it stays inert.
 
 How it stays in sync with the build, without ceremony: the first UI task
-materializes the token block verbatim as the project's stylesheet and builds
-the base components; later briefs name the sections they implement; workers
+(strong model, deep effort) materializes the token block verbatim as the
+project's stylesheet and builds
+the base components; later briefs name the design files they implement;
+workers
 compose tokens and components, and **extrapolate from the identity and
-principles for anything the file doesn't specify** — they are never blocked
+principles for anything the contract doesn't specify** — they are never blocked
 on a missing definition and you are never asked to approve a component. The
 orchestrator is the file's only writer after the draft: it folds genuinely
 new components and tokens back in as they land, with a change-log line each,
-so the document and the product never drift more than an iteration apart.
+so the contract and the product never drift more than an iteration apart.
 Mechanically enforced like everything else: `integrate` refuses any worker
-branch that touches it. Steer the design the usual way — small changes via
-`FEEDBACK.md`, identity-level changes by editing `DESIGN.md` yourself
-between runs.
+branch that touches `design/`. Steer the design the usual way — small
+changes via
+`FEEDBACK.md`, identity-level changes by editing the `design/` files
+yourself between runs.
 
 > **No frontend at all?** The `no-design` branch is this same sandbox with
 > the design machinery stripped out entirely — clone from it for
@@ -254,11 +259,11 @@ ask you in QUESTIONS.md. When *you* edit it locally: `chmod u+w GOAL.md`,
 edit, commit. In sync mode, just edit it on GitHub — the loop pulls it.
 
 **Optional — bring a design.** If the product has a UI and you care how it
-looks, also copy in and fill `DESIGN.md` (same template shape: identity,
-tokens, screens, components, microcopy):
+looks, also copy in and fill the `design/` templates (identity, tokens,
+screens, components, microcopy):
 
 ```sh
-cp /workspace/DESIGN.md /workspace/projects/yourproject/DESIGN.md
+cp -R /workspace/design /workspace/projects/yourproject/design
 ```
 
 Whatever you leave unfilled, the orchestrator designs in the first iteration
@@ -321,7 +326,7 @@ That gives you a built-in human checkpoint at the moment of highest
 leverage, before any product code exists. Read these files:
 
 - `ARCHITECTURE.md` — is the design sane? Are the conventions what you'd pick?
-- `DESIGN.md` (UI products) — is the visual identity yours? Tokens, screens,
+- `design/` (UI products) — is the visual identity yours? Tokens, screens,
   components specified the way you'd want them built?
 - `DECISIONS.md` — were the contested calls between drafter and critic reasonable?
 - `TASKS.md` — is the backlog actually your product, sliced sensibly?
@@ -331,7 +336,7 @@ from file state. Not happy? Edit GOAL.md (`chmod u+w` first) or drop notes
 in `FEEDBACK.md`, then re-run; the next iteration folds them in.
 
 **What you should see, in order:** the state-adoption commit → iteration 1
-commits ARCHITECTURE.md (and DESIGN.md, for UI products) and an
+commits ARCHITECTURE.md (and design/, for UI products) and an
 `arch-critique` window appears → iteration 2
 integrates the critique and fills the backlog → up to 3 worker windows →
 `check.sh` lands → the first `Integrate:` merge → check stays green.
@@ -437,7 +442,7 @@ waits.
 | `FEEDBACK.md` | Shared | You ask; orchestrator acts — your steering inbox for changes within scope |
 | `DECISIONS.md` | Orchestrator | One line per resolved decision — its durable memory |
 | `ARCHITECTURE.md` | Orchestrator | The technical design: entities, conventions, boundaries. Amended only through the schema gate |
-| `DESIGN.md` | You (seed) / Orchestrator | The UI design contract: identity, tokens, screens, components, microcopy. Fill it if you have a design; otherwise drafted in the design phase and kept in sync as the build evolves. Workers never modify it |
+| `design/` | You (seed) / Orchestrator | The UI design contract, one file per concern (identity/principles, tokens, screens, components, microcopy). Fill it if you have a design; otherwise drafted in the design phase and kept in sync as the build evolves. Workers read only the files their brief names and never modify any of it |
 | `check.sh` | Orchestrator | The project's build+test gate; `integrate` runs it before every merge |
 | `CLAUDE.md` | Sandbox | The canonical iteration spec — loaded automatically every iteration |
 | `bin/orchestrate` | — | Preflight + the outer loop |

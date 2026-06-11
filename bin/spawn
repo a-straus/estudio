@@ -18,7 +18,9 @@
 # to resume from the prior commits.
 #
 # Worktrees live under $WORKTREE_ROOT (default ~/worktrees), outside /workspace,
-# so workers do not inherit the orchestrator's CLAUDE.md.
+# and get a sparse checkout that excludes CLAUDE.md, so the orchestrator guide
+# never loads into a worker's context — the brief is the worker's whole
+# instruction set.
 #
 # Exit codes: 0 spawned · 1 usage/state error · 2 capacity full
 set -euo pipefail
@@ -85,6 +87,13 @@ if git -C "$root" show-ref --quiet "refs/heads/$branch"; then
 else
     git -C "$root" worktree add -b "$branch" "$wt" "$base"
 fi
+
+# Workers must never load the orchestrator guide: CLAUDE.md is committed (it
+# ships with the repo) and `claude -p` auto-loads it from the cwd. A
+# per-worktree sparse checkout leaves it out of the worker's tree without git
+# treating it as a deletion (skip-worktree), so `git add -A` cannot touch it.
+git -C "$wt" sparse-checkout set --no-cone '/*' '!/CLAUDE.md' \
+    || echo "WARNING: could not sparse-exclude CLAUDE.md from the worker worktree" >&2
 
 # ── Build the worker prompt ───────────────────────────────────────────────────
 # Pull the quality bar and escalation rules from GOAL.md. (Flag-based awk: a
@@ -163,19 +172,23 @@ Commit it and exit. The orchestrator serializes all model changes.
   this worktree, never spawn other agents.
 - If ARCHITECTURE.md exists in this repo, follow its entities and
   conventions exactly.
-- If DESIGN.md exists in this repo, it is the design contract for anything
-  user-facing: build UI from its tokens and component specs, reuse existing
-  components before creating new ones, and take final strings from its
-  microcopy where defined. Where it is silent, do not stop — extrapolate
-  from its identity, principles, and token-usage rules. Never hardcode a
-  raw visual value where a token exists. If you introduce a genuinely new
-  shared component or token, say so in your final commit message so the
-  orchestrator can fold it back into DESIGN.md.
+- The design contract for anything user-facing lives in the design/
+  directory. If your task touches UI, your brief names the design/ files
+  that apply: read those (plus design/INDEX.md for the identity and
+  principles) and do NOT read the rest of the directory. Where the named
+  files are silent, do not stop — extrapolate from the identity,
+  principles, and token-usage rules. Once a token stylesheet and shared
+  components exist in the code, compose those: reuse existing components
+  before creating new ones, take final strings from the microcopy where
+  defined, and never hardcode a raw visual value where a token exists. If
+  you introduce a genuinely new shared component or token, say so in your
+  final commit message so the orchestrator can fold it back into the
+  contract.
 - Never modify GOAL.md, TASKS.md, QUESTIONS.md, DECISIONS.md, FEEDBACK.md,
-  ARCHITECTURE.md, or DESIGN.md — integration is automatically refused for
-  branches that touch them. GOAL.md is the human's spec; ARCHITECTURE.md
-  changes go through the orchestrator's schema gate (see above), and
-  DESIGN.md is amended only by the orchestrator.
+  ARCHITECTURE.md, or anything under design/ — integration is automatically
+  refused for branches that touch them. GOAL.md is the human's spec;
+  ARCHITECTURE.md changes go through the orchestrator's schema gate (see
+  above), and the design contract is amended only by the orchestrator.
 EOF
 
 # ── Write the runner and launch ───────────────────────────────────────────────
