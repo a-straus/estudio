@@ -14,9 +14,15 @@ Done levels (from GOAL.md §15):
 
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
+- **arch-critique**: critic pass over ARCHITECTURE.md draft + seeded design contract vs GOAL.md; findings → CRITIQUE.md (spawned: 2026-06-10, `--model $ORCH_MODEL --effort high --include GOAL.md --include design`)
+
 ## Backlog
 
 <!-- Format: - description [priority: Must/Should/Could] -->
+
+- Iteration 2 (after critique integrates): reconcile critique → finalize ARCHITECTURE.md, then decompose GOAL.md Phase 1 into worker-sized backlog tasks — bootstrap+check.sh first, design-foundation (strong model, deep effort), then PDF ingestion (vision path, `claude-fable-5` default, validate against docs/fixtures/workbook/) → SRS review loop → raw text → quizzes → grammar, per §11 order [priority: Must]
+
+Note: `no-design` branch = human sandbox, not a worker branch (see DECISIONS.md); ignore its ORPHAN status in list-agents.
 
 ## Done
 
