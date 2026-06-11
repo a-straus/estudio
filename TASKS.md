@@ -14,15 +14,14 @@ Done levels (from GOAL.md §15):
 
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
-- **system-page**: System page per design/screens/system.md (recent errors from error_log, job statuses, LLM spend from llm_call, DB/backup status) + daily timestamped DB backup job; owns routes/system.ts (new) + app.ts registration, db/system-queries.ts (new), shared/src/system-api.ts (new) + shared index export, jobs/backup.ts (new) + handlers.ts + server/src/index.ts (registration/scheduling), web/src/screens/System.* + systemApi.ts + App.tsx /system route — NOT triage/srs/words/grammar routes or queries, Review/Triage screens, llm/service.ts, prompts/, migrations (spawned: 2026-06-11 ~13:50, plain spawn, schema excerpts pasted, `--include design/INDEX.md --include design/tokens.md --include design/screens/system.md --include design/components.md --include design/interaction.md`)
+- **quiz-engine-ui**: Quiz config/play/results per design/screens/quiz.md + review-02 #8 (Review screen "Explain why" + cached-cloze mix-in). Owns: routes/quiz.ts (new) + app.ts registration, db/quiz-queries.ts (new), shared/src/quiz-api.ts (new) + shared index export, jobs/quizGen.ts (new) + handlers.ts + server/src/index.ts (registration), prompts/quiz_cloze.md (new), llm/service.ts (add `quiz_cloze` task to LlmTask + TASK_DEFAULTS only), web Quiz.* + quizApi.ts + App.tsx /quiz route, AND Review.tsx/reviewApi.ts/Review.css + srs.ts/srs-queries.ts (cloze mix-in into due queue + Explain-why) — NOT triage/words/grammar/system routes or queries, migrations, other prompts (spawned: 2026-06-11 ~21:15, plain spawn, schema excerpts pasted, `--include design/INDEX.md --include design/tokens.md --include design/screens/quiz.md --include design/screens/review.md --include design/components.md --include design/interaction.md`)
 
 
 ## Backlog
 
 <!-- Phase 1 (GOAL.md §11 order: PDF ingestion → SRS review → raw text → quizzes → grammar); thinnest slice first, riskiest part of each slice first. Format: - description [priority] -->
 
-- **quiz-engine-ui** — quiz config/play/results per design/screens/quiz.md: def-match MC + LLM cloze with cached explanations (generated together), deterministic grading, miss → SRS failure + due now, flag-question, quiz_attempt; brief also carries review-02 #8 (review screen owes "Explain why" + cached-cloze mix-in once quiz_question rows exist); WAIT for system-page (needs /quiz registration in app.ts + App.tsx, which system-page owns in flight; review-02-fixes WAIT cleared 2026-06-11) [Must]
-- **grammar-lessons-quizzes** — lesson generation (explanation+examples; quiz as quiz_question rows w/ lesson_id), MC/fill-in/conjugation/free-text grading (LLM), "explain why" everywhere, mastery tracking; WAIT for system-page (lesson generation is a job per ARCHITECTURE >2s rule → needs jobs/handlers.ts + server/src/index.ts registration, which system-page owns in flight; review-02-fixes WAIT cleared 2026-06-11) [Must]
+- **grammar-lessons-quizzes** — lesson generation (explanation+examples; quiz as quiz_question rows w/ lesson_id), MC/fill-in/conjugation/free-text grading (LLM), "explain why" everywhere, mastery tracking; WAIT for quiz-engine-ui (both touch app.ts route registration, App.tsx, jobs/handlers.ts + server/src/index.ts job registration, and llm/service.ts LlmTask — serialized to avoid file conflicts; spawn once quiz-engine-ui integrates) [Must]
 - **docs-and-demo** — README cold start (clone→run→phone via LAN/Tailscale, "Where your data lives", backup/restore exercised), TODO-LATER.md, docs/demo.md script; LLM hot-swap proof; covers review-01 #9 (no app README exists yet); WAIT for system-page (backup job must exist to exercise restore) and the other Phase-1 Musts (docs describe the finished slice) [Must — Phase 1 gate]
 - review-03 after ~5 more integrations (`--model "$ORCH_MODEL" --effort medium --include GOAL.md --include ARCHITECTURE.md --include design`) [process]
 - Phase 2 (lesson audio → Ask → suggestions → voice) and Phase 3 (Gutenberg/KJV, calibration, Mochi-fixture-gated) decomposed when Phase 1 gate nears [later]
@@ -32,6 +31,8 @@ Note: `no-design` branch = human sandbox, not a worker branch (see DECISIONS.md)
 ## Done
 
 <!-- Format: - **branch-name**: description (merged: YYYY-MM-DD HH:MM) [task/feature/release done] -->
+
+- **system-page**: System screen per design/screens/system.md (recent errors from error_log, job statuses, LLM spend from llm_call, DB/backup status) + daily timestamped DB backup job (jobs/backup.ts, enqueue-if-due on boot + daily interval); routes/system.ts + db/system-queries.ts + shared/system-api.ts + web System screen + /system route (merged: 2026-06-11 21:08, check.sh green on main — 302 tests) [task done]
 
 - **review-02-fixes**: review-02 blocker #1 (confirmBatch within-batch + homograph duplicates surfaced as dedupeHits, no 500/rollback) + should-fixes #2–#7 + nits N1/N2/N4/N6/N7/N10/N12 — triage dedupe/bulk/summary, SRS demote-creates-card/distractors-from-deck/precision, review thumb zone fixed action region, shared web api client (merged: 2026-06-11 13:57, check.sh green on main — 288 tests) [task done]
 
