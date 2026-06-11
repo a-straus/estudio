@@ -84,7 +84,7 @@ Library detail panel. Composes `WordEntry size=full` with editing.
 
 **Anatomy.** Entry at top; `gloss` and `example` become TextInputs on "Edit"; provenance line `--font-meta` `--text-xs` `--color-ink-faint` ("from Moby-Dick ch. 41 · machine-defined, edited by you"); history sparkline: last 20 reviews as 3×12px ticks, gap `--space-1`, `--color-correct` / `--color-incorrect`, `--radius-1`; status + due line in `--font-meta` ("MATURE · next review Jun 21"); footer: quiet Buttons "I forgot this" (card due now, SM-2 demoted; info Toast "_vergüenza_ · due now") and "Edit", danger Button "Delete word…".
 
-**States.** `viewing` / `editing` (inputs + primary "Save", quiet "Cancel") / `saving` (Button busy) / `confirm-delete` (inline dialog, `--shadow-2`: "Delete _vergüenza_? Its review history goes with it." danger "Delete" + quiet "Keep").
+**States.** `viewing` / `editing` (inputs + primary "Save", quiet "Cancel") / `saving` (Button busy) / `confirm-delete` (inline dialog, `--shadow-2`: "Delete _vergüenza_? Its card and schedule go with it." danger "Delete" + quiet "Keep").
 
 ---
 

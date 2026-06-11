@@ -48,31 +48,72 @@ AUTOINCREMENT), `created_at`, `updated_at` (TEXT, ISO-8601 UTC) unless noted.
   title, ref (URL/ID/filename), stored_path (original file under
   `/data/uploads` or `/data/books`), transcript (TEXT, nullable; lesson
   audio + voice questions).
+- `source_page` — source_id → source, page_no, kind (`vocab`|`grammar`),
+  status (`pending`|`done`|`failed`), error (TEXT nullable),
+  grammar_topic_id → grammar_topic (nullable; set when a grammar page is
+  linked to the curriculum). Gives per-page processing/retry a queryable
+  home and carries the GOAL.md §5 page→curriculum link; the grammar home's
+  "what the tutor is covering" reads off it.
+- `extraction_item` — source_id → source, term, lemma, part_of_speech,
+  definition_es, definition_en, example, level, likely_known (REAL),
+  batch_no, decision (`pending`|`know`|`learn`|`skip`), decided_at (TEXT
+  nullable), word_id → word (nullable; set when a `learn`/`know` decision
+  materializes a word row at batch confirm). The persistent home of
+  extraction candidates and triage state: Today's "N words waiting" nudge,
+  batch progress, undo, the Phase 3 coverage indicator, and
+  never-re-extract-what-was-skipped are all queries over it. Undecided
+  candidates never become `word` rows.
 - `word` — term (as encountered), lemma, language, part_of_speech,
   definition_es, definition_en, example, level (CEFR estimate, owner-
   overridable), status (`new`|`learning`|`mature`|`known`|`suspended`),
-  deck_id → deck, source_id → source (nullable). Uniqueness: one card per
-  normalized (lemma, language) — normalization = lowercase + accent-strip
-  for matching only; stored text keeps accents. Multi-word expressions are
-  first-class terms. Extra senses append to definitions; never a second row.
+  deck_id → deck, source_id → source (nullable), definition_origin
+  (`llm`|`owner`), owner_edited_at (TEXT nullable — set by the library edit
+  path; powers the WordDetail provenance line and the §14
+  definitions-accepted-unedited metric), prompt_version (TEXT nullable —
+  template hash of the defining prompt when definition_origin = `llm`).
+  Plus `term_normalized` and `lemma_normalized`: plain **indexed** columns,
+  written as lowercase + accent-strip at write time (SQLite has no
+  `unaccent`; these make accent-insensitive search and dedupe cheap).
+  Stored text keeps accents. Uniqueness: **UNIQUE(term, language)
+  exact-match only** — never on normalized forms (`más` vs `mas` are
+  different words; GOAL.md §16). Lemma-based dedupe is an ingestion-time
+  *check* whose hits are surfaced in triage for a human merge/keep
+  decision, never a constraint. Multi-word expressions are first-class
+  terms. Extra senses append to definitions; never a second row.
+  Lifecycle: triage "learn" → status `new` (no card_state yet); the review
+  queue builder promotes up to `new_cards_per_day` `new` words at session
+  start (deterministic, no cron), creating card_state with due = now and
+  setting status `learning`; the SM-2 module sets `mature` when
+  interval_days ≥ 21 and demotes back to `learning` on failure. Triage
+  "know" → status `known`, no card_state.
 - `card_state` — word_id (unique) → word, ease, interval_days, due_at,
-  reps. One row per word, created when the word enters a deck as `learning`.
+  reps. One row per word, created by the review queue builder when it
+  promotes a `new` word to `learning` (see `word` lifecycle above).
 - `review_log` — **append-only** (no UPDATE/DELETE ever): word_id, ts,
-  direction (`w2d`|`d2w`), grade (`fail`|`good`|`easy` ≈ SM-2 2/4/5),
-  ease_after, interval_after, origin (`review`|`quiz`|`manual_demotion`).
+  direction (`w2d`|`d2w`|`cloze`), grade (`fail`|`good`|`easy` ≈ SM-2
+  2/4/5), ease_after, interval_after, origin
+  (`review`|`quiz`|`manual_demotion`), quiz_question_id → quiz_question
+  (nullable — set for cloze/quiz-rendered reviews so the rendered form is
+  recoverable; the log is append-only, so this exists from migration 001).
   The schedule must be recomputable from this log alone.
 - `grammar_category` — name, sort_order. Seeded by the curriculum prompt.
 - `grammar_topic` — category_id → grammar_category, name, description,
-  mastery (REAL 0–1), seen_in_lessons (count). The suggested-practice queue
-  derives from mastery + recency at read time, not a stored queue.
-- `lesson` — topic_id → grammar_topic, content (JSON: explanation, examples,
-  quiz spec), cached forever; regenerate only on explicit request (new row,
-  old kept).
-- `quiz_question` — word_id or topic_id (one nullable), style
+  mastery (REAL 0–1). The suggested-practice queue derives from mastery +
+  recency at read time, not a stored queue; likewise "seen in lessons" is
+  derived at read time from `lesson_insight` (type `topic_covered`) and
+  `source_page` links — no stored counter to drift.
+- `lesson` — topic_id → grammar_topic, content (JSON: **explanation and
+  examples only** — lesson quiz questions are `quiz_question` rows, never
+  embedded, so flagging, cached explanations, "explain why", and
+  reuse-before-regeneration work identically everywhere), prompt_version,
+  cached forever; regenerate only on explicit request (new row, old kept).
+- `quiz_question` — word_id or topic_id (one nullable), lesson_id → lesson
+  (nullable — set for a lesson's quiz so it is retrievable as a set), style
   (`def_match`|`cloze`|`fill_in`|`conjugation`|`free_text`), payload (JSON:
   stem, options, correct, distractor source), explanation (TEXT, generated
-  **at the same time** as the question, never lazily), flagged (bool —
-  flagged questions are excluded from serving, never deleted).
+  **at the same time** as the question, never lazily), prompt_version,
+  flagged (bool — flagged questions are excluded from serving, never
+  deleted).
 - `quiz_attempt` — quiz metadata (deck_id/topic_id, style, direction) +
   answers (JSON per question: question_id, given, correct). Misses also
   write `review_log` rows and pull the word's `card_state.due_at` to now.
@@ -81,17 +122,27 @@ AUTOINCREMENT), `created_at`, `updated_at` (TEXT, ISO-8601 UTC) unless noted.
   payload (JSON), word_id / topic_id nullable links. (Phase 2.)
 - `chat_thread` — page_context (JSON ref: kind + id), title.
   `chat_message` — thread_id, role, content, tool_calls (JSON). (Phase 2.)
-- `suggestion` — item_type (`word`|`grammar_topic`), payload (JSON), status
-  (`pending`|`added`|`skipped`), UNIQUE(item_type, normalized_key) so
-  nothing is ever suggested twice, skips included. (Phase 2.)
+- `suggestion` — item_type (`word`|`grammar_topic`), normalized_key (TEXT
+  NOT NULL — for words the lowercase+accent-stripped lemma, identical to
+  the `word` normalization rule; for grammar topics the normalized topic
+  name), payload (JSON), status (`pending`|`added`|`skipped`),
+  UNIQUE(item_type, normalized_key) so nothing is ever suggested twice,
+  skips included. Suggest-time generation additionally excludes anything
+  already in a deck (join against `word.lemma_normalized`). (Phase 2.)
 - `job` — type, payload (JSON), status
   (`queued`|`running`|`done`|`failed`|`cancelled`), progress (JSON:
   step/total + per-chunk completion so jobs resume from the last completed
   chunk), error (TEXT with stack), attempts. Jobs survive restarts: on boot,
   `running` jobs revert to `queued`.
-- `llm_call` / `transcription_call` — task, provider, model, tokens_in/out
-  (or minutes), latency_ms, cache_hit (bool), cost_estimate_usd. Written by
-  the adapter layer on every call, no exceptions.
+- `llm_call` / `transcription_call` — task, provider, model, prompt_version
+  (template file content hash), tokens_in/out (or minutes), latency_ms,
+  cache_hit (bool), cost_estimate_usd, status (`ok`|`error`), error (TEXT
+  nullable). Written by the adapter layer on every call — successes and
+  failures alike, no exceptions.
+- `error_log` — ts, scope (`request`|`job`|`llm`|`transcription`), message,
+  detail (TEXT — stack/context), capped (oldest rows pruned past ~1000).
+  Written by the logger alongside stdout; the System page's "recent
+  errors" reads it directly.
 - `setting` — key (unique), value (JSON). Holds: definition display
   preference, new-cards/day (default 20), active LLM provider/model **per
   task**, transcription provider/model.
@@ -136,7 +187,9 @@ AUTOINCREMENT), `created_at`, `updated_at` (TEXT, ISO-8601 UTC) unless noted.
   exponential backoff up to `attempts` limit; user input is persisted
   before the job is enqueued, so failure never loses it.
 - **Logging:** structured JSON lines to stdout (request, job, llm_call,
-  transcription_call, error-with-stack) via a tiny in-house logger.
+  transcription_call, error-with-stack) via a tiny in-house logger; errors
+  are additionally written to the capped `error_log` table so the System
+  page can show them.
 - **Web:** plain CSS only; every visual value references a design-token
   custom property from the token stylesheet (built from
   `design/tokens.md`). Mobile-first; ≥44px tap targets.
@@ -164,3 +217,4 @@ AUTOINCREMENT), `created_at`, `updated_at` (TEXT, ISO-8601 UTC) unless noted.
 <!-- One line per gated model change: date — change — requested by — outcome. -->
 
 - 2026-06-10 — Initial draft from GOAL.md §8 (orchestrator, iteration 1).
+- 2026-06-10 — Critique reconciliation (arch-critique, all 13 findings adopted): no UNIQUE on normalized lemma — UNIQUE(term, language) exact + indexed normalized columns + triage-surfaced dedupe; new `extraction_item` (triage state), `source_page` (page classification, per-page retry, page→curriculum link), `error_log`; llm/transcription calls get status/error + prompt_version; word gets definition_origin/owner_edited_at/prompt_version; word↔card_state lifecycle + maturity (interval ≥ 21d) specified; lesson quiz questions live only in quiz_question (nullable lesson_id); review_log direction gains `cloze` + nullable quiz_question_id; suggestion.normalized_key defined; grammar_topic.seen_in_lessons dropped (derived).

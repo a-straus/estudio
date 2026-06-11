@@ -84,7 +84,7 @@ Rule of thumb for agents: **if the user is supposed to _learn from_ the string, 
 | Library, search           | "Search words…"                                                                                                        |
 | Library, add              | "Add word" → "Save word"                                                                                               |
 | Library, auto-define fail | "Couldn't auto-fill. Write the definition, or retry."                                                                  |
-| Library, delete confirm   | "Delete _vergüenza_? Its review history goes with it." → "Delete" / "Keep"                                             |
+| Library, delete confirm   | "Delete _vergüenza_? Its card and schedule go with it." → "Delete" / "Keep"                                             |
 | Library, empty            | "No words yet. Ingest something, or add one by hand."                                                                  |
 | Library, forgot this      | "I forgot this" → toast "_vergüenza_ · due now"                                                                        |
 | Grammar, lesson loading   | "Writing the lesson… ~40s"                                                                                             |
