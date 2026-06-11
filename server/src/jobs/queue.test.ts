@@ -6,7 +6,6 @@ import { openDb, type DB } from "../db/db.js";
 import { runMigrations } from "../db/migrate.js";
 import { logger } from "../logger.js";
 import { JobQueue } from "./queue.js";
-import { registerDemoHandler } from "./handlers.js";
 
 let dataDir: string;
 let db: DB;
@@ -35,10 +34,10 @@ function jobRow(id: number) {
 }
 
 describe("JobQueue", () => {
-  it("runs a queued job to done (demo handler)", async () => {
+  it("runs a queued job to done and persists its result as progress", async () => {
     const queue = new JobQueue(db, { backoffBaseMs: 0 });
-    registerDemoHandler(queue);
-    const id = queue.enqueue("demo", { hello: "world" });
+    queue.register("echo", (payload) => ({ echoed: payload }));
+    const id = queue.enqueue("echo", { hello: "world" });
 
     expect(jobRow(id).status).toBe("queued");
     expect(await queue.tick()).toBe(true);
@@ -136,7 +135,7 @@ describe("JobQueue", () => {
 
   it("reverts running jobs to queued on boot", () => {
     const queue = new JobQueue(db);
-    const id = queue.enqueue("demo", null);
+    const id = queue.enqueue("echo", null);
     db.prepare("UPDATE job SET status = 'running' WHERE id = ?").run(id);
 
     const reverted = queue.recoverRunningJobs();

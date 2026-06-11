@@ -1,19 +1,19 @@
+import type { DB } from "../db/db.js";
+import type { LlmService } from "../llm/service.js";
 import type { JobQueue } from "./queue.js";
+import {
+  JOB_TYPE_TEXT_INGESTION,
+  runTextIngestion,
+  type TextIngestionPayload,
+} from "./textIngestion.js";
 
-/**
- * Trivial demo handler: echoes its payload; throws when payload.fail is set.
- * Exists to exercise the queue end-to-end until real job types land.
- */
-export function registerDemoHandler(queue: JobQueue): void {
-  queue.register("demo", (payload) => {
-    if (
-      payload !== null &&
-      typeof payload === "object" &&
-      "fail" in payload &&
-      payload.fail
-    ) {
-      throw new Error("demo job failed as requested");
-    }
-    return { echoed: payload };
-  });
+/** Register the text_ingestion job handler. */
+export function registerTextIngestionHandler(
+  queue: JobQueue,
+  db: DB,
+  llm: LlmService,
+): void {
+  queue.register(JOB_TYPE_TEXT_INGESTION, (payload) =>
+    runTextIngestion(db, llm, payload as TextIngestionPayload),
+  );
 }

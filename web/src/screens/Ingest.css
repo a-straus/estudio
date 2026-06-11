@@ -1,0 +1,70 @@
+/* Ingest screen (D3 §3.4). Method tabs, one method panel, then job progress.
+   Desktop-first workbench. Every value references a token. */
+
+.ingest {
+  max-width: var(--measure-app);
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ingest__title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+}
+
+.ingest__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ingest__dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(var(--hit-target) * 2.5);
+  padding: var(--space-5);
+  border: 2px dashed var(--color-rule-strong);
+  border-radius: var(--radius-2);
+  background: var(--color-surface);
+}
+
+.ingest__file-input {
+  display: none;
+}
+
+.ingest__paste,
+.ingest__coming-soon {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.ingest__note {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+}
+
+.ingest__error {
+  font-size: var(--text-sm);
+  color: var(--color-incorrect);
+}
+
+.ingest__job {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ingest__job-actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}

@@ -10,6 +10,7 @@ import { runMigrations } from "../db/migrate.js";
 import { logger } from "../logger.js";
 import { JobQueue } from "../jobs/queue.js";
 import { registerPdfIngestionHandler } from "../jobs/pdfIngestion.js";
+import { registerTextIngestionHandler } from "../jobs/handlers.js";
 import { LlmService } from "../llm/service.js";
 import type { LlmProvider } from "../llm/types.js";
 import { createApp } from "../app.js";
@@ -79,6 +80,164 @@ function registerMockedIngestion(): void {
   const llm = new LlmService(db, { mock: provider }, { backoffBaseMs: 0 });
   registerPdfIngestionHandler(queue, db, llm);
 }
+
+/** Route text_extraction to a mock provider and register the real handler. */
+function registerMockedTextIngestion(): void {
+  db.prepare("INSERT INTO setting (key, value) VALUES (?, ?)").run(
+    "llm.text_extraction",
+    JSON.stringify({ provider: "mock", model: "mock-text" }),
+  );
+  const provider: LlmProvider = {
+    name: "mock",
+    complete: () => Promise.reject(new Error("complete not used")),
+    vision: async () => ({
+      text: JSON.stringify({
+        words: [
+          {
+            term: "estrépito",
+            lemma: "estrépito",
+            part_of_speech: "sustantivo",
+            definition_es: "Ruido considerable.",
+            definition_en: "racket, din",
+            example: "El estrépito de la calle no le dejaba dormir.",
+            level: "C1",
+            likely_known: 0.2,
+          },
+        ],
+      }),
+      usage: {
+        tokensIn: 100,
+        tokensOut: 50,
+        cacheHit: false,
+        costEstimateUsd: 0.003,
+      },
+    }),
+  };
+  const llm = new LlmService(db, { mock: provider }, { backoffBaseMs: 0 });
+  registerTextIngestionHandler(queue, db, llm);
+}
+
+describe("POST /api/sources/text", () => {
+  it("creates a text source + chunk pages and enqueues the job", async () => {
+    const res = await request(app)
+      .post("/api/sources/text")
+      .send({ title: "My notes", text: "Una frase con estrépito.", language: "es" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.sourceId).toBeGreaterThan(0);
+    expect(res.body.jobId).toBeGreaterThan(0);
+    expect(res.body.pageCount).toBe(1);
+
+    const source = db
+      .prepare("SELECT type, title, stored_path, transcript FROM source WHERE id = ?")
+      .get(res.body.sourceId) as {
+      type: string;
+      title: string;
+      stored_path: string | null;
+      transcript: string;
+    };
+    expect(source).toEqual({
+      type: "text",
+      title: "My notes",
+      stored_path: null,
+      transcript: "Una frase con estrépito.",
+    });
+
+    const pages = db
+      .prepare("SELECT status FROM source_page WHERE source_id = ?")
+      .all(res.body.sourceId) as { status: string }[];
+    expect(pages).toHaveLength(1);
+    expect(pages[0]!.status).toBe("pending");
+
+    const job = db
+      .prepare("SELECT type, status, payload FROM job WHERE id = ?")
+      .get(res.body.jobId) as { type: string; status: string; payload: string };
+    expect(job.type).toBe("text_ingestion");
+    expect(job.status).toBe("queued");
+    expect(JSON.parse(job.payload)).toEqual({
+      sourceId: res.body.sourceId,
+      language: "es",
+      jobId: res.body.jobId,
+    });
+  });
+
+  it("auto-detects the language when omitted", async () => {
+    const res = await request(app)
+      .post("/api/sources/text")
+      .send({ text: "the quick brown fox was on the road and it is fast" });
+    expect(res.status).toBe(201);
+    const job = db
+      .prepare("SELECT payload FROM job WHERE id = ?")
+      .get(res.body.jobId) as { payload: string };
+    expect(JSON.parse(job.payload).language).toBe("en");
+  });
+
+  it("defaults the title to 'Pasted text'", async () => {
+    const res = await request(app)
+      .post("/api/sources/text")
+      .send({ text: "algo de texto en español aquí" });
+    expect(res.body.title).toBeUndefined(); // not echoed
+    const source = db
+      .prepare("SELECT title FROM source WHERE id = ?")
+      .get(res.body.sourceId) as { title: string };
+    expect(source.title).toBe("Pasted text");
+  });
+
+  it("rejects empty text without creating rows", async () => {
+    const res = await request(app)
+      .post("/api/sources/text")
+      .send({ text: "   " });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("missing_text");
+    expect(db.prepare("SELECT COUNT(*) AS c FROM source").get()).toEqual({ c: 0 });
+  });
+
+  it("rejects an invalid language", async () => {
+    const res = await request(app)
+      .post("/api/sources/text")
+      .send({ text: "hola", language: "fr" });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("invalid_language");
+  });
+});
+
+describe("end-to-end: paste → job → triage candidates", () => {
+  it("runs the queued text ingestion job against the pasted text", async () => {
+    registerMockedTextIngestion();
+
+    const res = await request(app)
+      .post("/api/sources/text")
+      .send({ text: "Una frase con estrépito.", language: "es" });
+    expect(res.status).toBe(201);
+    const sourceId = res.body.sourceId as number;
+
+    expect(await queue.tick()).toBe(true); // runs the ingestion job
+
+    const detail = await request(app).get(`/api/sources/${sourceId}`);
+    expect(detail.body.progress).toEqual({
+      total: 1,
+      pending: 0,
+      done: 1,
+      failed: 0,
+    });
+    expect(detail.body.pages[0]).toMatchObject({ kind: "vocab", status: "done" });
+
+    const items = db
+      .prepare(
+        "SELECT term, batch_no, decision FROM extraction_item WHERE source_id = ?",
+      )
+      .all(sourceId);
+    expect(items).toEqual([
+      { term: "estrépito", batch_no: 1, decision: "pending" },
+    ]);
+
+    const job = db
+      .prepare("SELECT status, progress FROM job WHERE id = ?")
+      .get(res.body.jobId) as { status: string; progress: string };
+    expect(job.status).toBe("done");
+    expect(JSON.parse(job.progress)).toEqual({ pages: { 1: "done" } });
+  });
+});
 
 describe("POST /api/sources/pdf", () => {
   it("stores the file, creates source + pending pages, and enqueues the job", async () => {
