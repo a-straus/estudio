@@ -38,9 +38,11 @@ worker_branches() { # worker_branches <root>
 
 # ── tmux helpers (always matched by exact window name, operated on by id) ────
 
-window_id() {       # window_id <name> → @id or empty
+window_id() {       # window_id <name> → @id or empty; always exits 0 —
+    # callers test the output, and under `set -euo pipefail` a missing tmux
+    # server/session must not abort the caller mid-cleanup.
     tmux list-windows -t agents -F '#{window_id} #{window_name}' 2>/dev/null \
-        | awk -v n="$1" '$2 == n {print $1; exit}'
+        | awk -v n="$1" '$2 == n {print $1; exit}' || true
 }
 
 worker_window_live() {  # worker_window_live <branch>
