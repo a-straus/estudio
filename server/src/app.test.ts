@@ -39,13 +39,13 @@ describe("GET /api/health", () => {
 describe("GET /api/jobs", () => {
   it("lists jobs with camelCase keys", async () => {
     const queue = new JobQueue(db);
-    queue.enqueue("demo", { hello: "world" });
+    queue.enqueue("text_ingestion", { hello: "world" });
 
     const res = await request(createApp(db)).get("/api/jobs");
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0]).toMatchObject({
-      type: "demo",
+      type: "text_ingestion",
       status: "queued",
       payload: { hello: "world" },
       attempts: 0,

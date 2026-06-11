@@ -146,9 +146,11 @@ async function processPage(
   ).run(kind, nowIso(), page.id);
 
   if (kind === "vocab") {
+    // PDF sources are Spanish workbooks; the calibration lookup is scoped to
+    // that language rather than hardcoded inside the query (review finding #5).
     const words = parseExtraction(
       await llm.vision("pdf_extraction", attachments, {
-        calibration_sample: buildCalibrationSample(db),
+        calibration_sample: buildCalibrationSample(db, "es"),
       }),
     );
     insertExtractionItems(db, sourceId, words);
@@ -183,14 +185,14 @@ function extractJson(text: string): unknown {
  * with status 'known' or 'mature'. Empty today (no such words yet) — renders a
  * clean fallback instruction so the prompt stays coherent.
  */
-function buildCalibrationSample(db: DB): string {
+function buildCalibrationSample(db: DB, language: string): string {
   const rows = db
     .prepare(
       `SELECT term, lemma FROM word
-        WHERE language = 'es' AND status IN ('known', 'mature')
+        WHERE language = ? AND status IN ('known', 'mature')
         ORDER BY id LIMIT 20`,
     )
-    .all() as { term: string; lemma: string | null }[];
+    .all(language) as { term: string; lemma: string | null }[];
   if (rows.length === 0) {
     return "(No known or mastered words recorded yet — estimate likely_known from typical B2 learner knowledge.)";
   }

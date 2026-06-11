@@ -6,6 +6,7 @@ import type {
   PdfUploadResponse,
   RetryPageResponse,
   SourceDetailResponse,
+  TextIngestResponse,
 } from "@estudio/shared";
 import { nowIso, type DB } from "../db/db.js";
 import {
@@ -16,6 +17,11 @@ import {
   listSourcePages,
 } from "../db/queries.js";
 import { enqueuePdfIngestion } from "../jobs/pdfIngestion.js";
+import {
+  chunkCount,
+  detectLanguage,
+  enqueueTextIngestion,
+} from "../jobs/textIngestion.js";
 import type { JobQueue } from "../jobs/queue.js";
 import { getPageCount } from "../pdf/pages.js";
 
@@ -94,6 +100,52 @@ export function registerSourceRoutes(
       res.status(201).json(body);
     },
   );
+
+  app.post("/api/sources/text", (req: Request, res: Response) => {
+    const text = typeof req.body?.text === "string" ? req.body.text : "";
+    if (text.trim() === "") {
+      res.status(400).json({
+        error: { message: "text is required", code: "missing_text" },
+      });
+      return;
+    }
+
+    const requested = req.body?.language;
+    if (requested !== undefined && requested !== "es" && requested !== "en") {
+      res.status(400).json({
+        error: {
+          message: 'language must be "es", "en", or omitted',
+          code: "invalid_language",
+        },
+      });
+      return;
+    }
+    // Auto-detect when the request omits language (cheap heuristic), and carry
+    // the resolved value on the job so it is stable across retries/resume.
+    const language = requested ?? detectLanguage(text);
+
+    const title =
+      (typeof req.body?.title === "string" && req.body.title.trim()) ||
+      "Pasted text";
+    const pageCount = chunkCount(text);
+
+    // Source + page rows are persisted before the job exists, so a job failure
+    // never loses the pasted input. Text sources keep their content in
+    // `transcript`; there is no stored_path file.
+    const now = nowIso();
+    const sourceId = Number(
+      db
+        .prepare(
+          "INSERT INTO source (type, title, ref, transcript, created_at, updated_at) VALUES ('text', ?, NULL, ?, ?, ?)",
+        )
+        .run(title, text, now, now).lastInsertRowid,
+    );
+    insertSourcePages(db, sourceId, pageCount);
+    const jobId = enqueueTextIngestion(db, queue, { sourceId, language });
+
+    const body: TextIngestResponse = { sourceId, jobId, pageCount };
+    res.status(201).json(body);
+  });
 
   app.get("/api/sources/:id", (req: Request, res: Response) => {
     const source = getSource(db, Number(req.params.id));
