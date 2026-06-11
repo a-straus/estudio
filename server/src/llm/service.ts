@@ -75,15 +75,28 @@ export class LlmService {
     return this.run(task);
   }
 
-  vision(task: LlmTask, attachments: VisionAttachment[]): Promise<string> {
-    return this.run(task, attachments);
+  /**
+   * `substitutions` fills `{{placeholder}}` slots in the task's prompt template
+   * (e.g. the calibration sample for pdf_extraction). The recorded
+   * prompt_version still hashes the raw template, not the filled text.
+   */
+  vision(
+    task: LlmTask,
+    attachments: VisionAttachment[],
+    substitutions?: Record<string, string>,
+  ): Promise<string> {
+    return this.run(task, attachments, substitutions);
   }
 
   private async run(
     task: LlmTask,
     attachments?: VisionAttachment[],
+    substitutions?: Record<string, string>,
   ): Promise<string> {
-    const { text: prompt, version: promptVersion } = loadPrompt(task);
+    const { text: prompt, version: promptVersion } = loadPrompt(
+      task,
+      substitutions,
+    );
     const { provider: providerName, model } = this.resolveTaskConfig(task);
     const provider = this.providers[providerName];
 
