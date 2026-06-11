@@ -48,6 +48,7 @@ function toQuestionView(q: QuizQuestionRow): QuizQuestionView {
     stemBefore: q.payload.style === "cloze" ? q.payload.stemBefore : null,
     stemAfter: q.payload.style === "cloze" ? q.payload.stemAfter : null,
     options: q.payload.options,
+    answer: q.payload.correct,
     term: q.term,
     lemma: q.lemma,
     partOfSpeech: q.partOfSpeech,

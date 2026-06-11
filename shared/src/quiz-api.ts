@@ -26,7 +26,12 @@ export interface QuizGenerateResponse {
   jobId: number;
 }
 
-/** One generated question as served to the client — never includes the answer. */
+/**
+ * One generated question as served to the client. For this single-user personal
+ * study app the correct `answer` is included so multiple-choice can be graded
+ * locally for instant feedback; the server still re-grades authoritatively on
+ * POST /api/quiz/answer.
+ */
 export interface QuizQuestionView {
   /** quiz_question.id */
   id: number;
@@ -41,6 +46,8 @@ export interface QuizQuestionView {
   stemAfter: string | null;
   /** The answer options, already shuffled. */
   options: string[];
+  /** The correct option text, served for instant client-side grading. */
+  answer: string;
   // Word fields, for the results list.
   term: string;
   lemma: string | null;
