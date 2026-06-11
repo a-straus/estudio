@@ -1,5 +1,11 @@
 # claude-sandbox
 
+> **Looking for the app?** This repo's workspace contains **Estudio**, the
+> Spanish/English vocabulary + grammar study app currently under construction by
+> the orchestrator below. For app setup, run, phone access, backups, and a demo
+> script, see **[docs/README.md](docs/README.md)**. The rest of this file
+> documents the orchestration sandbox that builds it, not the app.
+
 An autonomous AI orchestration environment. You define a product goal; the
 orchestrator decomposes it into tasks, spawns parallel worker agents to build
 them, integrates the results, and loops until done — with a clear channel back
