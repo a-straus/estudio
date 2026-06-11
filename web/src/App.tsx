@@ -2,6 +2,7 @@ import "./App.css";
 import { Grammar } from "./screens/Grammar";
 import { Ingest } from "./screens/Ingest";
 import { Library } from "./screens/Library";
+import { Quiz } from "./screens/Quiz";
 import { Review } from "./screens/Review";
 import { System } from "./screens/System";
 import { Triage } from "./screens/Triage";
@@ -48,6 +49,10 @@ export function App() {
 
   if (window.location.pathname.startsWith("/grammar")) {
     return <Grammar />;
+  }
+
+  if (window.location.pathname.startsWith("/quiz")) {
+    return <Quiz />;
   }
 
   if (window.location.pathname.startsWith("/system")) {

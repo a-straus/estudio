@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
+  ClozeReviewItem,
   DistractorCandidate,
   DueQueueItem,
   ReviewDirection,
   ReviewGrade,
 } from "@estudio/shared";
+import { normalize } from "@estudio/shared";
 import {
   Button,
+  ClozeStem,
   EmptyState,
   QuizOption,
   ReviewCard,
@@ -305,11 +308,127 @@ function Card({ card, queue, distractors, onGrade, onNext }: CardProps) {
   );
 }
 
+interface ClozeCardProps {
+  card: DueQueueItem;
+  cloze: ClozeReviewItem;
+  onGrade: (card: DueQueueItem, grade: ReviewGrade, questionId: number) => void;
+  onNext: () => void;
+}
+
+/**
+ * A due word rendered from its cached cloze quiz_question (review-02 #8).
+ * Grades client-side like the MC cards; the reveal offers "Explain why" backed
+ * by the cached explanation. Submitting logs direction 'cloze' + the question id.
+ */
+function ClozeCard({ card, cloze, onGrade, onNext }: ClozeCardProps) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [answered, setAnswered] = useState(false);
+  const [wasCorrect, setWasCorrect] = useState(false);
+  const [explain, setExplain] = useState(false);
+
+  const check = useCallback(() => {
+    if (selected === null || answered) return;
+    const correct =
+      normalize(cloze.options[selected]) === normalize(cloze.correct);
+    setWasCorrect(correct);
+    setAnswered(true);
+    onGrade(card, correct ? "good" : "fail", cloze.questionId);
+  }, [selected, answered, cloze, card, onGrade]);
+
+  const dontKnow = useCallback(() => {
+    if (answered) return;
+    setSelected(null);
+    setWasCorrect(false);
+    setAnswered(true);
+    onGrade(card, "fail", cloze.questionId);
+  }, [answered, cloze.questionId, card, onGrade]);
+
+  const optionState = (i: number): QuizOptionState => {
+    if (!answered) return selected === i ? "selected" : "default";
+    if (normalize(cloze.options[i]) === normalize(cloze.correct))
+      return "correct";
+    if (i === selected) return "incorrect";
+    return "disabled";
+  };
+
+  return (
+    <div className="review__card-region">
+      <ReviewCard mode="choice" direction="cloze" prompt="Fill in the blank.">
+        <ClozeStem before={cloze.stemBefore} after={cloze.stemAfter} />
+      </ReviewCard>
+
+      <div className="review__options" role="group">
+        {cloze.options.map((opt, i) => (
+          <QuizOption
+            key={i}
+            ordinal={i + 1}
+            cloze
+            state={optionState(i)}
+            onClick={() => {
+              if (!answered) setSelected(i);
+            }}
+          >
+            {opt}
+          </QuizOption>
+        ))}
+      </div>
+
+      {answered && (
+        <div className="review__reveal">
+          <CardReveal card={card} />
+          <button
+            type="button"
+            className="review__explain-toggle"
+            onClick={() => setExplain((v) => !v)}
+          >
+            Explain why
+          </button>
+          {explain && (
+            <p className="review__explanation">{cloze.explanation}</p>
+          )}
+        </div>
+      )}
+
+      <div className="review__actions">
+        {!answered ? (
+          <>
+            <Button
+              variant="primary"
+              disabled={selected === null}
+              onClick={check}
+            >
+              Check answer
+            </Button>
+            <Button variant="quiet" onClick={dontKnow}>
+              Don&rsquo;t know
+            </Button>
+          </>
+        ) : (
+          <>
+            <span
+              className="review__verdict"
+              data-correct={wasCorrect ? "yes" : "no"}
+            >
+              {wasCorrect ? "Correct." : "Not quite."}
+            </span>
+            <Button variant="primary" onClick={onNext}>
+              Next
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Review({ deckId }: ReviewProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [queue, setQueue] = useState<DueQueueItem[]>([]);
   const [distractors, setDistractors] = useState<DistractorCandidate[]>([]);
+  const [clozeByWord, setClozeByWord] = useState<Map<number, ClozeReviewItem>>(
+    new Map(),
+  );
   const [index, setIndex] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [missed, setMissed] = useState<DueQueueItem[]>([]);
@@ -323,6 +442,9 @@ export function Review({ deckId }: ReviewProps) {
       const data = await fetchDueQueue(deckId);
       setQueue(data.items);
       setDistractors(data.distractors ?? []);
+      setClozeByWord(
+        new Map((data.clozeReviews ?? []).map((c) => [c.wordId, c])),
+      );
       setIndex(0);
       setCorrectCount(0);
       setMissed([]);
@@ -351,20 +473,43 @@ export function Review({ deckId }: ReviewProps) {
     });
   }, [queue.length]);
 
-  const handleGrade = useCallback((card: DueQueueItem, grade: ReviewGrade) => {
-    if (grade === "fail") setMissed((m) => [...m, card]);
-    else setCorrectCount((c) => c + 1);
-    submitReview({
-      wordId: card.wordId,
-      direction: card.direction,
-      grade,
-    }).catch((err: unknown) => {
-      setToast({
-        text: err instanceof Error ? err.message : "Couldn't save that review.",
-        variant: "error",
-      });
+  const onSaveError = useCallback((err: unknown) => {
+    setToast({
+      text: err instanceof Error ? err.message : "Couldn't save that review.",
+      variant: "error",
     });
   }, []);
+
+  const tally = useCallback((card: DueQueueItem, grade: ReviewGrade) => {
+    if (grade === "fail") setMissed((m) => [...m, card]);
+    else setCorrectCount((c) => c + 1);
+  }, []);
+
+  const handleGrade = useCallback(
+    (card: DueQueueItem, grade: ReviewGrade) => {
+      tally(card, grade);
+      submitReview({
+        wordId: card.wordId,
+        direction: card.direction,
+        grade,
+      }).catch(onSaveError);
+    },
+    [tally, onSaveError],
+  );
+
+  // review-02 #8: a cloze-rendered review logs direction 'cloze' + the question id.
+  const handleClozeGrade = useCallback(
+    (card: DueQueueItem, grade: ReviewGrade, questionId: number) => {
+      tally(card, grade);
+      submitReview({
+        wordId: card.wordId,
+        direction: "cloze",
+        grade,
+        quizQuestionId: questionId,
+      }).catch(onSaveError);
+    },
+    [tally, onSaveError],
+  );
 
   const endSession = useCallback(() => setFinished(true), []);
 
@@ -482,16 +627,25 @@ export function Review({ deckId }: ReviewProps) {
         </div>
       </header>
 
-      {current && (
-        <Card
-          key={`${current.wordId}-${index}`}
-          card={current}
-          queue={queue}
-          distractors={distractors}
-          onGrade={handleGrade}
-          onNext={advance}
-        />
-      )}
+      {current &&
+        (clozeByWord.has(current.wordId) ? (
+          <ClozeCard
+            key={`cloze-${current.wordId}-${index}`}
+            card={current}
+            cloze={clozeByWord.get(current.wordId)!}
+            onGrade={handleClozeGrade}
+            onNext={advance}
+          />
+        ) : (
+          <Card
+            key={`${current.wordId}-${index}`}
+            card={current}
+            queue={queue}
+            distractors={distractors}
+            onGrade={handleGrade}
+            onNext={advance}
+          />
+        ))}
 
       {toast && (
         <Toast variant={toast.variant} onDismiss={() => setToast(null)}>

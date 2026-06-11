@@ -13,6 +13,7 @@ import type { DB } from "./db/db.js";
 import type { JobQueue } from "./jobs/queue.js";
 import { logger } from "./logger.js";
 import { registerGrammarRoutes } from "./routes/grammar.js";
+import { registerQuizRoutes } from "./routes/quiz.js";
 import { registerSourceRoutes } from "./routes/sources.js";
 import { registerSrsRoutes } from "./routes/srs.js";
 import { registerSystemRoutes } from "./routes/system.js";
@@ -60,6 +61,7 @@ export function createApp(
   registerTriageRoutes(app, db);
   registerWordRoutes(app, db);
   registerGrammarRoutes(app, db, opts.queue);
+  registerQuizRoutes(app, db, opts.queue);
   if (opts.dataDir) {
     registerSystemRoutes(app, db, opts.dataDir);
   }

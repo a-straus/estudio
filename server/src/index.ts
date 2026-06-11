@@ -6,6 +6,7 @@ import { JobQueue } from "./jobs/queue.js";
 import {
   registerBackupHandler,
   registerGrammarSeedHandler,
+  registerQuizGenHandler,
   registerTextIngestionHandler,
 } from "./jobs/handlers.js";
 import { registerPdfIngestionHandler } from "./jobs/pdfIngestion.js";
@@ -30,6 +31,7 @@ const queue = new JobQueue(db);
 registerTextIngestionHandler(queue, db, llm);
 registerPdfIngestionHandler(queue, db, llm);
 registerGrammarSeedHandler(queue, db, llm);
+registerQuizGenHandler(queue, db, llm);
 registerBackupHandler(queue, db, config.dataDir);
 const reverted = queue.recoverRunningJobs();
 if (reverted > 0)

@@ -125,6 +125,32 @@
   flex: 1;
 }
 
+/* "Explain why" on a cloze-rendered review reveal (#8). */
+.review__explain-toggle {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: var(--space-1) 0;
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.review__explain-toggle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.review__explanation {
+  margin-top: var(--space-2);
+  font-family: var(--font-study);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--color-ink);
+}
+
 .review__verdict {
   font-family: var(--font-app);
   font-size: var(--text-base);

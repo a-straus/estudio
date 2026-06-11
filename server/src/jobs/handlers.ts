@@ -7,6 +7,11 @@ import {
   type TextIngestionPayload,
 } from "./textIngestion.js";
 import { JOB_TYPE_GRAMMAR_SEED, runGrammarSeed } from "./grammarSeed.js";
+import {
+  JOB_TYPE_QUIZ_GEN,
+  runQuizGen,
+  type QuizGenPayload,
+} from "./quizGen.js";
 export { registerBackupHandler } from "./backup.js";
 
 /** Register the text_ingestion job handler. */
@@ -27,4 +32,15 @@ export function registerGrammarSeedHandler(
   llm: LlmService,
 ): void {
   queue.register(JOB_TYPE_GRAMMAR_SEED, () => runGrammarSeed(db, llm));
+}
+
+/** Register the quiz_gen job handler. */
+export function registerQuizGenHandler(
+  queue: JobQueue,
+  db: DB,
+  llm: LlmService,
+): void {
+  queue.register(JOB_TYPE_QUIZ_GEN, (payload) =>
+    runQuizGen(db, llm, payload as QuizGenPayload),
+  );
 }
