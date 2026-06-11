@@ -121,6 +121,29 @@ state_fingerprint() {   # state_fingerprint <root>
     } | cksum
 }
 
+# Digest of the human-editable inputs (GOAL edits, question answers, feedback).
+# A change here must always wake the LLM orchestrator.
+human_state_digest() { # human_state_digest <root>
+    cat "$1/GOAL.md" "$1/QUESTIONS.md" "$1/FEEDBACK.md" 2>/dev/null | cksum
+}
+
+# True when at least one worker branch exists and every one of them is
+# mid-flight: live tmux window, no .worker-done marker, no committed
+# BLOCKED.md. In that state there is nothing to integrate, repair, or
+# re-spawn — the orchestrator would wake only to conclude "nothing to do".
+# Any FINISHED / BLOCKED / FAILED / STALE / ORPHAN branch makes this false.
+all_workers_mid_flight() { # all_workers_mid_flight <root>
+    local b n=0
+    while IFS= read -r b; do
+        [[ -n "$b" ]] || continue
+        n=$((n+1))
+        worker_window_live "$b" || return 1
+        [[ -f "$(worker_done_file "$1" "$b")" ]] && return 1
+        branch_blocked "$1" "$b" && return 1
+    done < <(worker_branches "$1")
+    (( n > 0 ))
+}
+
 # timeout(1) exists in the container (coreutils) but not on stock macOS;
 # degrade to no timeout rather than failing. -k: SIGKILL 30s after the TERM
 # if the command ignores it — a hung claude must never outlive its budget.

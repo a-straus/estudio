@@ -19,6 +19,12 @@
 #                               model owns orchestration, reviews, and hard tasks
 #   WORKER_MODEL=opus           default model for workers (per-task --model overrides;
 #                               budget tiering: WORKER_MODEL=sonnet WORKER_EFFORT=max)
+#   ORCH_ITER_MODEL=$ORCH_MODEL model for routine orchestrator iterations only
+#                               (integrate/spawn/bookkeeping passes). Set to a
+#                               cheaper model (e.g. opus) late in a run; design-
+#                               phase and schema-gate iterations, and all
+#                               `spawn --model "$ORCH_MODEL"` routing (reviews,
+#                               critic, fix-trunk, migrations) keep ORCH_MODEL
 #   ORCH_EFFORT=medium          thinking depth for routine orchestrator
 #                               iterations (low|medium|high|xhigh|max). Effort
 #                               is the primary cost/latency lever on fable;
@@ -40,6 +46,13 @@
 #   ORCH_MAX_TURNS=100          per-iteration agentic-turn cap
 #   SLEEP_SECONDS=20            base sleep between iterations
 #   SLEEP_MAX=300               max sleep when nothing is changing (adaptive backoff)
+#   QUIET_POLL_SECS=60          quiet fast-path poll interval: when every worker
+#                               is mid-flight, nothing is integrable, no new
+#                               human input, and no spawn capacity is usable,
+#                               poll in bash instead of invoking the LLM
+#   QUIET_FORCE_SECS=1800       force a real LLM iteration at least this often
+#                               even when quiet — bounds drift from anything
+#                               the bash checks can't see (0 = always invoke)
 #   FIREWALL_EVERY=10           re-resolve firewall allowlist every N iterations
 #   NET_RETRY_MAX=10            consecutive failed API reachability probes before
 #                               aborting (each probe failure: firewall refresh +
@@ -64,6 +77,7 @@ self="$(cd "$(dirname "$0")" && pwd)/orchestrate"
 MAX_ITERATIONS="${MAX_ITERATIONS:-200}"
 MAX_COST_USD="${MAX_COST_USD:-0}"
 ORCH_MODEL="${ORCH_MODEL:-fable}"
+ORCH_ITER_MODEL="${ORCH_ITER_MODEL:-$ORCH_MODEL}"
 WORKER_MODEL="${WORKER_MODEL:-opus}"
 ORCH_EFFORT="${ORCH_EFFORT:-medium}"
 ORCH_DESIGN_EFFORT="${ORCH_DESIGN_EFFORT:-high}"
@@ -76,6 +90,8 @@ ITERATION_TIMEOUT_SECS="${ITERATION_TIMEOUT_SECS:-2700}"
 ORCH_MAX_TURNS="${ORCH_MAX_TURNS:-100}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-20}"
 SLEEP_MAX="${SLEEP_MAX:-300}"
+QUIET_POLL_SECS="${QUIET_POLL_SECS:-60}"
+QUIET_FORCE_SECS="${QUIET_FORCE_SECS:-1800}"
 FIREWALL_EVERY="${FIREWALL_EVERY:-10}"
 NET_RETRY_MAX="${NET_RETRY_MAX:-10}"
 MAX_CONSECUTIVE_ERRORS="${MAX_CONSECUTIVE_ERRORS:-3}"
@@ -192,7 +208,8 @@ if (( ! fg )) && command -v tmux >/dev/null 2>&1; then
     fi
     cmd="$(printf '%q ' env \
         MAX_ITERATIONS="$MAX_ITERATIONS" MAX_COST_USD="$MAX_COST_USD" \
-        ORCH_MODEL="$ORCH_MODEL" WORKER_MODEL="$WORKER_MODEL" \
+        ORCH_MODEL="$ORCH_MODEL" ORCH_ITER_MODEL="$ORCH_ITER_MODEL" \
+        WORKER_MODEL="$WORKER_MODEL" \
         ORCH_EFFORT="$ORCH_EFFORT" ORCH_DESIGN_EFFORT="$ORCH_DESIGN_EFFORT" \
         WORKER_EFFORT="$WORKER_EFFORT" \
         ORCH_SYNC="$ORCH_SYNC" \
@@ -200,7 +217,8 @@ if (( ! fg )) && command -v tmux >/dev/null 2>&1; then
         WORKER_TIMEOUT_SECS="$WORKER_TIMEOUT_SECS" \
         ITERATION_TIMEOUT_SECS="$ITERATION_TIMEOUT_SECS" \
         ORCH_MAX_TURNS="$ORCH_MAX_TURNS" SLEEP_SECONDS="$SLEEP_SECONDS" \
-        SLEEP_MAX="$SLEEP_MAX" FIREWALL_EVERY="$FIREWALL_EVERY" \
+        SLEEP_MAX="$SLEEP_MAX" QUIET_POLL_SECS="$QUIET_POLL_SECS" \
+        QUIET_FORCE_SECS="$QUIET_FORCE_SECS" FIREWALL_EVERY="$FIREWALL_EVERY" \
         NET_RETRY_MAX="$NET_RETRY_MAX" \
         MAX_CONSECUTIVE_ERRORS="$MAX_CONSECUTIVE_ERRORS" \
         WORKTREE_ROOT="$WORKTREE_ROOT" \
@@ -255,6 +273,8 @@ total_cost=0
 errors=0
 net_fails=0
 sleep_s="$SLEEP_SECONDS"
+last_llm_pass=0     # epoch of the last successful LLM iteration
+hs_last=""          # human_state_digest as of that iteration
 
 backlog_count() {
     awk '/^## Backlog/{f=1; next} /^## /{f=0} f && /^- /' TASKS.md 2>/dev/null | wc -l | tr -d ' '
@@ -382,25 +402,54 @@ while :; do
         fi
     fi
 
-    # Effort routing for the orchestrator itself: design-phase iterations
-    # (no tasks on the board yet — that's ARCHITECTURE/DESIGN drafting and
-    # backlog decomposition) and schema-gate iterations get deep thinking;
-    # routine passes run at ORCH_EFFORT.
+    # Quiet fast-path: ~60% of LLM iterations in practice wake to read all
+    # state and conclude "capacity full, nothing integrable, nothing spawned".
+    # Detect that state in bash and poll instead. Skip ONLY when ALL hold:
+    #   - every worker branch is mid-flight (live window, no done marker, no
+    #     BLOCKED.md) — so nothing to integrate, repair, or re-spawn; any
+    #     FINISHED/BLOCKED/FAILED/STALE/ORPHAN branch wakes the LLM
+    #   - human inputs (GOAL/QUESTIONS/FEEDBACK) unchanged since the last
+    #     successful LLM pass, and the feedback inbox is empty
+    #   - no usable spawn capacity: workers at MAX_WORKERS, or backlog empty
+    #   - the last real pass was < QUIET_FORCE_SECS ago (bounds silent drift)
+    now="$(date +%s)"
+    if (( QUIET_FORCE_SECS > 0 )) && (( now - last_llm_pass < QUIET_FORCE_SECS )) \
+            && [[ "$(human_state_digest "$repo")" == "$hs_last" ]] \
+            && (( $(inbox_count) == 0 )) \
+            && all_workers_mid_flight "$repo" \
+            && { (( $(running_workers "$repo") >= MAX_WORKERS )) \
+                 || (( $(backlog_count) == 0 )); }; then
+        iter=$((iter - 1))   # nothing ran; don't consume the slot
+        log_line "quiet: all workers mid-flight, nothing actionable — polling again in ${QUIET_POLL_SECS}s"
+        sleep "$QUIET_POLL_SECS"
+        continue
+    fi
+
+    # Model + effort routing for the orchestrator itself. Routine passes
+    # (integrate, spawn, bookkeeping) run ORCH_ITER_MODEL at ORCH_EFFORT.
+    # High-stakes iterations — design phase (no tasks on the board yet:
+    # ARCHITECTURE/design drafting and backlog decomposition) and schema-gate
+    # passes (MODEL CHANGE PENDING) — escalate to ORCH_MODEL at
+    # ORCH_DESIGN_EFFORT. ORCH_MODEL also stays exported for the high-stakes
+    # spawns CLAUDE.md routes via `spawn --model "$ORCH_MODEL"` (reviews,
+    # critic, fix-trunk, migrations) — those are unaffected by this split.
     effort="$ORCH_EFFORT"
+    iter_model="$ORCH_ITER_MODEL"
     if ! grep -q '^- ' TASKS.md 2>/dev/null \
             || grep -q 'MODEL CHANGE PENDING' TASKS.md 2>/dev/null; then
         effort="$ORCH_DESIGN_EFFORT"
+        iter_model="$ORCH_MODEL"
     fi
 
     fp_before="$(state_fingerprint "$repo")"
-    log_line "iteration $iter starting (effort ${effort:-default}, Σ cost \$$total_cost)"
+    log_line "iteration $iter starting (model ${iter_model:-default}@${effort:-default}, Σ cost \$$total_cost)"
 
     rc=0
     out_json="logs/orchestrator/iter-$iter.json"
     err_log="logs/orchestrator/iter-$iter.err"
     cmd=(claude -p "$(iteration_prompt "$iter")" --dangerously-skip-permissions
          --max-turns "$ORCH_MAX_TURNS" --output-format json)
-    [[ -n "$ORCH_MODEL" ]] && cmd+=(--model "$ORCH_MODEL")
+    [[ -n "$iter_model" ]] && cmd+=(--model "$iter_model")
     [[ -n "$effort" ]] && cmd+=(--effort "$effort")
     run_with_timeout "$ITERATION_TIMEOUT_SECS" "${cmd[@]}" \
         </dev/null >"$out_json" 2>"$err_log" || rc=$?
@@ -431,6 +480,9 @@ while :; do
         continue
     fi
     errors=0
+
+    last_llm_pass="$(date +%s)"
+    hs_last="$(human_state_digest "$repo")"
 
     total_cost="$(awk -v a="$total_cost" -v b="$cost" 'BEGIN{printf "%.4f", a + b}')"
     log_line "iteration $iter done — \$$cost ($turns turns, $in_tok in / $out_tok out tokens, session $session)"
