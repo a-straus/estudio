@@ -23,10 +23,23 @@ export interface DueQueueItem {
   direction: ReviewDirection;
 }
 
+/** A deck word outside the queue, offered as a multiple-choice distractor. */
+export interface DistractorCandidate {
+  wordId: number;
+  term: string;
+  definitionEn: string | null;
+}
+
 export interface DueQueueResponse {
   deckId: number;
   /** Due cards (oldest first) followed by newly promoted cards, in study order. */
   items: DueQueueItem[];
+  /**
+   * Spare distractors drawn from the rest of the deck, present when the queue
+   * alone can't fill 3 distractors. The client falls back to flip cards only
+   * when queue + distractors still can't.
+   */
+  distractors?: DistractorCandidate[];
 }
 
 /** The scheduling state returned after grading or demoting a card. */

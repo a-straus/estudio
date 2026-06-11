@@ -9,8 +9,9 @@
   max-width: 560px;
   margin-inline: auto;
   padding: var(--space-4);
-  /* Leave room for the fixed action region on phones. */
-  padding-bottom: var(--space-8);
+  /* Leave room for the fixed action region on phones (up to two stacked
+     hit-target buttons plus its padding). */
+  padding-bottom: calc(var(--space-8) + 2 * var(--hit-target));
 }
 
 .review__status {
@@ -94,13 +95,21 @@
   border-top: 1px solid var(--color-rule);
 }
 
-/* ---- Action region (thumb zone) ---- */
+/* ---- Action region (thumb zone, D5) ---- */
+/* Fixed to the bottom of the viewport on phones — paper background, top
+   hairline — so it never moves off-screen; the card region scrolls under it.
+   Reverts to an in-flow footer at bp-desktop. */
 .review__actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  margin-top: auto;
-  padding-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-paper);
+  border-top: 1px solid var(--color-rule);
 }
 
 .review__actions .btn--primary {
@@ -163,6 +172,14 @@
 @media (min-width: 960px) /* bp-desktop */ {
   .review {
     padding-bottom: var(--space-4);
+  }
+
+  .review__actions {
+    position: static;
+    margin-top: auto;
+    padding: var(--space-4) 0 0;
+    background: none;
+    border-top: none;
   }
 }
 

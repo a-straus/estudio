@@ -77,7 +77,11 @@ export interface ConfirmRequest {
   batchNo: number;
 }
 
-/** An existing word a confirmed candidate collided with on lemma + language. */
+/**
+ * An existing word a confirmed candidate collided with — by lemma_normalized
+ * + language, or by exact (term, language) (homographs, and duplicates within
+ * the batch itself).
+ */
 export interface DedupeHit {
   item: ExtractionItemView;
   existingWord: {

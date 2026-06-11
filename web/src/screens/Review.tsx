@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
+  DistractorCandidate,
   DueQueueItem,
   ReviewDirection,
   ReviewGrade,
@@ -13,7 +14,7 @@ import {
   WordEntry,
   type QuizOptionState,
 } from "../components";
-import { demoteWord, fetchDueQueue, submitReview } from "./reviewApi";
+import { fetchDueQueue, submitReview } from "./reviewApi";
 import "./Review.css";
 
 interface ReviewProps {
@@ -41,35 +42,53 @@ const FLIP_PROMPT: Record<ReviewDirection, string> = {
   d2w: "Recall the word.",
 };
 
+/** In-place Fisher–Yates; rng is injectable for deterministic tests. */
+function shuffle<T>(arr: T[], rng: () => number): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 /**
- * Derive 4 MC options from the definitions/terms of OTHER queued words. Returns
- * null when there aren't 3 distinct distractors — the caller falls back to flip.
- * The correct option lands at a stable per-card slot so it isn't always first.
+ * Derive 4 MC options from the definitions/terms of OTHER queued words, padded
+ * with deck distractors the server ships when the queue is small. Returns null
+ * only when queue + distractors can't fill 3 distinct distractors — the caller
+ * falls back to flip. Distractor choice and option order are shuffled per
+ * build so the correct slot is never memorizable.
  */
-function buildChoiceOptions(
+export function buildChoiceOptions(
   card: DueQueueItem,
   queue: DueQueueItem[],
   direction: ReviewDirection,
+  distractors: DistractorCandidate[] = [],
+  rng: () => number = Math.random,
 ): OptionSet | null {
-  const others = queue.filter((c) => c.wordId !== card.wordId);
   const correct = direction === "w2d" ? card.definitionEn : card.term;
   if (!correct) return null;
 
   const seen = new Set<string>([correct]);
   const pool: string[] = [];
-  for (const c of others) {
-    const candidate = direction === "w2d" ? c.definitionEn : c.term;
+  const add = (candidate: string | null) => {
     if (candidate && !seen.has(candidate)) {
       seen.add(candidate);
       pool.push(candidate);
     }
+  };
+  for (const c of queue) {
+    if (c.wordId !== card.wordId)
+      add(direction === "w2d" ? c.definitionEn : c.term);
+  }
+  for (const d of distractors) {
+    if (d.wordId !== card.wordId)
+      add(direction === "w2d" ? d.definitionEn : d.term);
   }
   if (pool.length < 3) return null;
 
-  const correctIndex = card.wordId % 4;
-  const options = pool.slice(0, 3);
-  options.splice(correctIndex, 0, correct);
-  return { options, correctIndex };
+  const options = [correct, ...shuffle(pool, rng).slice(0, 3)];
+  shuffle(options, rng);
+  return { options, correctIndex: options.indexOf(correct) };
 }
 
 function CardFront({ card }: { card: DueQueueItem }) {
@@ -109,15 +128,15 @@ function CardReveal({ card }: { card: DueQueueItem }) {
 interface CardProps {
   card: DueQueueItem;
   queue: DueQueueItem[];
+  distractors: DistractorCandidate[];
   onGrade: (card: DueQueueItem, grade: ReviewGrade) => void;
   onNext: () => void;
-  onForgot: (card: DueQueueItem) => void;
 }
 
-function Card({ card, queue, onGrade, onNext, onForgot }: CardProps) {
+function Card({ card, queue, distractors, onGrade, onNext }: CardProps) {
   const optionSet = useMemo(
-    () => buildChoiceOptions(card, queue, card.direction),
-    [card, queue],
+    () => buildChoiceOptions(card, queue, card.direction, distractors),
+    [card, queue, distractors],
   );
   const mode = optionSet ? "choice" : "flip";
 
@@ -201,14 +220,9 @@ function Card({ card, queue, onGrade, onNext, onForgot }: CardProps) {
         </ReviewCard>
         <div className="review__actions">
           {!flipped ? (
-            <>
-              <Button variant="primary" onClick={() => setFlipped(true)}>
-                Flip to check
-              </Button>
-              <Button variant="quiet" onClick={() => onForgot(card)}>
-                I forgot this
-              </Button>
-            </>
+            <Button variant="primary" onClick={() => setFlipped(true)}>
+              Flip to check
+            </Button>
           ) : (
             <div className="review__grades">
               <Button variant="secondary" onClick={() => selfGrade("fail")}>
@@ -272,9 +286,6 @@ function Card({ card, queue, onGrade, onNext, onForgot }: CardProps) {
             <Button variant="quiet" onClick={dontKnow}>
               Don&rsquo;t know
             </Button>
-            <Button variant="quiet" onClick={() => onForgot(card)}>
-              I forgot this
-            </Button>
           </>
         ) : (
           <>
@@ -298,6 +309,7 @@ export function Review({ deckId }: ReviewProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [queue, setQueue] = useState<DueQueueItem[]>([]);
+  const [distractors, setDistractors] = useState<DistractorCandidate[]>([]);
   const [index, setIndex] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [missed, setMissed] = useState<DueQueueItem[]>([]);
@@ -310,6 +322,7 @@ export function Review({ deckId }: ReviewProps) {
     try {
       const data = await fetchDueQueue(deckId);
       setQueue(data.items);
+      setDistractors(data.distractors ?? []);
       setIndex(0);
       setCorrectCount(0);
       setMissed([]);
@@ -352,25 +365,6 @@ export function Review({ deckId }: ReviewProps) {
       });
     });
   }, []);
-
-  const handleForgot = useCallback(
-    (card: DueQueueItem) => {
-      setMissed((m) => [...m, card]);
-      demoteWord(card.wordId)
-        .then(() =>
-          setToast({ text: `${card.term} · due now`, variant: "info" }),
-        )
-        .catch((err: unknown) =>
-          setToast({
-            text:
-              err instanceof Error ? err.message : "Couldn't demote that word.",
-            variant: "error",
-          }),
-        );
-      advance();
-    },
-    [advance],
-  );
 
   const endSession = useCallback(() => setFinished(true), []);
 
@@ -493,9 +487,9 @@ export function Review({ deckId }: ReviewProps) {
           key={`${current.wordId}-${index}`}
           card={current}
           queue={queue}
+          distractors={distractors}
           onGrade={handleGrade}
           onNext={advance}
-          onForgot={handleForgot}
         />
       )}
 

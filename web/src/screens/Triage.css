@@ -33,6 +33,27 @@
   color: var(--color-ink-faint);
 }
 
+/* Thin batch-progress fill bar under the header (mirrors Review's track). */
+.triage__progress-track {
+  margin-top: var(--space-2);
+  block-size: 2px;
+  background: var(--color-rule);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.triage__progress-fill {
+  block-size: 100%;
+  background: var(--color-accent);
+  transition: width var(--motion-base) var(--motion-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .triage__progress-fill {
+    transition-duration: 0ms;
+  }
+}
+
 .triage__group {
   margin-bottom: var(--space-5);
 }
@@ -51,18 +72,6 @@
   text-transform: uppercase;
   letter-spacing: var(--tracking-meta);
   color: var(--color-ink-faint);
-}
-
-/* Bulk button is a quiet tertiary; keep it compact in the header row. */
-.triage__bulk {
-  min-height: 0;
-}
-
-@media (min-width: 960px) {
-  /* bp-desktop */
-  .triage__bulk {
-    min-height: 0;
-  }
 }
 
 /* Sticky thumb-zone footer (D5): fixed, paper background, top hairline. */
