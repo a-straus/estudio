@@ -96,10 +96,18 @@ beforeEach(() => {
   const provider: LlmProvider = {
     name: "mock",
     // Branch on the per-task model so one provider can serve every task.
-    complete: ({ model }) => {
+    complete: ({ model, prompt }) => {
       let text = JSON.stringify(CURRICULUM);
       if (model === "mock-lesson") text = JSON.stringify(LESSON);
-      else if (model === "mock-grading") text = JSON.stringify(GRADING);
+      else if (model === "mock-grading")
+        // The grading prompt carries the learner's answer; branch on a marker
+        // in it so one provider can serve both a "correct" and a "partial".
+        text = prompt.includes("PARTIAL")
+          ? JSON.stringify({
+              verdict: "partial",
+              feedback: "Close — for what you wrote, say 'Ojalá venga'.",
+            })
+          : JSON.stringify(GRADING);
       return Promise.resolve({
         text,
         usage: {
@@ -269,7 +277,7 @@ describe("lesson routes", () => {
       .post("/api/grammar/answer")
       .send({ questionId: def.id, given: "Espero que tengas razón." })
       .expect(200);
-    expect(right.body.correct).toBe(true);
+    expect(right.body.verdict).toBe("correct");
     expect(right.body.correctAnswer).toBe("Espero que tengas razón.");
     expect(right.body.explanation).toContain("subjunctive");
     expect(right.body.feedback).toBeNull(); // local grade, no LLM feedback
@@ -278,7 +286,7 @@ describe("lesson routes", () => {
       .post("/api/grammar/answer")
       .send({ questionId: def.id, given: "x" })
       .expect(200);
-    expect(wrong.body.correct).toBe(false);
+    expect(wrong.body.verdict).toBe("incorrect");
   });
 
   it("grades fill_in exactly, and falls back to the LLM for a near-miss", async () => {
@@ -294,7 +302,7 @@ describe("lesson routes", () => {
       .post("/api/grammar/answer")
       .send({ questionId: fill.id, given: "Vengas" })
       .expect(200);
-    expect(exact.body.correct).toBe(true);
+    expect(exact.body.verdict).toBe("correct");
     expect(exact.body.feedback).toBeNull();
 
     // A different answer routes to the LLM grader (mock says correct + feedback).
@@ -302,8 +310,17 @@ describe("lesson routes", () => {
       .post("/api/grammar/answer")
       .send({ questionId: fill.id, given: "venga" })
       .expect(200);
-    expect(near.body.correct).toBe(true);
+    expect(near.body.verdict).toBe("correct");
     expect(near.body.feedback).toBe("Nicely done.");
+
+    // A marked near-miss makes the LLM grader return the "partial" verdict
+    // with the corrected, natural phrasing in the feedback.
+    const partial = await request(app)
+      .post("/api/grammar/answer")
+      .send({ questionId: fill.id, given: "PARTIAL venga" })
+      .expect(200);
+    expect(partial.body.verdict).toBe("partial");
+    expect(partial.body.feedback).toContain("Ojalá venga");
   });
 
   it("always LLM-grades free_text and records the attempt, updating mastery", async () => {
@@ -318,7 +335,7 @@ describe("lesson routes", () => {
       .post("/api/grammar/answer")
       .send({ questionId: free.id, given: "Ojalá venga." })
       .expect(200);
-    expect(ans.body.correct).toBe(true);
+    expect(ans.body.verdict).toBe("correct");
     expect(ans.body.feedback).toBe("Nicely done.");
 
     // Record an attempt: 2 of 4 correct → score 0.5; from 0 mastery → 0.15.
@@ -327,10 +344,10 @@ describe("lesson routes", () => {
       .send({
         topicId,
         answers: [
-          { questionId: free.id, given: "a", correct: true },
-          { questionId: free.id, given: "b", correct: true },
-          { questionId: free.id, given: "c", correct: false },
-          { questionId: free.id, given: "d", correct: false },
+          { questionId: free.id, given: "a", verdict: "correct" },
+          { questionId: free.id, given: "b", verdict: "correct" },
+          { questionId: free.id, given: "c", verdict: "incorrect" },
+          { questionId: free.id, given: "d", verdict: "incorrect" },
         ],
       })
       .expect(201);
@@ -346,6 +363,32 @@ describe("lesson routes", () => {
       .prepare("SELECT COUNT(*) AS c FROM quiz_attempt WHERE topic_id = ?")
       .get(topicId) as { c: number };
     expect(c).toBe(1);
+  });
+
+  it("weights a partial verdict as 0.5 in the mastery EMA", async () => {
+    const topicId = await seedAndGetTopic();
+    await request(app).post(`/api/grammar/topics/${topicId}/lesson`).expect(202);
+    await queue.tick();
+    const free = db
+      .prepare("SELECT id FROM quiz_question WHERE style = 'free_text'")
+      .get() as { id: number };
+
+    // correct(1) + partial(0.5) + incorrect(0) + incorrect(0) = 1.5 / 4 = 0.375
+    // From 0 mastery: 0.7*0 + 0.3*0.375 = 0.1125.
+    const attempt = await request(app)
+      .post("/api/grammar/attempt")
+      .send({
+        topicId,
+        answers: [
+          { questionId: free.id, given: "a", verdict: "correct" },
+          { questionId: free.id, given: "b", verdict: "partial" },
+          { questionId: free.id, given: "c", verdict: "incorrect" },
+          { questionId: free.id, given: "d", verdict: "incorrect" },
+        ],
+      })
+      .expect(201);
+    expect(attempt.body.masteryBefore).toBe(0);
+    expect(attempt.body.mastery).toBeCloseTo(0.1125, 10);
   });
 
   it("404s grading a missing question and rejects a bad attempt", async () => {

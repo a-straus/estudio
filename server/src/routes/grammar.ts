@@ -9,6 +9,7 @@ import {
   type LessonJobResponse,
   type LessonQuestionView,
   type LessonResponse,
+  type LessonVerdict,
   type LessonView,
 } from "@estudio/shared";
 import type { DB } from "../db/db.js";
@@ -60,7 +61,7 @@ function toLessonView(
 }
 
 interface GradingVerdict {
-  verdict: "correct" | "incorrect";
+  verdict: LessonVerdict;
   feedback: string;
 }
 
@@ -73,7 +74,11 @@ function parseGrading(text: string): GradingVerdict {
   const start = trimmed.search(/[{[]/);
   if (start === -1) throw new Error(`no JSON in grading response: ${text.slice(0, 200)}`);
   const parsed = JSON.parse(trimmed.slice(start)) as Record<string, unknown>;
-  if (parsed.verdict !== "correct" && parsed.verdict !== "incorrect") {
+  if (
+    parsed.verdict !== "correct" &&
+    parsed.verdict !== "partial" &&
+    parsed.verdict !== "incorrect"
+  ) {
     throw new Error(`grading response has no verdict: ${text.slice(0, 200)}`);
   }
   const feedback =
@@ -93,12 +98,12 @@ export async function gradeLessonAnswer(
   llm: LlmService | undefined,
   q: LessonQuestionRow,
   given: string | null,
-): Promise<{ correct: boolean; correctAnswer: string | null; feedback: string | null }> {
+): Promise<{ verdict: LessonVerdict; correctAnswer: string | null; feedback: string | null }> {
   const { payload } = q;
 
   if (payload.style === "def_match") {
     return {
-      correct: given !== null && given === payload.correct,
+      verdict: given !== null && given === payload.correct ? "correct" : "incorrect",
       correctAnswer: payload.correct ?? null,
       feedback: null,
     };
@@ -110,7 +115,7 @@ export async function gradeLessonAnswer(
       : (payload.correct ?? null);
 
   if (given === null) {
-    return { correct: false, correctAnswer: reference, feedback: null };
+    return { verdict: "incorrect", correctAnswer: reference, feedback: null };
   }
 
   // fill_in / conjugation accept an exact/normalized match without an LLM call.
@@ -119,13 +124,13 @@ export async function gradeLessonAnswer(
     payload.correct !== undefined &&
     normalize(given) === normalize(payload.correct)
   ) {
-    return { correct: true, correctAnswer: reference, feedback: null };
+    return { verdict: "correct", correctAnswer: reference, feedback: null };
   }
 
   // Near-miss (fill_in/conjugation) or any free_text: LLM judgment.
   if (!llm) {
     // No grader available: fall back to a strict local verdict rather than 500.
-    return { correct: false, correctAnswer: reference, feedback: null };
+    return { verdict: "incorrect", correctAnswer: reference, feedback: null };
   }
   const raw = await llm.complete("quiz_grading", {
     prompt: payload.prompt,
@@ -134,7 +139,7 @@ export async function gradeLessonAnswer(
   });
   const verdict = parseGrading(raw);
   return {
-    correct: verdict.verdict === "correct",
+    verdict: verdict.verdict,
     correctAnswer: reference,
     feedback: verdict.feedback || null,
   };
@@ -247,7 +252,7 @@ export function registerGrammarRoutes(
     void gradeLessonAnswer(llm, q, given)
       .then((graded) => {
         const response: LessonAnswerResponse = {
-          correct: graded.correct,
+          verdict: graded.verdict,
           correctAnswer: graded.correctAnswer,
           explanation: q.explanation,
           feedback: graded.feedback,
@@ -278,8 +283,12 @@ export function registerGrammarRoutes(
       return;
     }
 
-    const correctCount = answers.filter((a) => a.correct).length;
-    const score = correctCount / answers.length;
+    // A correct answer weighs 1, a partial 0.5, an incorrect 0 in the EMA.
+    const verdictWeight = (v: LessonVerdict): number =>
+      v === "correct" ? 1 : v === "partial" ? 0.5 : 0;
+    const score =
+      answers.reduce((sum, a) => sum + verdictWeight(a.verdict), 0) /
+      answers.length;
 
     // quiz_attempt.style stores one concrete style; a lesson quiz mixes styles,
     // so we record the first question's style — the per-question detail lives in

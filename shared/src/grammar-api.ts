@@ -104,20 +104,30 @@ export interface LessonAnswerRequest {
   given: string | null;
 }
 
+/**
+ * A graded answer's verdict. `partial` covers a close/partially-right answer;
+ * it weighs 0.5 in the mastery EMA, between `correct` (1) and `incorrect` (0).
+ */
+export type LessonVerdict = "correct" | "partial" | "incorrect";
+
 export interface LessonAnswerResponse {
-  correct: boolean;
+  verdict: LessonVerdict;
   /** The reference answer for the reveal; null for free_text with no key. */
   correctAnswer: string | null;
   /** The eagerly-generated "explain why", cached with the question. */
   explanation: string;
-  /** One-sentence LLM feedback when the answer was LLM-graded; null otherwise. */
+  /**
+   * One-sentence LLM feedback when the answer was LLM-graded; null otherwise.
+   * For a `partial` verdict this carries the corrected, natural phrasing of
+   * what the learner was trying to say.
+   */
   feedback: string | null;
 }
 
 export interface LessonAttemptAnswer {
   questionId: number;
   given: string | null;
-  correct: boolean;
+  verdict: LessonVerdict;
 }
 
 export interface LessonAttemptRequest {
