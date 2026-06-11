@@ -113,8 +113,9 @@ state_fingerprint() {   # state_fingerprint <root>
             "$1/FEEDBACK.md" "$1"/design/*.md "$1"/design/screens/*.md 2>/dev/null
         while IFS= read -r b; do
             [[ -n "$b" ]] || continue
-            [[ -f "$(worker_done_file "$1" "$b")" ]] && echo "done:$b"
+            if [[ -f "$(worker_done_file "$1" "$b")" ]]; then echo "done:$b"; fi
         done < <(worker_branches "$1")
+        true
     } | cksum
 }
 
