@@ -232,7 +232,15 @@ PROMPT='Run ONE orchestrator iteration for this repository, exactly as
 specified in the Orchestrator guide (CLAUDE.md). When the pass is complete,
 print a short status report and exit.'
 
-iter=0
+# Resume numbering after the highest existing iteration so re-runs never
+# overwrite old logs; MAX_ITERATIONS still means "N iterations this run".
+iter_base=0
+for f in logs/orchestrator/iter-*.json; do
+    [[ -e "$f" ]] || continue
+    n="${f##*iter-}"; n="${n%.json}"
+    if [[ "$n" =~ ^[0-9]+$ ]] && (( n > iter_base )); then iter_base=$n; fi
+done
+iter=$iter_base
 total_cost=0
 errors=0
 sleep_s="$SLEEP_SECONDS"
@@ -297,8 +305,8 @@ while :; do
         echo "──────────────────────────────────────────────────"
         exit 0
     fi
-    if (( iter >= MAX_ITERATIONS )); then
-        log_line "iteration budget ($MAX_ITERATIONS) reached — re-run orchestrate to continue."
+    if (( iter - iter_base >= MAX_ITERATIONS )); then
+        log_line "iteration budget ($MAX_ITERATIONS this run) reached at iteration $iter — re-run orchestrate to continue."
         exit 0
     fi
     iter=$((iter + 1))
