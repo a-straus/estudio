@@ -14,15 +14,14 @@ Done levels (from GOAL.md §15):
 
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
-- **grammar-lessons-quizzes**: lesson generation job (explanation+examples as lesson rows; quiz as quiz_question rows w/ lesson_id), lesson screen, MC/fill-in/conjugation/free-text answering with LLM grading for free-form styles, "explain why" everywhere, mastery tracking from attempts. Owns: routes/grammar.ts + db/grammar-queries.ts + shared/src/grammar-api.ts (extend), jobs/lessonGen.ts (new) + handlers.ts + server/src/index.ts registration, prompts/grammar_lesson.md + quiz_grading.md (new), llm/service.ts (add `grammar_lesson` + `quiz_grading` to LlmTask + TASK_DEFAULTS only), db/quiz-queries.ts + routes/quiz.ts (extend for lesson-set serving/grading if needed), web Grammar.* + grammarApi.ts + new Lesson screen + App.tsx route — NOT triage/words/system/srs routes or queries, migrations, other prompts (spawned: 2026-06-11 ~14:45, plain spawn, schema excerpts pasted, `--include design/INDEX.md --include design/tokens.md --include design/screens/grammar.md --include design/screens/quiz.md --include design/components.md --include design/interaction.md`)
+- **review-03**: audit of the 5 integrations since review-02 (grammar-curriculum, review-02-fixes, system-page, quiz-engine-ui, grammar-lessons-quizzes) against GOAL.md/ARCHITECTURE.md/design contract; UI diffs for token discipline, component reuse, microcopy; findings → REVIEW.md (spawned: 2026-06-11 ~14:55, `--model "$ORCH_MODEL" --effort medium --include GOAL.md --include ARCHITECTURE.md --include design`)
+- **docs-and-demo**: app README cold start at docs/README.md (clone→run→phone via LAN/Tailscale, "Where your data lives", backup/restore exercised once) + pointer section atop root README.md, TODO-LATER.md, docs/demo.md script, LLM hot-swap proof (config-only model change, documented); covers review-01 #9 (spawned: 2026-06-11 ~14:55, plain spawn, no includes — requirements pasted verbatim)
 
 
 ## Backlog
 
 <!-- Phase 1 (GOAL.md §11 order: PDF ingestion → SRS review → raw text → quizzes → grammar); thinnest slice first, riskiest part of each slice first. Format: - description [priority] -->
 
-- **docs-and-demo** — README cold start (clone→run→phone via LAN/Tailscale, "Where your data lives", backup/restore exercised), TODO-LATER.md, docs/demo.md script; LLM hot-swap proof; covers review-01 #9 (no app README exists yet); WAIT for system-page (backup job must exist to exercise restore) and the other Phase-1 Musts (docs describe the finished slice) [Must — Phase 1 gate]
-- review-03 once grammar-lessons-quizzes lands (5 integrations since review-02: grammar-curriculum, review-02-fixes, system-page, quiz-engine-ui, grammar-lessons-quizzes) (`--model "$ORCH_MODEL" --effort medium --include GOAL.md --include ARCHITECTURE.md --include design`) [process]
 ### Phase 2 (decomposed iteration 49; HUMAN REVIEW GATE — per FEEDBACK 2026-06-11, when grammar-lessons-quizzes + review-03 + docs-and-demo are Done and trunk green, post [PENDING] "Phase 1 ready for your review" in QUESTIONS.md and spawn NOTHING below until answered. GOAL §5 phase order; §11 order: lesson recordings → Ask → suggestions → voice)
 
 - **transcription-layer** — `TranscriptionProvider` adapter interface mirroring LlmProvider (server-side only, key in .env), Whisper-class default adapter, chunking for ~60-min audio, stitch, per-lesson upfront cost estimate (~$0.40/hr), `transcription_call` logging + spend on System page; mocked-provider tests; ffmpeg-free path acceptable for pure-audio v1, video-container audio extraction via free OSS if cheap (GOAL §16). Likely touches ARCHITECTURE.md `transcription_call` entity — schema gate cycle expected first [Must — Phase 2, build first; riskiest]
@@ -40,6 +39,8 @@ Note: `no-design` and `codex-worker-engine` branches = human-owned (sandbox / sp
 ## Done
 
 <!-- Format: - **branch-name**: description (merged: YYYY-MM-DD HH:MM) [task/feature/release done] -->
+
+- **grammar-lessons-quizzes**: lesson generation job (lessonGen.ts via `grammar_lesson` LLM task + prompts/grammar_lesson.md), Lesson screen (reading column → practice flow), MC/fill-in/conjugation/free-text answering with LLM grading (`quiz_grading` task + prompts/quiz_grading.md, local grading w/ LLM fallback), "explain why" everywhere, mastery EMA from attempts, Grammar home topics link into lessons (merged: 2026-06-11 14:53, check.sh green on main — 347 tests) [task done]
 
 - **design-phase2-extension**: orchestrator-applied (no worker) — Phase 2 design contract: screens/lessons.md + ask.md + suggestions.md; ChatTurn/ToolConfirm/RecordButton/InsightRow in components.md; shell Ask-button + nav rules; Ingest lesson-audio tab; System transcription spend; Grammar "seen in N lessons"; D5 keys + microcopy; INDEX file map + Change log. No new tokens (done: 2026-06-11 ~14:50, iteration 50) [task done]
 
