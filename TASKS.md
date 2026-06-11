@@ -14,8 +14,7 @@ Done levels (from GOAL.md §15):
 
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
-- **design-foundation**: materialize design/tokens.md as the token stylesheet + build components.md base components as a composable library in /web (spawned: 2026-06-11 18:25, `--model "$ORCH_MODEL" --effort high --include design/INDEX.md --include design/tokens.md --include design/components.md --include design/interaction.md`)
-- **pdf-ingestion-pipeline**: upload endpoint + ingestion job: PDF stored as source, per-page vision extraction via new LlmProvider layer + anthropic adapter, page classification → source_page, candidates → extraction_item; per-page retry; prompts in /prompts; mocked-provider tests (no runtime API key yet — see QUESTIONS.md) (spawned: 2026-06-11 18:25, `--model "$ORCH_MODEL" --effort high`, schema excerpts pasted in brief)
+- **pdf-ingestion-pipeline**: upload endpoint + ingestion job: PDF stored as source, per-page vision extraction via new LlmProvider layer + anthropic adapter, page classification → source_page, candidates → extraction_item; per-page retry; prompts in /prompts; mocked-provider tests (no runtime API key yet — see QUESTIONS.md) (spawned: 2026-06-11 18:25, `--model "$ORCH_MODEL" --effort high`, schema excerpts pasted in brief; **re-spawn 1** 2026-06-11, sonnet: work complete, integrate exit 6 = package-lock.json conflict with design-foundation's merge — brief: merge main, regenerate lockfile, check green)
 ## Backlog
 
 <!-- Phase 1 (GOAL.md §11 order: PDF ingestion → SRS review → raw text → quizzes → grammar); thinnest slice first, riskiest part of each slice first. Format: - description [priority] -->
@@ -39,6 +38,8 @@ Note: `no-design` branch = human sandbox, not a worker branch (see DECISIONS.md)
 ## Done
 
 <!-- Format: - **branch-name**: description (merged: YYYY-MM-DD HH:MM) [task/feature/release done] -->
+
+- **design-foundation**: design/tokens.md materialized as token stylesheet + components.md base components built as composable library in /web, with tests (merged: 2026-06-11, check.sh green on main after npm install — 116 tests) [task done]
 
 - **sm2-engine**: /server/src/srs/ pure SM-2 functions — grade application, manual demotion, maturity ≥21d, review queue builder with new-cards/day promotion; unit tests; new files only (merged: 2026-06-11 18:36, check.sh green on main, 61 tests) [task done]
 
