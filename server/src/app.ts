@@ -15,6 +15,7 @@ import { logger } from "./logger.js";
 import { registerSourceRoutes } from "./routes/sources.js";
 import { registerSrsRoutes } from "./routes/srs.js";
 import { registerTriageRoutes } from "./routes/triage.js";
+import { registerWordRoutes } from "./routes/words.js";
 
 // web/dist sits two levels up from both server/src/ and server/dist/.
 const webDistDir = fileURLToPath(new URL("../../web/dist/", import.meta.url));
@@ -55,6 +56,7 @@ export function createApp(
   }
   registerSrsRoutes(app, db);
   registerTriageRoutes(app, db);
+  registerWordRoutes(app, db);
 
   app.use("/api", (_req: Request, res: Response) => {
     res

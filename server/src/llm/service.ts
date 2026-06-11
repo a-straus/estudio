@@ -8,7 +8,11 @@ import {
   type VisionAttachment,
 } from "./types.js";
 
-export type LlmTask = "pdf_extraction" | "page_classification";
+export type LlmTask =
+  | "pdf_extraction"
+  | "page_classification"
+  | "text_extraction"
+  | "word_definition";
 
 export interface TaskConfig {
   provider: string;
@@ -18,6 +22,8 @@ export interface TaskConfig {
 const TASK_DEFAULTS: Record<LlmTask, TaskConfig> = {
   pdf_extraction: { provider: "anthropic", model: "claude-fable-5" },
   page_classification: { provider: "anthropic", model: "claude-fable-5" },
+  text_extraction: { provider: "anthropic", model: "claude-fable-5" },
+  word_definition: { provider: "anthropic", model: "claude-fable-5" },
 };
 
 const DEFAULT_MAX_ATTEMPTS = 3;

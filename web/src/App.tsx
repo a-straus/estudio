@@ -1,4 +1,6 @@
 import "./App.css";
+import { Ingest } from "./screens/Ingest";
+import { Library } from "./screens/Library";
 import { Review } from "./screens/Review";
 import { Triage } from "./screens/Triage";
 
@@ -32,6 +34,14 @@ export function App() {
   const deckId = readReviewDeckId();
   if (deckId !== null) {
     return <Review deckId={deckId} />;
+  }
+
+  if (window.location.pathname.startsWith("/library")) {
+    return <Library />;
+  }
+
+  if (window.location.pathname.startsWith("/ingest")) {
+    return <Ingest />;
   }
 
   return (
