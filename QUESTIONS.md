@@ -17,39 +17,92 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 ## Answered.
 -->
 
-- what is /lesson doing right now? Is this is a later phase? I have ingested words and it still doesnt work
-
 ## Pending
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
 
-### [PENDING] UI visual polish — when and how (human-initiated discussion)
+### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
-> The code is great and I'm excited to test it. The thing I'm wondering is that when we're done with phase one here Is the UI gonna get an update to make it look a little more professional and polished? Because it does right now kind of just look like a V0 project, which is fine, but I would like to share this with some people, and I don't think it's at that position yet. So, are you aware of that? Are you happy with the design right now and the look of the UI? Do you want to tackle that when we've done phase three? Do you want to tackle it now? I'm curious your answer. But don't begin to make any design tasks until we've both figured this out and discussed it.
+You asked for "a list of everything that's been implemented and what I need to
+work through" so you don't miss checking anything. Here it is. **Nothing here
+blocks me** — per your instruction I'm fixing the Phase-1 issues you flagged
+and then continuing into Phase 2. Use this as your test plan when you're back;
+drop reactions in FEEDBACK.md.
 
-**Orchestrator answer:**
+**What Phase 1 ships (all merged, trunk green — 347 tests):**
 
-Honest assessment: yes, I'm aware, and no, I wouldn't call the current look "done." Everything was built with strict token/component discipline against the seeded design contract, and the reviews audited *conformance* (no raw values, component reuse, microcopy) — but conformance to a functional-first contract produces exactly what you're seeing: clean, consistent, V0. The contract's tokens and components were scoped to "usable on your phone," not "shareable." So the gap you're seeing is real and it lives in design/ (tokens.md + components.md), not scattered through the code — which is the good news.
+1. **Ingest** (`/ingest`) — drop a PDF (workbook scans, vision-extracted) or
+   paste raw text; language auto-detect/select; pages classified
+   (vocab / grammar / other); candidate words → triage.
+2. **Triage** (`/triage?source=N`) — know / learn / skip each candidate; batch
+   "Keep N"; confirm-time dedupe surfaces collisions (keep/merge).
+   *(Being fixed this round: kept word should vanish, post-Keep summary screen,
+   Done → go to Review.)*
+3. **Library** (`/library`) — all your words; search (accent-insensitive),
+   filters, manual add (auto-fills a definition), delete (history retained),
+   "I forgot this", provenance on each word.
+4. **Review / SRS** (`/review`) — SM-2 spaced repetition; due cards;
+   multiple-choice default with flip-card fallback; three grades; "I forgot
+   this" demote; cloze questions mixed in from cache.
+5. **Quiz** (`/quiz`) — configurable quizzes (def-match / cloze / mixed),
+   per-question feedback, cached explanations, results.
+   *(Being fixed this round: instant green/red on MC, no Check-Answer click,
+   no "I don't know" on MC, show the explanation on a wrong answer, default 10.)*
+6. **Grammar** (`/grammar`) — AI-seeded curriculum (categories → topics),
+   mastery-derived practice queue, "what your tutor is covering" from your PDFs.
+7. **Lessons** (`/grammar/topics/:id/lesson`) — generated lesson (explanation →
+   examples → practice), MC / fill-in / conjugation / free-text answering with
+   LLM grading + "explain why" on every answer; topic mastery tracked.
+8. **System** (`/system`) — LLM spend, job statuses, recent errors, DB backups
+   (daily + pre-migration). *(Being added: a Preferences section for
+   definition-display + new-cards-per-day.)*
+9. **Docs** — `docs/README.md` (clone → run → use on your phone via LAN /
+   Tailscale, "where your data lives", backup/restore), `docs/demo.md`,
+   `TODO-LATER.md`.
 
-My recommendation: **do the polish pass at the Phase-1 boundary — i.e., right after your upcoming Phase-1 review, before Phase 2 build starts.** Two reasons:
+**Known gaps / things I'd specifically check** (most are being fixed now —
+see FEEDBACK.md ## Processed for the task each maps to):
+- The curriculum is **seeded by a button** on `/grammar`, not automatically.
+  This is why "I ingested words and /lesson still doesn't work" (see below) —
+  lessons hang off grammar **topics**, and topics come from seeding the
+  curriculum + grammar pages in PDFs, not from vocab words.
+- Quiz answer pool currently draws only from words you've ingested, so
+  definitions can feel repetitive — being widened.
+- No global nav bar / home page / footer yet — coming in the design-polish pass
+  you authorized.
 
-1. **It's cheapest now.** Because every screen composes the token stylesheet and shared component library, a polish pass is mostly: upgrade tokens.md (type scale, spacing rhythm, color depth, elevation, motion) + restyle the ~15 base components, and the seven existing screens inherit it. Per-screen sweeps after that are small. Waiting until Phase 3 means Ask/Lessons/Suggestions get built on the V0 look and retrofitted later — more screens to sweep, same work plus rework.
-2. **It matches your goal.** You want to share Phase 1 with people; Phase 1 *is* the screens that need to look good.
+**Your answer (optional — reactions welcome, but I'm proceeding):**
 
-What I need from you to do it well (drop answers here or in FEEDBACK.md after you've played with the app):
-- Which screens feel worst / matter most to show people?
-- Any reference apps whose look you'd point at (e.g. Duolingo's warmth, Anki's density, Linear's restraint)? One or two anchors beat adjectives.
-- Whether the seeded identity (design/INDEX.md D0/D1 — its personality and principles) still feels right, or whether the polish pass may evolve it. Replacing it wholesale is your call, not mine; evolving within it I can do.
 
-Sequencing if you agree: you do the Phase-1 review (that [PENDING] post is coming once review-03 + docs-and-demo land) → your reactions + the answers above become the polish contract amendments → one strong-model design-polish foundation task (tokens + components) → quick per-screen sweeps → then Phase 2, built against the upgraded contract.
+### [ANSWERED] What is /lesson doing right now? I ingested words and it still doesn't work
 
-Until you reply here, I'm queuing **no** design tasks, as you asked.
+> what is /lesson doing right now? Is this is a later phase? I have ingested words and it still doesnt work
 
-**Your answer:**
-I like the identity! It's just missing the polish that most sites have like a home page, nav bar, maybe a simple footer. I like https://www.merriam-webster.com/. I'll add that to your egress list. It's a bit too cartoonish and childlike but its a good base, too. Don't change the identity based on merriam webster. To do the design work, imagine you are a designer at apple and want to make this app polished to handoff to your boss.  Take another shot at it.
+**Orchestrator answer:** Not a later phase — lessons shipped (grammar-lessons-quizzes,
+merged this run). The reason ingesting **vocabulary words** didn't make `/lesson`
+work: lessons are generated per **grammar topic**, and grammar topics come from
+**seeding the curriculum** (a button on `/grammar` today) plus grammar pages
+detected in PDFs — not from the vocab words you triage. So the path is:
+open `/grammar` → "Seed curriculum" → pick a topic → it generates the lesson.
+This is also a UX gap I'm closing: the curriculum-seeded-on-first-run vs.
+manual-button question (review-03 nit #6) and a clearer empty state, plus the
+home/nav work, will make this discoverable instead of a dead end. Flagged in the
+Phase-1 review checklist above.
+
 ## Answered
 
 <!-- Resolved questions are moved here by the orchestrator for record-keeping. -->
+
+### [ANSWERED] UI visual polish — when and how (human-initiated discussion)
+
+> The code is great and I'm excited to test it. The thing I'm wondering is that when we're done with phase one here Is the UI gonna get an update to make it look a little more professional and polished? Because it does right now kind of just look like a V0 project, which is fine, but I would like to share this with some people, and I don't think it's at that position yet. So, are you aware of that? Are you happy with the design right now and the look of the UI? Do you want to tackle that when we've done phase three? Do you want to tackle it now? I'm curious your answer. But don't begin to make any design tasks until we've both figured this out and discussed it.
+
+**Orchestrator answer (summary):** Gap is real and lives in design/ (tokens.md + components.md), not scattered through code — reviews audited token *conformance*, not aesthetic ambition. Recommended the polish pass at the Phase-1 boundary (upgrade tokens + components → screens inherit → per-screen sweeps), before Phase 2 builds more screens on the V0 look. [Full text in git history.]
+
+**Your answer:**
+I like the identity! It's just missing the polish that most sites have like a home page, nav bar, maybe a simple footer. I like https://www.merriam-webster.com/. I'll add that to your egress list. It's a bit too cartoonish and childlike but its a good base, too. Don't change the identity based on merriam webster. To do the design work, imagine you are a designer at apple and want to make this app polished to handoff to your boss.  Take another shot at it.
+
+**Resolution (orchestrator, iteration 55):** Design polish authorized; freeze lifted. Identity (D0/D1) stays. Adding a home/landing page, header nav bar, and simple footer; elevating tokens + components to an Apple-handoff bar; merriam-webster.com used as a *structural* reference only (not its identity — noted too cartoonish). Sequenced after the in-flight Phase-1 bug fixes (same screens/components), then: contract amendment → polish foundation → home/nav/footer → per-screen sweeps. Recorded in DECISIONS.md.
 
 ### [ANSWERED] Runtime Anthropic API key for the app's LLM calls
 

@@ -24,24 +24,23 @@ Altitude guide:
 ## Inbox
 
 <!-- - one item per dash; date them if you like -->
-- there should be a real progress bar on reading the pdf pages. A user will want to know that it's working. Also progress bar on the curriculum building
-- after clicking 'learn' on a word in http://localhost:3000/triage?source=1 it should disappear. It also looked like there was a bug where the second word to learn was skipped. I'm not sure though
-- the screen after you click 'keep x wrods' on triage is horrible. It just shows "Kept 29 words · 1 known archived · 0 skipped." That's not helpful at all. Theres a button that says done too. When you click done it should take you to learn or something, not just a page with nothing. http://localhost:3000/triage?source=1 is not a proper redirect
-- We definitely need a header nav bar
-- For /library, on mobile view, in the select rectanges/tables, you are missing the horizontal bar that separates "all/learning" etc. The two top and two bottom options have no deliniation
-- When you get an answer wrong in a quiz (in my instance im on grammar/topics/4/lesson) it hasn't generated the 'wrong reason' yet and so i have to sit there waiting for it. We should probably use a smaller, faster model for this, or maybe stream it in. If we're using fable for this, then that's overkill. sonnet should be fine with low thinking
-- I'd like a notes section on answers, correct or incorrect. for instance, i got this piece: (Why is 'Llegué tarde porque perdí el autobús que ya salió' awkward in careful Spanish?) on /grammar/topics/4/lesson and I want to write a note to myself to remember this. THe app can then use my notes to add context to generate quizzes in the future.
-- On a free response question, the app responded with an "answer" that was completely unrelated to what I wrote. In the case of free response answers we should take into account what the user said. It does that properly after the answer, but maybe if the user is 'close' to an answer we can figure out what the correct way to say what they wanted really was.
-- on /quiz multiple choice it should just be right or wrong (green or red) when i click the selection. we don't need to click 'check answer.' Also, on multiple choice questions, there shoudl not be an option for 'i dont know.' If you dont know you would just select one and move on
-- Im noticing on /quiz that the possible answers are limited to what the app has already ingested. its probably better to make it so that we have a bank when we generate the quiz. that way we won't see similar definitions all the time (a few are ok)
-- It seems the time between clicking 'check answer' and the color going green or red is too long. what's happening there? it should be near instantaneous.
-- the / url point needs to not open to what it does. it needs to be more navigable so i can know what to check
-- IN the future When we have a checkpoint that i need to review, i need a list of everything that's been implemented and what i need to work through. im worried i didn't check everything
-- If this piece of feedback is still here,, i want you to continue into phase 2 because i'm going to step away from the computer for a bit. This means that you should fix the issues that i have pointed out in phase one, make a list of things to review from phase one, and then once you have put those questions in the QUESTIONS.md then continue on to phase 2 as much as you can.
 
 ## Processed
 
 <!-- Moved here by the orchestrator with what it did about each. -->
+
+- 2026-06-11 (iteration 55) — **MASTER DIRECTIVE** "if this is still here, continue into phase 2 … fix the issues … make a list of things to review … then continue phase 2 as much as you can" → Acted on: this supersedes the Phase-1 freeze gate (DECISIONS.md). The 12 issue items below are converted to a prioritized Phase-1-fix backlog (ahead of Phase 2); a Phase-1 review checklist is posted in QUESTIONS.md ("[INFO] Phase 1 review checklist"); Phase 2 spawning is unblocked and resumes once the flagged fixes are in flight / capacity frees.
+- 2026-06-11 — "real progress bar on PDF page reading + curriculum building" → **ingestion-progress-and-topic-link** task (per-page / per-topic progress reported by the jobs and rendered on Ingest + Grammar; also fixes review-03 nit#3 90%-stall). [Should]
+- 2026-06-11 — "after 'learn' the word should disappear; possible second-word-skipped bug; horrible post-Keep screen; Done should go to Review; /triage?source=1 isn't a proper redirect" → **triage-fixes** task (spawned this iteration). [Must]
+- 2026-06-11 — "we need a header nav bar" + "the / url should be navigable, not open to what it does" → folded into the authorized **design polish**: a home/landing overview + global **home-nav-footer** task. [Must — after fixes land]
+- 2026-06-11 — "/library mobile: missing the horizontal divider between all/learning in the 2×2 select control" → **library-mobile-separator** task (SegmentedControl row divider on mobile wrap). [Should — trivial]
+- 2026-06-11 — "wrong-reason takes too long to generate; use a smaller/faster model — sonnet low thinking, fable is overkill" → **lesson-grading-fixes** (spawned): quiz_grading LLM task → sonnet at low effort; consider streaming/pre-generation. [Must]
+- 2026-06-11 — "notes section on answers (correct or incorrect) that the app later uses as context when generating quizzes" → **notes-on-answers** NEW FEATURE; needs a `note` table → routed through the schema gate. [Should — Phase-1 polish, schema-gated]
+- 2026-06-11 — "free-response grading sometimes returns an answer unrelated to what I wrote; should consider what the user said; if I'm 'close', figure out the correct way to say what I meant" → **lesson-grading-fixes** (spawned): grading prompt must ground on the user's actual answer + add a "close → here's how you'd say it" rephrase (ties to review-03 S7 Partly-right tier). [Must]
+- 2026-06-11 — "/quiz MC should color green/red instantly on click (no Check-Answer button); remove the 'I don't know' option on MC" → **quiz-ux-fixes** (spawned). [Must]
+- 2026-06-11 — "/quiz answer pool is limited to ingested content; build a wider bank at generation time so definitions aren't repetitive" → **quiz-caching-and-bank** task (ties to review-03 S1 cache-reuse + nit#10 distractor quality). [Must]
+- 2026-06-11 — "lag between 'check answer' and the color is too long; should be instantaneous" → **quiz-ux-fixes** (spawned): MC correctness decided client-side and colored immediately; persistence happens async. [Must]
+- 2026-06-11 — "I need a list of everything implemented + what to work through at a checkpoint" → satisfied now by the **Phase-1 review checklist** in QUESTIONS.md; will be regenerated at each future checkpoint. [done this iteration]
 
 - 2026-06-11 — "When you're done with Phase 1, stop and let me review" → Phase-1 review gate recorded in TASKS.md and DECISIONS.md: once the Phase-1 Musts (grammar-lessons-quizzes, review-03, docs-and-demo) are done and trunk is green, the orchestrator posts a [PENDING] "Phase 1 ready for your review" entry in QUESTIONS.md and spawns no Phase-2 work until you answer. (iteration 51)
 
