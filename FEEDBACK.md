@@ -24,9 +24,11 @@ Altitude guide:
 ## Inbox
 
 <!-- - one item per dash; date them if you like -->
-- When you're done with Phase 1, stop and let me review
+
 ## Processed
 
 <!-- Moved here by the orchestrator with what it did about each. -->
+
+- 2026-06-11 — "When you're done with Phase 1, stop and let me review" → Phase-1 review gate recorded in TASKS.md and DECISIONS.md: once the Phase-1 Musts (grammar-lessons-quizzes, review-03, docs-and-demo) are done and trunk is green, the orchestrator posts a [PENDING] "Phase 1 ready for your review" entry in QUESTIONS.md and spawns no Phase-2 work until you answer. (iteration 51)
 
 - 2026-06-10 — Vision-path PDF extraction, default scan-reading model `claude-fable-5` → folded into ARCHITECTURE.md (LLM-layer conventions: per-task model config; `pdf_extraction` task defaults to `claude-fable-5`) and recorded in DECISIONS.md. Validation against `docs/fixtures/workbook/` will be an acceptance criterion on the Phase 1 PDF-ingestion task when the backlog is decomposed (iteration 2 of the first-iterations protocol).
