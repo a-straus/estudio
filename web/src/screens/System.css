@@ -1,0 +1,153 @@
+/* System (design/screens/system.md §3.9). A single column of hairline-separated
+   sections — spend, jobs, errors, backup — all values in the machine voice
+   (--font-meta). Utilitarian and proud of it. Every value references a token. */
+
+.system {
+  max-width: var(--measure-app);
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+}
+
+.system__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  margin-bottom: var(--space-4);
+}
+
+/* ---- Sections ---- */
+.system__section {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-rule);
+}
+
+.system__section-label {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+  margin-bottom: var(--space-3);
+}
+
+.system__section-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ---- Lines & meta text ---- */
+.system__line,
+.system__loading,
+.system__muted,
+.system__unreadable,
+.system__path {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.system__line {
+  color: var(--color-ink);
+}
+
+.system__loading,
+.system__muted {
+  color: var(--color-ink-faint);
+}
+
+.system__path {
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  word-break: break-all;
+}
+
+.system__unreadable {
+  color: var(--color-incorrect);
+}
+
+/* ---- Rows ---- */
+.system__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.system__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--hit-target);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-rule);
+}
+
+/* Errors stack their meta line above the message below bp-tablet anyway, but
+   they read as label/value pairs at every width. */
+.system__row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.system__row-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+}
+
+.system__row-meta {
+  flex: 0 0 auto;
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  text-align: right;
+}
+
+.system__row--stacked .system__row-meta {
+  text-align: left;
+}
+
+/* ---- Job status dot ---- */
+.system__dot {
+  flex: 0 0 auto;
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-ink-faint);
+}
+
+.system__dot--running {
+  background: var(--color-accent);
+}
+
+.system__dot--done {
+  background: var(--color-correct);
+}
+
+.system__dot--failed {
+  background: var(--color-incorrect);
+}
+
+.system__dot--cancelled {
+  background: var(--color-rule-strong);
+}
+
+/* Tables become stacked label/value pairs below bp-tablet (640px). */
+@media (max-width: 640px) /* bp-tablet */ {
+  .system__row:not(.system__row--stacked) {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: var(--space-1);
+  }
+
+  .system__row:not(.system__row--stacked) .system__row-meta {
+    text-align: left;
+  }
+}

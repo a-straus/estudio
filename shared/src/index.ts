@@ -5,3 +5,4 @@ export * from "./triage-api.js";
 export * from "./library-api.js";
 export * from "./ingest-api.js";
 export * from "./grammar-api.js";
+export * from "./system-api.js";
