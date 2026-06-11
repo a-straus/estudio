@@ -12,6 +12,7 @@ import { listJobs } from "./db/queries.js";
 import type { DB } from "./db/db.js";
 import type { JobQueue } from "./jobs/queue.js";
 import { logger } from "./logger.js";
+import { registerGrammarRoutes } from "./routes/grammar.js";
 import { registerSourceRoutes } from "./routes/sources.js";
 import { registerSrsRoutes } from "./routes/srs.js";
 import { registerTriageRoutes } from "./routes/triage.js";
@@ -57,6 +58,7 @@ export function createApp(
   registerSrsRoutes(app, db);
   registerTriageRoutes(app, db);
   registerWordRoutes(app, db);
+  registerGrammarRoutes(app, db, opts.queue);
 
   app.use("/api", (_req: Request, res: Response) => {
     res

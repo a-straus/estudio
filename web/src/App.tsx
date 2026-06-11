@@ -1,4 +1,5 @@
 import "./App.css";
+import { Grammar } from "./screens/Grammar";
 import { Ingest } from "./screens/Ingest";
 import { Library } from "./screens/Library";
 import { Review } from "./screens/Review";
@@ -42,6 +43,10 @@ export function App() {
 
   if (window.location.pathname.startsWith("/ingest")) {
     return <Ingest />;
+  }
+
+  if (window.location.pathname.startsWith("/grammar")) {
+    return <Grammar />;
   }
 
   return (

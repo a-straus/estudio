@@ -12,7 +12,8 @@ export type LlmTask =
   | "pdf_extraction"
   | "page_classification"
   | "text_extraction"
-  | "word_definition";
+  | "word_definition"
+  | "grammar_curriculum";
 
 export interface TaskConfig {
   provider: string;
@@ -24,6 +25,7 @@ const TASK_DEFAULTS: Record<LlmTask, TaskConfig> = {
   page_classification: { provider: "anthropic", model: "claude-fable-5" },
   text_extraction: { provider: "anthropic", model: "claude-fable-5" },
   word_definition: { provider: "anthropic", model: "claude-fable-5" },
+  grammar_curriculum: { provider: "anthropic", model: "claude-fable-5" },
 };
 
 const DEFAULT_MAX_ATTEMPTS = 3;
