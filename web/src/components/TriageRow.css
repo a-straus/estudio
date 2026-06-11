@@ -1,0 +1,134 @@
+/* TriageRow (D4). Hairlines for list rows; a card only for the current row. */
+
+.triage-row--upcoming,
+.triage-row--decided,
+.triage-row--error {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.triage-row--upcoming .word-entry,
+.triage-row--decided .word-entry,
+.triage-row--error .word-entry {
+  flex: 1;
+  min-width: 0;
+}
+
+.triage-row--current {
+  background: var(--color-surface);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  /* bp-tablet */
+  .triage-row--current {
+    padding: var(--space-4);
+  }
+}
+
+.triage-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.triage-row__action {
+  flex: 1 1 0;
+}
+
+/* Mobile: Learn full-width first. */
+.triage-row__action--learn {
+  flex-basis: 100%;
+}
+
+@media (min-width: 640px) {
+  /* bp-tablet: single row, desktop order Know / Learn / Skip */
+  .triage-row__action--learn {
+    flex-basis: 0;
+    order: 2;
+  }
+
+  .triage-row__action--know {
+    order: 1;
+  }
+
+  .triage-row__action--skip {
+    order: 3;
+  }
+}
+
+/* Key hints at bp-desktop+ only. */
+.triage-row__key-hint {
+  display: none;
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+}
+
+@media (min-width: 960px) {
+  /* bp-desktop */
+  .triage-row__key-hint {
+    display: inline;
+  }
+}
+
+/* Primary button's hint must stay legible on the accent fill. */
+.triage-row__action--learn .triage-row__key-hint {
+  color: var(--color-accent-ink);
+  opacity: 0.7;
+}
+
+.triage-row__stamp {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-meta);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.triage-row__stamp--know,
+.triage-row__stamp--skip {
+  color: var(--color-ink-faint);
+}
+
+.triage-row__stamp--learn {
+  color: var(--color-accent);
+}
+
+.triage-row--skip .word-entry__headword {
+  text-decoration: line-through;
+}
+
+.triage-row__defining {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-faint);
+}
+
+.triage-row__error-line {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-incorrect);
+}
+
+/* The inline "retry" reads as part of the sentence. */
+.triage-row__retry {
+  min-height: 0;
+  padding: 0;
+  font-size: var(--text-sm);
+  vertical-align: baseline;
+}
+
+@media (min-width: 960px) {
+  .triage-row__retry {
+    min-height: 0;
+  }
+}

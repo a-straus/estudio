@@ -1,0 +1,18 @@
+/* EmptyState (D4). No illustrations, no icons. */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  text-align: center;
+  padding: var(--space-6) var(--space-4);
+}
+
+.empty-state__message {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--color-ink-soft);
+}

@@ -1,0 +1,57 @@
+/* SegmentedControl (D4). */
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-1);
+  overflow: hidden;
+}
+
+.segmented__segment {
+  flex: 1 1 0;
+  min-height: var(--hit-target);
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
+}
+
+.segmented__segment + .segmented__segment {
+  border-left: 1px solid var(--color-rule-strong);
+}
+
+.segmented__segment--selected {
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+  font-weight: var(--weight-medium);
+}
+
+/* Focus outline sits inside the clipped container, so pull it inward. */
+.segmented__segment:focus-visible {
+  outline-offset: -2px;
+}
+
+@media (min-width: 960px) {
+  /* bp-desktop */
+  .segmented__segment {
+    min-height: 36px;
+  }
+}
+
+/* Wrap to a second row below 400px rather than shrinking under --hit-target. */
+@media (max-width: 399px) {
+  .segmented {
+    flex-wrap: wrap;
+  }
+
+  .segmented__segment {
+    flex: 1 1 40%;
+  }
+}
