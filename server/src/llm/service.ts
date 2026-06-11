@@ -31,7 +31,7 @@ const TASK_DEFAULTS: Record<LlmTask, TaskConfig> = {
   grammar_curriculum: { provider: "anthropic", model: "claude-fable-5" },
   grammar_lesson: { provider: "anthropic", model: "claude-fable-5" },
   quiz_cloze: { provider: "anthropic", model: "claude-fable-5" },
-  quiz_grading: { provider: "anthropic", model: "claude-fable-5" },
+  quiz_grading: { provider: "anthropic", model: "claude-sonnet-4-6" },
 };
 
 const DEFAULT_MAX_ATTEMPTS = 3;

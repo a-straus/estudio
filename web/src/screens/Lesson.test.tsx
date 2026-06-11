@@ -58,7 +58,7 @@ describe("Lesson screen", () => {
   it("reads a cached lesson, then quizzes with an explain-why reveal", async () => {
     mockApi.fetchLesson.mockResolvedValue({ lesson: LESSON });
     mockApi.answerLesson.mockResolvedValue({
-      correct: true,
+      verdict: "correct",
       correctAnswer: "Espero que tengas razón.",
       explanation: "Hope triggers the subjunctive.",
       feedback: null,
@@ -85,11 +85,13 @@ describe("Lesson screen", () => {
     fireEvent.click(screen.getByText("Espero que tengas razón."));
     fireEvent.click(screen.getByRole("button", { name: "Check" }));
 
-    // Explain-why reveal appears after answering.
+    // Verdict shows immediately; the explanation hides behind "Explain why".
+    expect(await screen.findByText("Correct.")).toBeTruthy();
+    expect(screen.queryByText("Hope triggers the subjunctive.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Explain why" }));
     expect(
       await screen.findByText("Hope triggers the subjunctive."),
     ).toBeTruthy();
-    expect(screen.getByText("Correct.")).toBeTruthy();
 
     // Finish → results with score and the mastery change.
     fireEvent.click(screen.getByRole("button", { name: "See results" }));
@@ -100,8 +102,61 @@ describe("Lesson screen", () => {
     expect(screen.getByText("58%")).toBeTruthy();
     expect(mockApi.submitLessonAttempt).toHaveBeenCalledWith({
       topicId: 10,
-      answers: [{ questionId: 100, given: "Espero que tengas razón.", correct: true }],
+      answers: [
+        { questionId: 100, given: "Espero que tengas razón.", verdict: "correct" },
+      ],
     });
+  });
+
+  it("renders the 'Partly right.' verdict tier", async () => {
+    mockApi.fetchLesson.mockResolvedValue({ lesson: LESSON });
+    mockApi.answerLesson.mockResolvedValue({
+      verdict: "partial",
+      correctAnswer: "Espero que tengas razón.",
+      explanation: "Hope triggers the subjunctive.",
+      feedback: "Close — try 'Espero que tengas razón.'",
+    });
+
+    render(<Lesson topicId={10} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Take the quiz" }));
+    fireEvent.click(await screen.findByText("Espero que tienes razón."));
+    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+
+    expect(await screen.findByText("Partly right.")).toBeTruthy();
+    expect(
+      screen.getByText("Close — try 'Espero que tengas razón.'"),
+    ).toBeTruthy();
+  });
+
+  it("surfaces a failed attempt-save and retries it without losing the attempt", async () => {
+    mockApi.fetchLesson.mockResolvedValue({ lesson: LESSON });
+    mockApi.answerLesson.mockResolvedValue({
+      verdict: "correct",
+      correctAnswer: "Espero que tengas razón.",
+      explanation: "Hope triggers the subjunctive.",
+      feedback: null,
+    });
+    // First save fails; the retry succeeds.
+    mockApi.submitLessonAttempt
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce({ id: 5, masteryBefore: 0.4, mastery: 0.58 });
+
+    render(<Lesson topicId={10} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Take the quiz" }));
+    fireEvent.click(await screen.findByText("Espero que tengas razón."));
+    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    fireEvent.click(await screen.findByRole("button", { name: "See results" }));
+
+    // The failure is surfaced — never swallowed — with a Retry save action.
+    expect(await screen.findByText(/Couldn't save your results/)).toBeTruthy();
+    const retry = screen.getByRole("button", { name: "Retry save" });
+
+    fireEvent.click(retry);
+
+    // The retry re-posts the same attempt and the mastery change appears.
+    await waitFor(() => expect(screen.getByText("58%")).toBeTruthy());
+    expect(screen.queryByText(/Couldn't save your results/)).toBeNull();
+    expect(mockApi.submitLessonAttempt).toHaveBeenCalledTimes(2);
   });
 
   it("generates the lesson on first open when none is cached", async () => {

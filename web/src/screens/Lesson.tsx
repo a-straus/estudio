@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   LessonQuestionView,
+  LessonVerdict,
   LessonView,
 } from "@estudio/shared";
 import {
@@ -9,6 +10,7 @@ import {
   JobStatus,
   QuizOption,
   TextInput,
+  Toast,
   type JobState,
   type QuizOptionState,
 } from "../components";
@@ -34,11 +36,18 @@ type Phase = "loading" | "generating" | "reading" | "practice" | "results";
 export interface LessonOutcome {
   question: LessonQuestionView;
   given: string | null;
-  correct: boolean;
+  verdict: LessonVerdict;
   correctAnswer: string | null;
   explanation: string;
   feedback: string | null;
 }
+
+/** The exact verdict strings shown to the learner. */
+const VERDICT_LABEL: Record<LessonVerdict, string> = {
+  correct: "Correct.",
+  partial: "Partly right.",
+  incorrect: "Not quite.",
+};
 
 /** Split the explanation into paragraphs on blank lines. */
 function paragraphs(text: string): string[] {
@@ -75,6 +84,7 @@ function LessonQuizCard({
   const [outcome, setOutcome] = useState<LessonOutcome | null>(null);
   const [pending, setPending] = useState(false);
   const [gradeError, setGradeError] = useState<string | null>(null);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   const isChoice = question.style === "def_match";
 
@@ -88,7 +98,7 @@ function LessonQuizCard({
         const result: LessonOutcome = {
           question,
           given,
-          correct: res.correct,
+          verdict: res.verdict,
           correctAnswer: res.correctAnswer,
           explanation: res.explanation,
           feedback: res.feedback,
@@ -121,7 +131,7 @@ function LessonQuizCard({
   const optionState = (i: number): QuizOptionState => {
     if (!outcome) return selected === i ? "selected" : "default";
     if (question.options![i] === outcome.correctAnswer) return "correct";
-    if (i === selected) return "incorrect";
+    if (i === selected && outcome.verdict !== "correct") return "incorrect";
     return "disabled";
   };
 
@@ -134,7 +144,9 @@ function LessonQuizCard({
         <div className="lesson-quiz__progress-track" aria-hidden="true">
           <div
             className="lesson-quiz__progress-fill"
-            style={{ width: `${(index / total) * 100}%` }}
+            style={{
+              width: `${(((outcome ? index + 1 : index) / total) * 100).toFixed(2)}%`,
+            }}
           />
         </div>
       </header>
@@ -173,14 +185,11 @@ function LessonQuizCard({
       )}
 
       {outcome && (
-        <div
-          className="lesson-quiz__reveal"
-          data-correct={outcome.correct ? "yes" : "no"}
-        >
+        <div className="lesson-quiz__reveal" data-verdict={outcome.verdict}>
           <span className="lesson-quiz__verdict">
-            {outcome.correct ? "Correct." : "Not quite."}
+            {VERDICT_LABEL[outcome.verdict]}
           </span>
-          {!outcome.correct && outcome.correctAnswer && (
+          {outcome.verdict !== "correct" && outcome.correctAnswer && (
             <p className="lesson-quiz__correct">
               answer: <span className="lesson-quiz__correct-text">{outcome.correctAnswer}</span>
             </p>
@@ -188,8 +197,15 @@ function LessonQuizCard({
           {outcome.feedback && (
             <p className="lesson-quiz__feedback">{outcome.feedback}</p>
           )}
-          {/* The eagerly-generated "explain why", shown after every answer. */}
-          <p className="lesson-quiz__explanation">{outcome.explanation}</p>
+          <Button
+            variant="quiet"
+            onClick={() => setShowExplanation((v) => !v)}
+          >
+            {showExplanation ? "Hide explanation" : "Explain why"}
+          </Button>
+          {showExplanation && (
+            <p className="lesson-quiz__explanation">{outcome.explanation}</p>
+          )}
         </div>
       )}
 
@@ -238,6 +254,7 @@ export function Lesson({ topicId, pollIntervalMs = 1000 }: LessonProps) {
   const [mastery, setMastery] = useState<{ before: number; after: number } | null>(
     null,
   );
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const startGenerating = useCallback(async () => {
     setGenError(null);
@@ -311,6 +328,7 @@ export function Lesson({ topicId, pollIntervalMs = 1000 }: LessonProps) {
     setOutcomes([]);
     setIndex(0);
     setMastery(null);
+    setSaveError(null);
     setPhase("practice");
   }, []);
 
@@ -318,21 +336,39 @@ export function Lesson({ topicId, pollIntervalMs = 1000 }: LessonProps) {
     setOutcomes((prev) => [...prev, outcome]);
   }, []);
 
-  const finish = useCallback(
+  // Persist the attempt (and its mastery update). The attempt is saved by this
+  // single POST, so a failure must be surfaced — never swallowed — and retried.
+  const saveAttempt = useCallback(
     (all: LessonOutcome[]) => {
-      submitLessonAttempt({
+      setSaveError(null);
+      return submitLessonAttempt({
         topicId,
         answers: all.map((o) => ({
           questionId: o.question.id,
           given: o.given,
-          correct: o.correct,
+          verdict: o.verdict,
         })),
       })
-        .then((res) => setMastery({ before: res.masteryBefore, after: res.mastery }))
-        .catch(() => {});
-      setPhase("results");
+        .then((res) =>
+          setMastery({ before: res.masteryBefore, after: res.mastery }),
+        )
+        .catch((err) =>
+          setSaveError(
+            err instanceof ApiError
+              ? err.message
+              : "Couldn't save your results — mastery wasn't updated.",
+          ),
+        );
     },
     [topicId],
+  );
+
+  const finish = useCallback(
+    (all: LessonOutcome[]) => {
+      void saveAttempt(all);
+      setPhase("results");
+    },
+    [saveAttempt],
   );
 
   const advance = useCallback(() => {
@@ -350,7 +386,7 @@ export function Lesson({ topicId, pollIntervalMs = 1000 }: LessonProps) {
   }, [lesson, finish]);
 
   const score = useMemo(
-    () => outcomes.filter((o) => o.correct).length,
+    () => outcomes.filter((o) => o.verdict === "correct").length,
     [outcomes],
   );
 
@@ -414,18 +450,18 @@ export function Lesson({ topicId, pollIntervalMs = 1000 }: LessonProps) {
             <li
               key={`${o.question.id}-${i}`}
               className="lesson-result"
-              data-correct={o.correct ? "yes" : "no"}
+              data-verdict={o.verdict}
             >
               <div className="lesson-result__head">
                 <span className="lesson-result__prompt">{o.question.prompt}</span>
                 <span
                   className="lesson-result__mark"
-                  aria-label={o.correct ? "Correct" : "Incorrect"}
+                  aria-label={VERDICT_LABEL[o.verdict]}
                 >
-                  {o.correct ? "✓" : "✗"}
+                  {o.verdict === "correct" ? "✓" : o.verdict === "partial" ? "~" : "✗"}
                 </span>
               </div>
-              {!o.correct && o.correctAnswer && (
+              {o.verdict !== "correct" && o.correctAnswer && (
                 <p className="lesson-result__correct">answer: {o.correctAnswer}</p>
               )}
               <p className="lesson-result__explanation">{o.explanation}</p>
@@ -440,6 +476,18 @@ export function Lesson({ topicId, pollIntervalMs = 1000 }: LessonProps) {
             Done
           </Button>
         </div>
+        {saveError && (
+          <Toast
+            variant="error"
+            action={{
+              label: "Retry save",
+              onClick: () => void saveAttempt(outcomes),
+            }}
+            onDismiss={() => setSaveError(null)}
+          >
+            {saveError}
+          </Toast>
+        )}
       </main>
     );
   }

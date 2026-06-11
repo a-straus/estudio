@@ -89,6 +89,9 @@
 /* ---- Practice ---- */
 .lesson--practice {
   max-width: var(--measure-reading);
+  /* Leave room for the fixed action region on phones (a hit-target row plus
+     its padding) so the card never scrolls under it. */
+  padding-bottom: calc(var(--space-8) + 2 * var(--hit-target));
 }
 
 .lesson-quiz__card {
@@ -155,7 +158,11 @@
   background: var(--color-correct-wash);
 }
 
-.lesson-quiz__reveal[data-correct="no"] {
+.lesson-quiz__reveal[data-verdict="partial"] {
+  background: var(--color-accent-wash);
+}
+
+.lesson-quiz__reveal[data-verdict="incorrect"] {
   background: var(--color-incorrect-wash);
 }
 
@@ -165,7 +172,11 @@
   color: var(--color-correct);
 }
 
-.lesson-quiz__reveal[data-correct="no"] .lesson-quiz__verdict {
+.lesson-quiz__reveal[data-verdict="partial"] .lesson-quiz__verdict {
+  color: var(--color-ink);
+}
+
+.lesson-quiz__reveal[data-verdict="incorrect"] .lesson-quiz__verdict {
   color: var(--color-incorrect);
 }
 
@@ -195,17 +206,41 @@
   color: var(--color-ink-soft);
 }
 
+/* On phones the action row is pinned to the bottom thumb zone — paper
+   background, top hairline — exactly like .review__actions; it reverts to an
+   in-flow row at bp-desktop. */
 .lesson-quiz__actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-paper);
+  border-top: 1px solid var(--color-rule);
 }
 
 .lesson-quiz__grade-error {
   font-family: var(--font-meta);
   font-size: var(--text-xs);
   color: var(--color-incorrect);
+}
+
+/* Desktop (bp-desktop 960px): the action row returns to the in-flow column. */
+@media (min-width: 960px) /* bp-desktop */ {
+  .lesson--practice {
+    padding-bottom: var(--space-8);
+  }
+
+  .lesson-quiz__actions {
+    position: static;
+    padding: 0;
+    background: none;
+    border-top: none;
+  }
 }
 
 /* ---- Results ---- */
@@ -240,7 +275,11 @@
   margin-bottom: var(--space-2);
 }
 
-.lesson-result[data-correct="no"] {
+.lesson-result[data-verdict="partial"] {
+  background: var(--color-accent-wash);
+}
+
+.lesson-result[data-verdict="incorrect"] {
   background: var(--color-incorrect-wash);
 }
 
