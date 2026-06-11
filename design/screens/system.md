@@ -6,7 +6,7 @@
 
 **Regions.** Single column of hairline-separated sections, all values `--font-meta`:
 
-1. _Spend_ — "LLM spend · $4.12 since May 1 · $0.84 this week"; per-feature breakdown table (definitions / questions / lessons / grading).
+1. _Spend_ — "LLM spend · $4.12 since May 1 · $0.84 this week"; per-feature breakdown table (definitions / questions / lessons / grading / chat). Transcription spend is its own line in the same section — a second paid provider, reported separately: "Transcription · $1.20 since May 1 · 3 lessons".
 2. _Jobs_ — `JobStatus` rows: running (progress + stage), queued, finished (last 10, with durations). Quiet Button "Cancel" on running jobs.
 3. _Errors_ — last 20, each: timestamp, what failed, what the app did about it ("retried ×2, gave up — affected 3 words, flagged in Library").
 4. _Backup_ — "Last export · yesterday 23:40 · 2.1 MB" + primary-quiet Button "Export backup now"; restore via file picker.

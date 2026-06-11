@@ -156,3 +156,43 @@ Single-choice row: Deck, Length, Style, Direction, Ingest method, Library filter
 
 ---
 
+### ChatTurn
+
+One turn in an Ask thread. No bubbles — hairlines-not-boxes holds in chat.
+
+**Anatomy.** Owner turns: leading `--font-meta` `--text-xs` `--color-ink-faint` label "you", text `--font-app` `--text-base` `--color-ink`, the block indented by `--indent-entry`. Assistant turns: no label, flush left, `--font-app` `--text-base` `--leading-base`; **Spanish inside an answer follows the bilingual rules — `--font-study` italic on its own line with the hanging indent**, exactly as in lesson prose. Turns separated by `--space-5`; a `--color-rule` hairline only between days, with the date in `--font-meta` `--text-xs` centered on it.
+
+**States.** `streaming` (text appears as it arrives — no typing indicator) · `failed` ("The answer didn't arrive. Send again." + quiet "Retry", in `--color-incorrect`) · `pending-transcription` (voice question awaiting text: "Transcribing your question…" `--font-meta` `--color-ink-faint`).
+
+---
+
+### ToolConfirm
+
+Inline confirmation when the Ask assistant wants to mutate data. The one card inside a thread — elevation marks the decision point.
+
+**Anatomy.** Surface `--color-surface`, `--radius-2`, `--shadow-1`, padding `--space-4`, max-width 420px; question `--font-app` `--text-base` ("Add _avergonzarse_ to the Spanish deck?" — the word in `--font-study` per the bilingual rules); primary Button with the verb ("Add"), quiet "Skip". Min `--hit-target` actions.
+
+**States.** `pending` (as above; the thread waits) · `confirmed` — collapses to a one-line `--font-meta` `--text-xs` receipt: "ADDED · _avergonzarse_ · Spanish deck", plus an info Toast · `skipped` — receipt "SKIPPED", `--color-ink-faint`. Read-only tool calls never render this component.
+
+---
+
+### RecordButton
+
+Voice capture for Ask questions (browser MediaRecorder).
+
+**Anatomy.** A 44px (`--hit-target`) square secondary-style button with a mic glyph, sitting beside the composer's Send. Recording state swaps it to a stop square plus an inline timer chip: 8px `--color-incorrect` dot pulsing at 1.2s (same animation budget as JobStatus running; removed under reduced-motion) + elapsed time `--font-meta` `--text-sm` ("0:42"). Cap 2:00; the last 15 s the timer counts down in `--color-incorrect`.
+
+**States.** `idle` · `recording` (as above; tap stops and submits) · `denied` (mic permission refused: "Microphone blocked. Allow it in the browser, or type instead." as a TextInput error line) · `transcribing` (button disabled; the pending turn carries the status).
+
+---
+
+### InsightRow
+
+One mined lesson insight (correction or struggle sentence). Used on Lessons detail and Grammar topic views.
+
+**Anatomy.** `kind=correction`: two stacked lines with `--font-meta` `--text-xs` `--color-ink-faint` lead-ins — "you" then your sentence in `--font-study` italic `--color-ink-soft` with the wrong span underlined in `--color-incorrect` (underline, never strikethrough — it stays readable); "tutor" then the corrected sentence in `--font-study` italic `--color-ink`, corrected span underlined `--color-correct`. Hanging indent `--indent-entry` on both. `kind=struggle`: single sentence, same serif-italic treatment, lead-in "struggled"; optional `--font-meta` note from the analysis ("long pause, tutor supplied _hubiera_"). Rows hairline-separated.
+
+**States.** Static object, like WordEntry — no hover or selection of its own. A trailing quiet Button "Ask about this" opens an Ask thread seeded with the insight.
+
+---
+

@@ -6,7 +6,7 @@
 
 **Regions.**
 
-1. _Topic list_ — grouped by theme (e.g. Subjuntivo, Pretéritos, Por/Para): rows with topic title (`--font-app` `--text-base`), mastery in `--font-meta` ("quizzed twice · 80%", or "unread"). No percent rings. Above the list, the _practice queue_: up to 3 low-mastery topics under a `--font-meta` header "PRACTICE NEXT", same row anatomy + quiet Button "Review".
+1. _Topic list_ — grouped by theme (e.g. Subjuntivo, Pretéritos, Por/Para): rows with topic title (`--font-app` `--text-base`), mastery in `--font-meta` ("quizzed twice · 80%", or "unread"; once lesson recordings exist, the same meta line carries "seen in 3 lessons", linking to that topic's `InsightRow`s — corrections and struggle sentences mined from lessons, see screens/lessons.md). No percent rings. Above the list, the _practice queue_: up to 3 low-mastery topics under a `--font-meta` header "PRACTICE NEXT", same row anatomy + quiet Button "Review".
 2. _Lesson view_ — long-form reading column, max `--measure-reading`: title (`--text-xl`), body `--font-app` `--text-md` `--leading-loose`; **all Spanish examples inside the lesson are `--font-study` italic on their own lines with the hanging indent** — same object language rule as everywhere. Sticky footer Button "Take the quiz" appears after 60% scroll, always present at end.
 3. _Lesson quiz_ — same session components; includes free-text answers: TextInput + "Check" → machine grades to Correct / Partly / Incorrect with a one-line reason; "Explain why" expands the full reasoning.
 

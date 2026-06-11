@@ -29,6 +29,8 @@
 |             | `↑`/`↓` + `Enter` | Navigate list / open detail           |
 |             | `N`               | Add word                              |
 | Quiz setup  | `Tab`/arrows      | Move between segments                 |
+| Suggestions | `A` / `S`         | Add / Skip current proposal           |
+| Ask         | `Enter`           | Send (Shift+Enter for newline)        |
 | Global      | `?`               | Show this key map (dismissable sheet) |
 
 Key hints render in `--font-meta` `--text-xs` `--color-ink-faint` beside their controls at `bp-desktop`+ only.
@@ -97,6 +99,27 @@ Rule of thumb for agents: **if the user is supposed to _learn from_ the string, 
 | System, preferences       | "Definitions on reveal · Spanish / English / Both" · "New cards per day · 10 / 20 / 40"                                |
 | Generic store error       | "Couldn't load your decks. Reload, or check System for details."                                                       |
 | Explain failure           | "Couldn't generate the explanation. Try again."                                                                        |
+| Ingest, audio drop        | "Drop a lesson recording, or browse"                                                                                   |
+| Ingest, audio estimate    | "Lesson · 58 min · est. $0.40 transcription + $0.15 analysis" → "Mine the lesson"                                      |
+| Lessons, empty            | "No lessons yet. Upload a recording from Ingest." → "Go to Ingest"                                                     |
+| Lessons, transcribing     | "Transcribing… 12 of 58 min · $0.08 so far" / "Mining the transcript…"                                                 |
+| Lessons, resume after fail| "Transcription failed at minute 12. Retry resumes from there."                                                         |
+| Lessons, transcript       | "Show transcript"                                                                                                      |
+| Ask, button               | "Ask"                                                                                                                  |
+| Ask, context line         | "ASKING ABOUT · _vergüenza_ · review card"                                                                             |
+| Ask, tool confirm         | "Add _avergonzarse_ to the Spanish deck?" → "Add" / "Skip"                                                             |
+| Ask, tool receipt         | "ADDED · _avergonzarse_ · Spanish deck"                                                                                |
+| Ask, turn failure         | "The answer didn't arrive. Send again."                                                                                |
+| Ask, mic denied           | "Microphone blocked. Allow it in the browser, or type instead."                                                        |
+| Ask, voice pending        | "Transcribing your question…"                                                                                          |
+| Ask, list empty           | "No conversations yet. Ask from any page and it starts here."                                                          |
+| Suggestions, tally        | "12 suggested · 7 added · 5 skipped"                                                                                   |
+| Suggestions, reason       | "SUGGESTED · near your level · seen in your Jun 9 lesson"                                                              |
+| Suggestions, actions      | "Add" / "Skip"                                                                                                         |
+| Suggestions, choosing     | "Choosing the next one…"                                                                                               |
+| Suggestions, exhausted    | "Nothing left to suggest right now. Review what you've added, or ingest something new."                                |
+| Suggestions, added toast  | "_desenvolverse_ · added to Spanish deck" / "Por/para · added to practice queue"                                       |
+| System, transcription     | "Transcription · $1.20 since May 1 · 3 lessons"                                                                        |
 
 **Voice rules (apply to all new strings):** every error names what happened and the next action; nothing apologizes; every count carries its unit; buttons say exactly what they do.
 

@@ -6,10 +6,10 @@
 
 **Regions.**
 
-1. _Method tabs_ — SegmentedControl: Upload PDF · Paste text · Gutenberg · Import.
-2. _Method panel_ — one of: file drop zone (dashed `--color-rule-strong` border, `--radius-2`); TextInput multiline for paste; TextInput for Gutenberg URL/ID with a fetch step; file picker for Mochi export.
-3. _Estimate & confirm_ (Gutenberg and large PDFs) — before any spend: "Moby-Dick · 215,000 words · est. $0.84 · ~12 min". Primary Button "Extract words", quiet "Cancel".
-4. _Job progress_ — JobStatus block: stage line ("Reading chapter 41 of 135"), progress fill, honest cost ticker ("$0.31 so far"), quiet Button "Run in background". Completion routes to Triage.
+1. _Method tabs_ — SegmentedControl: Upload PDF · Paste text · Lesson audio · Gutenberg · Import.
+2. _Method panel_ — one of: file drop zone (dashed `--color-rule-strong` border, `--radius-2`); TextInput multiline for paste; audio drop zone for lesson recordings (m4a/mp3/ogg/wav, ~60 min: "Drop a lesson recording, or browse"); TextInput for Gutenberg URL/ID with a fetch step; file picker for Mochi export.
+3. _Estimate & confirm_ (Gutenberg, large PDFs, and lesson audio) — before any spend: "Moby-Dick · 215,000 words · est. $0.84 · ~12 min", or for audio "Lesson · 58 min · est. $0.40 transcription + $0.15 analysis". Primary Button "Extract words" / "Mine the lesson", quiet "Cancel".
+4. _Job progress_ — JobStatus block: stage line ("Reading chapter 41 of 135" / "Transcribing… 12 of 58 min"), progress fill, honest cost ticker ("$0.31 so far"), quiet Button "Run in background". Completion routes to Triage; lesson audio routes to the lesson's detail on Lessons.
 
 ```
 Mobile 390px                       Desktop 1280px
