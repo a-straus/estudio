@@ -7,6 +7,7 @@ import {
   type TextIngestionPayload,
 } from "./textIngestion.js";
 import { JOB_TYPE_GRAMMAR_SEED, runGrammarSeed } from "./grammarSeed.js";
+export { registerBackupHandler } from "./backup.js";
 
 /** Register the text_ingestion job handler. */
 export function registerTextIngestionHandler(

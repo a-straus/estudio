@@ -15,6 +15,7 @@ import { logger } from "./logger.js";
 import { registerGrammarRoutes } from "./routes/grammar.js";
 import { registerSourceRoutes } from "./routes/sources.js";
 import { registerSrsRoutes } from "./routes/srs.js";
+import { registerSystemRoutes } from "./routes/system.js";
 import { registerTriageRoutes } from "./routes/triage.js";
 import { registerWordRoutes } from "./routes/words.js";
 
@@ -59,6 +60,9 @@ export function createApp(
   registerTriageRoutes(app, db);
   registerWordRoutes(app, db);
   registerGrammarRoutes(app, db, opts.queue);
+  if (opts.dataDir) {
+    registerSystemRoutes(app, db, opts.dataDir);
+  }
 
   app.use("/api", (_req: Request, res: Response) => {
     res

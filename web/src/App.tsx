@@ -3,6 +3,7 @@ import { Grammar } from "./screens/Grammar";
 import { Ingest } from "./screens/Ingest";
 import { Library } from "./screens/Library";
 import { Review } from "./screens/Review";
+import { System } from "./screens/System";
 import { Triage } from "./screens/Triage";
 
 // Minimal routing until the full app shell lands: the triage screen is reached
@@ -47,6 +48,10 @@ export function App() {
 
   if (window.location.pathname.startsWith("/grammar")) {
     return <Grammar />;
+  }
+
+  if (window.location.pathname.startsWith("/system")) {
+    return <System />;
   }
 
   return (

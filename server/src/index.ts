@@ -4,10 +4,16 @@ import { runMigrations } from "./db/migrate.js";
 import { logger } from "./logger.js";
 import { JobQueue } from "./jobs/queue.js";
 import {
+  registerBackupHandler,
   registerGrammarSeedHandler,
   registerTextIngestionHandler,
 } from "./jobs/handlers.js";
 import { registerPdfIngestionHandler } from "./jobs/pdfIngestion.js";
+import {
+  BACKUP_INTERVAL_MS,
+  enqueueBackupIfDue,
+  JOB_TYPE_BACKUP,
+} from "./jobs/backup.js";
 import { createAnthropicProvider } from "./llm/anthropic.js";
 import { LlmService } from "./llm/service.js";
 import { createApp } from "./app.js";
@@ -24,10 +30,22 @@ const queue = new JobQueue(db);
 registerTextIngestionHandler(queue, db, llm);
 registerPdfIngestionHandler(queue, db, llm);
 registerGrammarSeedHandler(queue, db, llm);
+registerBackupHandler(queue, db, config.dataDir);
 const reverted = queue.recoverRunningJobs();
 if (reverted > 0)
   logger.info("reverted running jobs to queued on boot", { count: reverted });
 queue.start();
+
+// Enqueue a backup on boot if none has run in the last 24h, then daily. The
+// queue gives persistence/retry; this just decides when to enqueue.
+const bootBackupId = enqueueBackupIfDue(db, queue);
+if (bootBackupId !== null)
+  logger.info("enqueued boot backup", { jobId: bootBackupId });
+const backupTimer = setInterval(() => {
+  const jobId = queue.enqueue(JOB_TYPE_BACKUP, {});
+  logger.info("enqueued daily backup", { jobId });
+}, BACKUP_INTERVAL_MS);
+backupTimer.unref();
 
 const app = createApp(db, {
   serveWeb: config.nodeEnv === "production",
