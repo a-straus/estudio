@@ -24,7 +24,7 @@ Altitude guide:
 ## Inbox
 
 <!-- - one item per dash; date them if you like -->
-
+- When you're done with Phase 1, stop and let me review
 ## Processed
 
 <!-- Moved here by the orchestrator with what it did about each. -->
