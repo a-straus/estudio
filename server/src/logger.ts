@@ -2,25 +2,19 @@ import type { DB } from "./db/db.js";
 
 type Level = "info" | "warn" | "error";
 type Fields = Record<string, unknown>;
+export type ErrorScope = "request" | "job" | "llm" | "transcription";
 
 const ERROR_LOG_CAP = 1000;
 
 /**
  * Tiny structured logger: one JSON object per line to stdout.
  * Once a DB is attached, `error()` additionally inserts into the `error_log`
- * table (infrastructure table, capped at ~1000 rows).
+ * table (created by migration 001, capped at ~1000 rows).
  */
 class Logger {
   private db: DB | null = null;
 
   attachDb(db: DB): void {
-    db.exec(`CREATE TABLE IF NOT EXISTS error_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      ts TEXT NOT NULL,
-      message TEXT NOT NULL,
-      stack TEXT,
-      context TEXT
-    )`);
     this.db = db;
   }
 
@@ -36,7 +30,11 @@ class Logger {
     this.write("warn", msg, fields);
   }
 
-  error(msg: string, fields?: Fields & { err?: unknown }): void {
+  error(
+    scope: ErrorScope,
+    msg: string,
+    fields?: Fields & { err?: unknown },
+  ): void {
     const { err, ...rest } = fields ?? {};
     const stack =
       err instanceof Error
@@ -44,18 +42,18 @@ class Logger {
         : err !== undefined
           ? String(err)
           : undefined;
-    this.write("error", msg, { ...rest, ...(stack ? { stack } : {}) });
+    this.write("error", msg, { scope, ...rest, ...(stack ? { stack } : {}) });
     if (this.db) {
       try {
         this.db
           .prepare(
-            "INSERT INTO error_log (ts, message, stack, context) VALUES (?, ?, ?, ?)",
+            "INSERT INTO error_log (ts, scope, message, detail) VALUES (?, ?, ?, ?)",
           )
           .run(
             new Date().toISOString(),
+            scope,
             msg,
-            stack ?? null,
-            JSON.stringify(rest),
+            JSON.stringify({ ...rest, ...(stack ? { stack } : {}) }),
           );
         this.db
           .prepare(

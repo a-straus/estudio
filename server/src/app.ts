@@ -55,7 +55,7 @@ export function createApp(db: DB, opts: { serveWeb?: boolean } = {}): Express {
   }
 
   app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
-    logger.error("request failed", {
+    logger.error("request", "request failed", {
       method: req.method,
       path: req.originalUrl,
       err,

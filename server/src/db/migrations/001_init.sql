@@ -39,6 +39,9 @@ CREATE TABLE word (
   status TEXT NOT NULL CHECK (status IN ('new', 'learning', 'mature', 'known', 'suspended')),
   deck_id INTEGER NOT NULL REFERENCES deck (id),
   source_id INTEGER REFERENCES source (id) ON DELETE SET NULL,
+  definition_origin TEXT NOT NULL DEFAULT 'llm' CHECK (definition_origin IN ('llm', 'owner')),
+  owner_edited_at TEXT,
+  prompt_version TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   UNIQUE (term, language)
@@ -58,20 +61,6 @@ CREATE TABLE card_state (
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
--- Append-only: no code path may UPDATE or DELETE rows here.
-CREATE TABLE review_log (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  word_id INTEGER REFERENCES word (id) ON DELETE SET NULL,
-  ts TEXT NOT NULL,
-  direction TEXT NOT NULL CHECK (direction IN ('w2d', 'd2w')),
-  grade TEXT NOT NULL CHECK (grade IN ('fail', 'good', 'easy')),
-  ease_after REAL NOT NULL,
-  interval_after REAL NOT NULL,
-  origin TEXT NOT NULL CHECK (origin IN ('review', 'quiz', 'manual_demotion')),
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-);
-
 CREATE TABLE grammar_category (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -80,13 +69,48 @@ CREATE TABLE grammar_category (
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
+-- "Seen in lessons" is derived at read time from lesson_insight and
+-- source_page links — never a stored counter.
 CREATE TABLE grammar_topic (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   category_id INTEGER NOT NULL REFERENCES grammar_category (id),
   name TEXT NOT NULL,
   description TEXT,
   mastery REAL NOT NULL DEFAULT 0 CHECK (mastery >= 0 AND mastery <= 1),
-  seen_in_lessons INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+-- Per-page processing/retry state and the page→curriculum link.
+CREATE TABLE source_page (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_id INTEGER NOT NULL REFERENCES source (id),
+  page_no INTEGER NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('vocab', 'grammar')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'done', 'failed')),
+  error TEXT,
+  grammar_topic_id INTEGER REFERENCES grammar_topic (id),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+-- Extraction candidates and their triage state. Undecided candidates never
+-- become word rows; word_id is set when a decision materializes one.
+CREATE TABLE extraction_item (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_id INTEGER NOT NULL REFERENCES source (id),
+  term TEXT NOT NULL,
+  lemma TEXT,
+  part_of_speech TEXT,
+  definition_es TEXT,
+  definition_en TEXT,
+  example TEXT,
+  level TEXT,
+  likely_known REAL,
+  batch_no INTEGER,
+  decision TEXT NOT NULL DEFAULT 'pending' CHECK (decision IN ('pending', 'know', 'learn', 'skip')),
+  decided_at TEXT,
+  word_id INTEGER REFERENCES word (id) ON DELETE SET NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
@@ -95,6 +119,7 @@ CREATE TABLE lesson (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   topic_id INTEGER NOT NULL REFERENCES grammar_topic (id),
   content TEXT NOT NULL,
+  prompt_version TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
@@ -103,10 +128,27 @@ CREATE TABLE quiz_question (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   word_id INTEGER REFERENCES word (id) ON DELETE SET NULL,
   topic_id INTEGER REFERENCES grammar_topic (id),
+  lesson_id INTEGER REFERENCES lesson (id),
   style TEXT NOT NULL CHECK (style IN ('def_match', 'cloze', 'fill_in', 'conjugation', 'free_text')),
   payload TEXT NOT NULL,
   explanation TEXT NOT NULL,
+  prompt_version TEXT NOT NULL,
   flagged INTEGER NOT NULL DEFAULT 0 CHECK (flagged IN (0, 1)),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+-- Append-only: no code path may UPDATE or DELETE rows here.
+CREATE TABLE review_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  word_id INTEGER REFERENCES word (id) ON DELETE SET NULL,
+  ts TEXT NOT NULL,
+  direction TEXT NOT NULL CHECK (direction IN ('w2d', 'd2w', 'cloze')),
+  grade TEXT NOT NULL CHECK (grade IN ('fail', 'good', 'easy')),
+  ease_after REAL NOT NULL,
+  interval_after REAL NOT NULL,
+  origin TEXT NOT NULL CHECK (origin IN ('review', 'quiz', 'manual_demotion')),
+  quiz_question_id INTEGER REFERENCES quiz_question (id),
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
@@ -179,11 +221,14 @@ CREATE TABLE llm_call (
   task TEXT NOT NULL,
   provider TEXT NOT NULL,
   model TEXT NOT NULL,
+  prompt_version TEXT,
   tokens_in INTEGER,
   tokens_out INTEGER,
   latency_ms INTEGER,
   cache_hit INTEGER NOT NULL DEFAULT 0 CHECK (cache_hit IN (0, 1)),
   cost_estimate_usd REAL,
+  status TEXT NOT NULL CHECK (status IN ('ok', 'error')),
+  error TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
@@ -193,10 +238,24 @@ CREATE TABLE transcription_call (
   task TEXT NOT NULL,
   provider TEXT NOT NULL,
   model TEXT NOT NULL,
+  prompt_version TEXT,
   minutes REAL,
   latency_ms INTEGER,
   cache_hit INTEGER NOT NULL DEFAULT 0 CHECK (cache_hit IN (0, 1)),
   cost_estimate_usd REAL,
+  status TEXT NOT NULL CHECK (status IN ('ok', 'error')),
+  error TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+-- Capped at ~1000 rows by the logger, which prunes oldest after each insert.
+CREATE TABLE error_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('request', 'job', 'llm', 'transcription')),
+  message TEXT NOT NULL,
+  detail TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );

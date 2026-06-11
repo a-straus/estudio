@@ -153,7 +153,7 @@ export class JobQueue {
         .run(failed ? "failed" : "queued", errorText, nowIso(), job.id);
       if (failed) {
         this.notBefore.delete(job.id);
-        logger.error("job failed permanently", {
+        logger.error("job", "job failed permanently", {
           jobId: job.id,
           type: job.type,
           attempts: job.attempts,

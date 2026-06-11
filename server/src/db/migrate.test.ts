@@ -42,6 +42,8 @@ describe("runMigrations with the real migrations", () => {
     for (const table of [
       "deck",
       "source",
+      "source_page",
+      "extraction_item",
       "word",
       "card_state",
       "review_log",
@@ -57,6 +59,7 @@ describe("runMigrations with the real migrations", () => {
       "job",
       "llm_call",
       "transcription_call",
+      "error_log",
       "setting",
       "migration",
     ]) {
@@ -72,6 +75,50 @@ describe("runMigrations with the real migrations", () => {
     ]);
 
     expect(db.pragma("journal_mode", { simple: true })).toBe("wal");
+  });
+
+  it("matches the finalized data model deltas", () => {
+    const dataDir = makeTmpDir();
+    const db = openTmpDb(dataDir);
+    runMigrations(db, dataDir);
+
+    const columns = (table: string) =>
+      (
+        db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+      ).map((c) => c.name);
+
+    expect(columns("word")).toEqual(
+      expect.arrayContaining([
+        "definition_origin",
+        "owner_edited_at",
+        "prompt_version",
+      ]),
+    );
+    expect(columns("review_log")).toContain("quiz_question_id");
+    expect(columns("quiz_question")).toEqual(
+      expect.arrayContaining(["lesson_id", "prompt_version"]),
+    );
+    expect(columns("lesson")).toContain("prompt_version");
+    for (const table of ["llm_call", "transcription_call"]) {
+      expect(columns(table)).toEqual(
+        expect.arrayContaining(["status", "error", "prompt_version"]),
+      );
+    }
+    // Derived from links at read time, never stored.
+    expect(columns("grammar_topic")).not.toContain("seen_in_lessons");
+
+    // review_log.direction accepts 'cloze'.
+    db.prepare(
+      "INSERT INTO word (term, term_normalized, language, status, deck_id) VALUES ('hola', 'hola', 'es', 'new', 1)",
+    ).run();
+    const insertReview = (direction: string) =>
+      db
+        .prepare(
+          "INSERT INTO review_log (word_id, ts, direction, grade, ease_after, interval_after, origin) VALUES (1, '2026-06-10T00:00:00Z', ?, 'good', 2.5, 1, 'review')",
+        )
+        .run(direction);
+    insertReview("cloze");
+    expect(() => insertReview("bogus")).toThrow(/CHECK/);
   });
 
   it("enforces UNIQUE(term, language) on word", () => {

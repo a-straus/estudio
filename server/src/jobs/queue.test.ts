@@ -111,12 +111,16 @@ describe("JobQueue", () => {
     expect(row.error).toContain("permanent failure");
     expect(row.error).toContain("at "); // stack trace persisted
 
-    const errors = db.prepare("SELECT message, stack FROM error_log").all() as {
+    const errors = db
+      .prepare("SELECT scope, message, detail FROM error_log")
+      .all() as {
+      scope: string;
       message: string;
-      stack: string | null;
+      detail: string | null;
     }[];
     expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0]!.stack).toContain("permanent failure");
+    expect(errors[0]!.scope).toBe("job");
+    expect(errors[0]!.detail).toContain("permanent failure");
   });
 
   it("fails a job whose type has no registered handler", async () => {
