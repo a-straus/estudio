@@ -14,6 +14,8 @@ Done levels (from GOAL.md §15):
 
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
+- **arch-critique**: critic pass over ARCHITECTURE.md draft + seeded design contract; findings → CRITIQUE.md; seeded design challenged for feasibility/GOAL conflicts only (spawned: 2026-06-10, `--model "$ORCH_MODEL" --effort high --include GOAL.md --include design`; brief in single quotes)
+
 ## Backlog
 
 <!-- Format: - description [priority: Must/Should/Could] -->
@@ -30,4 +32,4 @@ Note: `no-design` branch = human sandbox, not a worker branch (see DECISIONS.md)
 
 <!-- Format: - description — REASON — needs: what would unblock it -->
 
-- **arch-critique** (critic pass over ARCHITECTURE.md draft + seeded design contract; findings → CRITIQUE.md) — ALL WORKER SPAWNS FAIL: child `claude -p` processes have no API credentials (`apiKeySource: none`, "Not logged in"); verified with a direct `claude -p` test, deterministic, not transient — needs: human provides credentials in the container (see QUESTIONS.md "Worker auth broken"). Re-verified still broken on iteration 2 (2026-06-10): no ANTHROPIC_API_KEY, no credentials file, direct `claude -p` test still "Not logged in". On unblock, re-spawn: `spawn --model "$ORCH_MODEL" --effort high --include GOAL.md --include design arch-critique '<brief>'` — quote the brief with SINGLE quotes (double-quoted backticks got command-substituted by zsh on the first attempt).
+<!-- (empty) — worker-auth blocker resolved 2026-06-10 via commit ac95f66; arch-critique re-spawned, see In Progress -->
