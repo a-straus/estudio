@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup B — Desktop Triage · 1280px</title>
+<style>
+/* ============================================================
+   D2 DESIGN TOKENS — verbatim from spec.md. Source of truth.
+   ============================================================ */
+:root {
+  /* ---- Type families ---- */
+  --font-serif: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, "Times New Roman", serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --font-study: var(--font-serif);
+  --font-app: var(--font-sans);
+  --font-meta: var(--font-mono);
+
+  /* ---- Type scale ---- */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-md: 18px;
+  --text-lg: 22px;
+  --text-xl: 28px;
+  --text-2xl: 34px;
+  --text-3xl: 42px;
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-base: 1.5;
+  --leading-loose: 1.65;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+
+  --tracking-meta: 0.04em;
+
+  /* ---- Color · light (default) ---- */
+  --color-paper: oklch(0.975 0.004 95);
+  --color-surface: oklch(0.995 0.002 95);
+  --color-ink: oklch(0.24 0.012 95);
+  --color-ink-soft: oklch(0.45 0.012 95);
+  --color-ink-faint: oklch(0.58 0.01 95);
+  --color-rule: oklch(0.89 0.006 95);
+  --color-rule-strong: oklch(0.78 0.008 95);
+
+  --color-accent: oklch(0.42 0.09 265);
+  --color-accent-ink: oklch(0.985 0.002 95);
+  --color-accent-wash: oklch(0.945 0.018 265);
+
+  --color-correct: oklch(0.45 0.09 155);
+  --color-correct-wash: oklch(0.95 0.018 155);
+  --color-incorrect: oklch(0.45 0.09 25);
+  --color-incorrect-wash: oklch(0.95 0.018 25);
+
+  --color-focus: var(--color-accent);
+
+  /* ---- Spacing ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ---- Radii ---- */
+  --radius-1: 3px;
+  --radius-2: 6px;
+  --radius-pill: 999px;
+
+  /* ---- Shadows ---- */
+  --shadow-1: 0 1px 2px oklch(0.24 0.012 95 / 0.08);
+  --shadow-2: 0 4px 16px oklch(0.24 0.012 95 / 0.14);
+
+  /* ---- Hit targets & layout ---- */
+  --hit-target: 44px;
+  --measure-reading: 680px;
+  --measure-app: 1120px;
+  --indent-entry: 20px;
+
+  /* ---- Motion ---- */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-theme="dark"] {
+  --color-paper: oklch(0.205 0.008 95);
+  --color-surface: oklch(0.245 0.009 95);
+  --color-ink: oklch(0.93 0.006 95);
+  --color-ink-soft: oklch(0.74 0.008 95);
+  --color-ink-faint: oklch(0.60 0.008 95);
+  --color-rule: oklch(0.32 0.009 95);
+  --color-rule-strong: oklch(0.42 0.01 95);
+
+  --color-accent: oklch(0.74 0.08 265);
+  --color-accent-ink: oklch(0.205 0.008 95);
+  --color-accent-wash: oklch(0.30 0.035 265);
+
+  --color-correct: oklch(0.72 0.09 155);
+  --color-correct-wash: oklch(0.29 0.03 155);
+  --color-incorrect: oklch(0.72 0.09 25);
+  --color-incorrect-wash: oklch(0.30 0.03 25);
+
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-2: 0 4px 16px oklch(0 0 0 / 0.5);
+}
+
+/* ============================================================
+   Mockup scaffolding (not part of the app spec)
+   ============================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: oklch(0.30 0.01 95);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 16px;
+  font-family: var(--font-mono);
+}
+
+.mockup-caption {
+  color: oklch(0.70 0.008 95);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.desktop-frame {
+  width: 1280px;
+  height: 820px;
+  background: var(--color-paper);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 48px oklch(0 0 0 / 0.35);
+}
+
+/* ============================================================
+   SCREEN: Triage — mid-batch (D3 §3.5)
+   ============================================================ */
+
+/* ---- Session bar ---- */
+.session-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3) 0 var(--space-2);
+}
+.session-close {
+  width: var(--hit-target);
+  height: var(--hit-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-1);
+  color: var(--color-ink-soft);
+  font-family: var(--font-app);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+.session-close:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.session-title {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--color-ink);
+}
+.session-meta {
+  margin-left: auto;
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+}
+.session-progress-track {
+  height: 2px;
+  background: var(--color-rule);
+  margin-top: var(--space-2);
+}
+.session-progress-fill {
+  height: 100%;
+  width: 62%; /* 31 of 50 */
+  background: var(--color-accent);
+}
+
+/* ---- Batch header ---- */
+.triage-column {
+  width: 760px;
+  margin: 0 auto;
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5) 0 var(--space-6) 0;
+}
+.batch-header {
+  padding: 0 var(--space-4) var(--space-4) var(--space-4);
+}
+.batch-source {
+  font-family: var(--font-app);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  color: var(--color-ink);
+}
+.batch-meta {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  margin-top: var(--space-2);
+}
+.coverage-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.coverage-label {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+}
+.coverage-track {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-rule);
+  overflow: hidden;
+}
+.coverage-fill {
+  height: 100%;
+  width: 38%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
+/* ---- TriageRow · decided ---- */
+.triage-row {
+  border-top: 1px solid var(--color-rule);
+}
+.triage-row.is-decided {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+.triage-row.is-decided .headword-compact {
+  font-family: var(--font-study);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-base);
+  color: var(--color-ink-soft);
+}
+.triage-row.is-decided.is-skipped .headword-compact {
+  text-decoration: line-through;
+  color: var(--color-ink-faint);
+}
+.triage-row.is-decided .gloss-compact {
+  flex: 1;
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.decision-stamp {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+}
+.decision-stamp.is-learn { color: var(--color-accent); }
+
+/* ---- TriageRow · current (raised) ---- */
+.triage-row.is-current {
+  border-top: none;
+  background: var(--color-surface);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-4);
+  margin: var(--space-2) 0;
+}
+
+/* WordEntry, size=full */
+.word-entry .headword {
+  font-family: var(--font-study);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+  color: var(--color-ink);
+  display: inline;
+}
+.word-entry .tagline {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+  display: inline;
+  margin-left: var(--space-3);
+}
+.word-entry .gloss {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--color-ink);
+  margin-top: var(--space-2);
+}
+.word-entry .example {
+  font-family: var(--font-study);
+  font-style: italic;
+  font-size: var(--text-md);
+  line-height: var(--leading-base);
+  color: var(--color-ink-soft);
+  margin-top: var(--space-2);
+  padding-left: var(--indent-entry);
+  text-indent: calc(-1 * var(--indent-entry));
+}
+
+/* ---- Action row ---- */
+.triage-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px; /* desktop allowance per D4 Button */
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-1);
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.btn .key-hint {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  opacity: 0.7;
+}
+.btn-primary {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border: none;
+  font-weight: var(--weight-medium);
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--color-ink);
+  border: 1px solid var(--color-rule-strong);
+}
+.btn-secondary:hover { border-color: var(--color-ink-faint); }
+.btn-quiet {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+}
+.btn-quiet:hover { text-decoration: underline; }
+
+/* ---- TriageRow · upcoming ---- */
+.triage-row.is-upcoming {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+.triage-row.is-upcoming .headword-compact {
+  font-family: var(--font-study);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-base);
+  color: var(--color-ink-soft);
+}
+.triage-row.is-upcoming .gloss-compact {
+  flex: 1;
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gloss-compact.is-defining {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+}
+
+/* ---- Tally footer ---- */
+.tally-footer {
+  border-top: 1px solid var(--color-rule);
+  background: var(--color-paper);
+  padding: var(--space-3) var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+.tally-counts {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-soft);
+}
+.tally-keys {
+  margin-left: auto;
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="desktop-frame" data-screen-label="Triage — desktop 1280px">
+
+  <header>
+    <div class="session-bar">
+      <button class="session-close" type="button" aria-label="Leave triage">×</button>
+      <span class="session-title">Moby-Dick — extraction</span>
+      <span class="session-meta">BATCH 2 OF 5 · 31 OF 50 SORTED</span>
+    </div>
+    <div class="session-progress-track">
+      <div class="session-progress-fill"></div>
+    </div>
+  </header>
+
+  <main class="triage-column">
+
+    <div class="batch-header">
+      <h1 class="batch-source">Moby-Dick</h1>
+      <p class="batch-meta">CHAPTERS 12–18 · WORDS ABOVE YOUR LEVEL</p>
+      <div class="coverage-line">
+        <span class="coverage-label">38% OF BOOK TRIAGED</span>
+        <div class="coverage-track"><div class="coverage-fill"></div></div>
+      </div>
+    </div>
+
+    <div class="triage-row is-decided">
+      <span class="headword-compact">leeward</span>
+      <span class="gloss-compact">on or toward the side sheltered from the wind</span>
+      <span class="decision-stamp">KNOW</span>
+    </div>
+
+    <div class="triage-row is-decided is-skipped">
+      <span class="headword-compact">scud</span>
+      <span class="gloss-compact">to run or move swiftly before a gale</span>
+      <span class="decision-stamp">SKIP</span>
+    </div>
+
+    <section class="triage-row is-current">
+      <div class="word-entry">
+        <h2 class="headword">obstreperous</h2><span class="tagline">EN · Adjective · C2</span>
+        <p class="gloss">noisy and difficult to control; aggressively resistant to restraint or authority</p>
+        <p class="example">“What with all this whistling and singing, the crew grew obstreperous, and the mates were obliged to interfere.”</p>
+      </div>
+      <div class="triage-actions">
+        <button class="btn btn-secondary" type="button">Know <span class="key-hint">K</span></button>
+        <button class="btn btn-primary" type="button">Learn <span class="key-hint">L</span></button>
+        <button class="btn btn-quiet" type="button">Skip <span class="key-hint">S</span></button>
+      </div>
+    </section>
+
+    <div class="triage-row is-upcoming">
+      <span class="headword-compact">portentous</span>
+      <span class="gloss-compact">ominously or momentously significant; foreboding</span>
+    </div>
+
+    <div class="triage-row is-upcoming">
+      <span class="headword-compact">lugubrious</span>
+      <span class="gloss-compact is-defining">defining…</span>
+    </div>
+
+    <div class="triage-row"></div>
+
+  </main>
+
+  <footer class="tally-footer">
+    <span class="tally-counts">KNOW 9 · LEARN 15 · SKIP 7</span>
+    <button class="btn btn-quiet" type="button">Undo <span class="key-hint">U</span></button>
+    <span class="tally-keys">K KNOW · L LEARN · S SKIP · U UNDO</span>
+  </footer>
+
+</div>
+
+<p class="mockup-caption">MOCKUP B · TRIAGE · 1280 × 820 · MID-BATCH, CURRENT ROW RAISED</p>
+
+</body>
+</html>

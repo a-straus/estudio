@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup A — Mobile Review · 390px</title>
+<style>
+/* ============================================================
+   D2 DESIGN TOKENS — verbatim from spec.md. Source of truth.
+   ============================================================ */
+:root {
+  /* ---- Type families ---- */
+  --font-serif: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, "Times New Roman", serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --font-study: var(--font-serif);
+  --font-app: var(--font-sans);
+  --font-meta: var(--font-mono);
+
+  /* ---- Type scale ---- */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-md: 18px;
+  --text-lg: 22px;
+  --text-xl: 28px;
+  --text-2xl: 34px;
+  --text-3xl: 42px;
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-base: 1.5;
+  --leading-loose: 1.65;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+
+  --tracking-meta: 0.04em;
+
+  /* ---- Color · light (default) ---- */
+  --color-paper: oklch(0.975 0.004 95);
+  --color-surface: oklch(0.995 0.002 95);
+  --color-ink: oklch(0.24 0.012 95);
+  --color-ink-soft: oklch(0.45 0.012 95);
+  --color-ink-faint: oklch(0.58 0.01 95);
+  --color-rule: oklch(0.89 0.006 95);
+  --color-rule-strong: oklch(0.78 0.008 95);
+
+  --color-accent: oklch(0.42 0.09 265);
+  --color-accent-ink: oklch(0.985 0.002 95);
+  --color-accent-wash: oklch(0.945 0.018 265);
+
+  --color-correct: oklch(0.45 0.09 155);
+  --color-correct-wash: oklch(0.95 0.018 155);
+  --color-incorrect: oklch(0.45 0.09 25);
+  --color-incorrect-wash: oklch(0.95 0.018 25);
+
+  --color-focus: var(--color-accent);
+
+  /* ---- Spacing ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ---- Radii ---- */
+  --radius-1: 3px;
+  --radius-2: 6px;
+  --radius-pill: 999px;
+
+  /* ---- Shadows ---- */
+  --shadow-1: 0 1px 2px oklch(0.24 0.012 95 / 0.08);
+  --shadow-2: 0 4px 16px oklch(0.24 0.012 95 / 0.14);
+
+  /* ---- Hit targets & layout ---- */
+  --hit-target: 44px;
+  --measure-reading: 680px;
+  --measure-app: 1120px;
+  --indent-entry: 20px;
+
+  /* ---- Motion ---- */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-theme="dark"] {
+  --color-paper: oklch(0.205 0.008 95);
+  --color-surface: oklch(0.245 0.009 95);
+  --color-ink: oklch(0.93 0.006 95);
+  --color-ink-soft: oklch(0.74 0.008 95);
+  --color-ink-faint: oklch(0.60 0.008 95);
+  --color-rule: oklch(0.32 0.009 95);
+  --color-rule-strong: oklch(0.42 0.01 95);
+
+  --color-accent: oklch(0.74 0.08 265);
+  --color-accent-ink: oklch(0.205 0.008 95);
+  --color-accent-wash: oklch(0.30 0.035 265);
+
+  --color-correct: oklch(0.72 0.09 155);
+  --color-correct-wash: oklch(0.29 0.03 155);
+  --color-incorrect: oklch(0.72 0.09 25);
+  --color-incorrect-wash: oklch(0.30 0.03 25);
+
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-2: 0 4px 16px oklch(0 0 0 / 0.5);
+}
+
+/* ============================================================
+   Mockup scaffolding (not part of the app spec)
+   ============================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: oklch(0.30 0.01 95);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 16px;
+  font-family: var(--font-mono);
+}
+
+.mockup-caption {
+  color: oklch(0.70 0.008 95);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.phone-frame {
+  width: 390px;
+  height: 844px;
+  background: var(--color-paper);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 48px oklch(0 0 0 / 0.35);
+}
+
+/* ============================================================
+   SCREEN: Review session — mid-question (D3 §3.2)
+   ============================================================ */
+
+/* ---- Session bar ---- */
+.session-bar {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-2) 0 var(--space-2);
+}
+.session-close {
+  width: var(--hit-target);
+  height: var(--hit-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-1);
+  color: var(--color-ink-soft);
+  font-family: var(--font-app);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+.session-close:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.session-progress-label {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  /* balance the close button so the label is truly centered */
+  margin-right: var(--hit-target);
+}
+.session-progress-track {
+  height: 2px;
+  background: var(--color-rule);
+  margin-top: var(--space-2);
+}
+.session-progress-fill {
+  height: 100%;
+  width: 30%; /* 7 of 23 */
+  background: var(--color-accent);
+}
+
+/* ---- Scrollable question region ---- */
+.session-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-4) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ---- ReviewCard ---- */
+.review-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-5);
+}
+
+/* ---- WordEntry, size=hero ---- */
+.word-entry .headword {
+  font-family: var(--font-study);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-2xl); /* hero, mobile */
+  line-height: var(--leading-tight);
+  color: var(--color-ink);
+}
+.word-entry .tagline {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+  margin-top: var(--space-2);
+}
+.review-card .prompt {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+  color: var(--color-ink-soft);
+  margin-top: var(--space-4);
+}
+
+/* ---- QuizOption ---- */
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.quiz-option {
+  display: block;
+  width: 100%;
+  min-height: var(--hit-target);
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-1);
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  line-height: var(--leading-snug);
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--motion-ease);
+}
+.quiz-option:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.quiz-option.is-selected {
+  border: 2px solid var(--color-accent);
+  background: var(--color-accent-wash);
+  /* compensate the extra border so text doesn't shift */
+  padding: calc(var(--space-3) - 1px) calc(var(--space-4) - 1px);
+}
+
+/* ---- Thumb-zone action region ---- */
+.action-region {
+  border-top: 1px solid var(--color-rule);
+  background: var(--color-paper);
+  padding: var(--space-3) var(--space-4) var(--space-5) var(--space-4);
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+.btn-quiet {
+  min-height: var(--hit-target);
+  padding: var(--space-3) var(--space-3);
+  background: none;
+  border: none;
+  border-radius: var(--radius-1);
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  font-weight: var(--weight-regular);
+  color: var(--color-accent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-quiet:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.btn-primary {
+  flex: 1;
+  min-height: var(--hit-target);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border: none;
+  border-radius: var(--radius-1);
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+.btn-primary:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="phone-frame" data-screen-label="Review session — mobile 390px">
+
+  <header class="session-bar-wrap">
+    <div class="session-bar">
+      <button class="session-close" type="button" aria-label="End session">×</button>
+      <span class="session-progress-label">7 of 23</span>
+    </div>
+    <div class="session-progress-track">
+      <div class="session-progress-fill"></div>
+    </div>
+  </header>
+
+  <main class="session-body">
+
+    <section class="review-card">
+      <div class="word-entry">
+        <h1 class="headword">desasosiego</h1>
+        <p class="tagline">ES · Sustantivo · C1</p>
+      </div>
+      <p class="prompt">Choose the definition.</p>
+    </section>
+
+    <div class="option-list" role="radiogroup" aria-label="Answer options">
+      <button class="quiz-option" type="button">restlessness; a state of unease or anxiety that will not settle</button>
+      <button class="quiz-option is-selected" type="button" aria-pressed="true">carelessness; a habitual failure to take precautions or pay attention</button>
+      <button class="quiz-option" type="button">boredom; tedium produced by monotony or long confinement</button>
+      <button class="quiz-option" type="button">longing; a melancholy yearning for home, for the past, or for what is absent and cannot easily be recovered</button>
+    </div>
+
+  </main>
+
+  <footer class="action-region">
+    <button class="btn-quiet" type="button">Don’t know</button>
+    <button class="btn-primary" type="button">Check answer</button>
+  </footer>
+
+</div>
+
+<p class="mockup-caption">MOCKUP A · REVIEW SESSION · 390 × 844 · MID-QUESTION, OPTION 2 SELECTED</p>
+
+</body>
+</html>

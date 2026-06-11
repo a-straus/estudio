@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup C — Spanish Flows</title>
+<style>
+/* ============================================================
+   D2 DESIGN TOKENS — verbatim from spec.md. Source of truth.
+   ============================================================ */
+:root {
+  --font-serif: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, "Times New Roman", serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --font-study: var(--font-serif);
+  --font-app: var(--font-sans);
+  --font-meta: var(--font-mono);
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-md: 18px;
+  --text-lg: 22px;
+  --text-xl: 28px;
+  --text-2xl: 34px;
+  --text-3xl: 42px;
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-base: 1.5;
+  --leading-loose: 1.65;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+
+  --tracking-meta: 0.04em;
+
+  --color-paper: oklch(0.975 0.004 95);
+  --color-surface: oklch(0.995 0.002 95);
+  --color-ink: oklch(0.24 0.012 95);
+  --color-ink-soft: oklch(0.45 0.012 95);
+  --color-ink-faint: oklch(0.58 0.01 95);
+  --color-rule: oklch(0.89 0.006 95);
+  --color-rule-strong: oklch(0.78 0.008 95);
+
+  --color-accent: oklch(0.42 0.09 265);
+  --color-accent-ink: oklch(0.985 0.002 95);
+  --color-accent-wash: oklch(0.945 0.018 265);
+
+  --color-correct: oklch(0.45 0.09 155);
+  --color-correct-wash: oklch(0.95 0.018 155);
+  --color-incorrect: oklch(0.45 0.09 25);
+  --color-incorrect-wash: oklch(0.95 0.018 25);
+
+  --color-focus: var(--color-accent);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --radius-1: 3px;
+  --radius-2: 6px;
+  --radius-pill: 999px;
+
+  --shadow-1: 0 1px 2px oklch(0.24 0.012 95 / 0.08);
+  --shadow-2: 0 4px 16px oklch(0.24 0.012 95 / 0.14);
+
+  --hit-target: 44px;
+  --measure-reading: 680px;
+  --measure-app: 1120px;
+  --indent-entry: 20px;
+
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-theme="dark"] {
+  --color-paper: oklch(0.205 0.008 95);
+  --color-surface: oklch(0.245 0.009 95);
+  --color-ink: oklch(0.93 0.006 95);
+  --color-ink-soft: oklch(0.74 0.008 95);
+  --color-ink-faint: oklch(0.60 0.008 95);
+  --color-rule: oklch(0.32 0.009 95);
+  --color-rule-strong: oklch(0.42 0.01 95);
+
+  --color-accent: oklch(0.74 0.08 265);
+  --color-accent-ink: oklch(0.205 0.008 95);
+  --color-accent-wash: oklch(0.30 0.035 265);
+
+  --color-correct: oklch(0.72 0.09 155);
+  --color-correct-wash: oklch(0.29 0.03 155);
+  --color-incorrect: oklch(0.72 0.09 25);
+  --color-incorrect-wash: oklch(0.30 0.03 25);
+
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-2: 0 4px 16px oklch(0 0 0 / 0.5);
+}
+
+/* ============================================================
+   Mockup scaffolding (not part of the app spec)
+   ============================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: oklch(0.30 0.01 95);
+  min-height: 100vh;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 40px;
+  padding: 40px 24px;
+  font-family: var(--font-mono);
+}
+
+.frame-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.mockup-caption {
+  color: oklch(0.70 0.008 95);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.phone-frame {
+  width: 390px;
+  height: 844px;
+  background: var(--color-paper);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 48px oklch(0 0 0 / 0.35);
+}
+
+.desktop-frame {
+  width: 1100px;
+  height: 780px;
+  background: var(--color-paper);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 48px oklch(0 0 0 / 0.35);
+}
+
+/* ============================================================
+   Shared session chrome
+   ============================================================ */
+.session-bar {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-2) 0 var(--space-2);
+}
+.session-close {
+  width: var(--hit-target);
+  height: var(--hit-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-1);
+  color: var(--color-ink-soft);
+  font-family: var(--font-app);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+.session-close:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.session-progress-label {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  margin-right: var(--hit-target);
+}
+.session-progress-track { height: 2px; background: var(--color-rule); margin-top: var(--space-2); }
+.session-progress-fill { height: 100%; background: var(--color-accent); }
+
+.session-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-4) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ============================================================
+   ReviewCard + WordEntry
+   ============================================================ */
+.review-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-5);
+}
+.review-card .tagline {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+/* Cloze stem: studied language, blank in accent */
+.cloze-stem {
+  font-family: var(--font-study);
+  font-size: var(--text-lg);
+  line-height: var(--leading-base);
+  color: var(--color-ink);
+  margin-top: var(--space-3);
+  padding-left: var(--indent-entry);
+  text-indent: calc(-1 * var(--indent-entry));
+}
+.cloze-blank {
+  color: var(--color-accent);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.08em;
+}
+.review-card .prompt {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+  color: var(--color-ink-soft);
+  margin-top: var(--space-4);
+}
+
+/* ============================================================
+   QuizOption — incl. studied-language and verdict states
+   ============================================================ */
+.option-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.quiz-option {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--hit-target);
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-1);
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  line-height: var(--leading-snug);
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--motion-ease);
+}
+.quiz-option:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+/* Spanish words / full sentences as options: object-language rule */
+.quiz-option.is-study {
+  font-family: var(--font-study);
+  font-size: var(--text-md);
+}
+.quiz-option.is-selected {
+  border: 2px solid var(--color-accent);
+  background: var(--color-accent-wash);
+  padding: calc(var(--space-3) - 1px) calc(var(--space-4) - 1px);
+}
+.quiz-option.is-correct {
+  border: 2px solid var(--color-correct);
+  background: var(--color-correct-wash);
+  padding: calc(var(--space-3) - 1px) calc(var(--space-4) - 1px);
+}
+.quiz-option.is-disabled {
+  color: var(--color-ink-faint);
+  border-color: var(--color-rule);
+  cursor: default;
+}
+.option-verdict-tag {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--color-correct);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Explain-why panel
+   ============================================================ */
+.explain-panel {
+  border-top: 1px solid var(--color-rule);
+  padding-top: var(--space-4);
+}
+.explain-panel .explain-label {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+.explain-panel p {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--color-ink);
+  margin-top: var(--space-2);
+}
+.explain-panel .study-inline {
+  font-family: var(--font-study);
+  font-style: italic;
+}
+
+/* ============================================================
+   Action region (thumb zone)
+   ============================================================ */
+.action-region {
+  border-top: 1px solid var(--color-rule);
+  background: var(--color-paper);
+  padding: var(--space-3) var(--space-4) var(--space-5) var(--space-4);
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+.verdict-line {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+.verdict-line.is-correct { color: var(--color-correct); }
+.btn-quiet {
+  min-height: var(--hit-target);
+  padding: var(--space-3) var(--space-3);
+  background: none;
+  border: none;
+  border-radius: var(--radius-1);
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  color: var(--color-accent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-quiet:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.btn-primary {
+  flex: 1;
+  min-height: var(--hit-target);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border: none;
+  border-radius: var(--radius-1);
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+.btn-primary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+/* ============================================================
+   Grammar lesson (desktop frame)
+   ============================================================ */
+.app-nav {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-rule);
+}
+.app-nav .screen-title {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  color: var(--color-ink);
+}
+.app-nav nav {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-5);
+}
+.app-nav nav a {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  text-decoration: none;
+  padding: var(--space-1) 0;
+}
+.app-nav nav a.is-active {
+  color: var(--color-accent);
+  border-bottom: 2px solid var(--color-accent);
+}
+.app-nav nav a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+.lesson-scroll { flex: 1; overflow-y: auto; }
+.lesson-column {
+  max-width: var(--measure-reading);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-8) var(--space-4);
+}
+.lesson-back {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.lesson-title {
+  font-family: var(--font-app);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  color: var(--color-ink);
+  margin-top: var(--space-4);
+}
+.lesson-meta {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  margin-top: var(--space-2);
+}
+.lesson-column p.body {
+  font-family: var(--font-app);
+  font-size: var(--text-md);
+  line-height: var(--leading-loose);
+  color: var(--color-ink);
+  margin-top: var(--space-5);
+}
+/* Spanish examples: own line, studied language, hanging indent */
+.lesson-example {
+  font-family: var(--font-study);
+  font-style: italic;
+  font-size: var(--text-md);
+  line-height: var(--leading-base);
+  color: var(--color-ink-soft);
+  margin-top: var(--space-3);
+  padding-left: var(--indent-entry);
+  text-indent: calc(-1 * var(--indent-entry));
+}
+.lesson-example .gloss-inline {
+  font-family: var(--font-app);
+  font-style: normal;
+  color: var(--color-ink-faint);
+}
+.lesson-footer {
+  border-top: 1px solid var(--color-rule);
+  background: var(--color-paper);
+  padding: var(--space-3) var(--space-5);
+  display: flex;
+  justify-content: center;
+}
+.lesson-footer .btn-primary { flex: 0 1 320px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     FRAME 1 · Spanish vocab review — cloze, answered correct,
+     “Explain why” open (D3 §3.2 post-answer state)
+     ============================================================ -->
+<div class="frame-stack">
+  <div class="phone-frame" data-screen-label="Review — Spanish cloze, answered">
+
+    <header>
+      <div class="session-bar">
+        <button class="session-close" type="button" aria-label="End session">×</button>
+        <span class="session-progress-label">12 of 23</span>
+      </div>
+      <div class="session-progress-track"><div class="session-progress-fill" style="width: 52%;"></div></div>
+    </header>
+
+    <main class="session-body">
+
+      <section class="review-card">
+        <p class="tagline">ES · Sustantivo · C1</p>
+        <p class="cloze-stem">Después de tantos años fuera, sentía una profunda <span class="cloze-blank">_____</span> por su tierra.</p>
+        <p class="prompt">Complete the sentence.</p>
+      </section>
+
+      <div class="option-list" aria-label="Answer options">
+        <button class="quiz-option is-study is-correct" type="button">
+          <span>añoranza</span>
+          <span class="option-verdict-tag">Correct</span>
+        </button>
+        <button class="quiz-option is-study is-disabled" type="button"><span>vergüenza</span></button>
+        <button class="quiz-option is-study is-disabled" type="button"><span>desidia</span></button>
+        <button class="quiz-option is-study is-disabled" type="button"><span>soltura</span></button>
+      </div>
+
+      <section class="explain-panel">
+        <p class="explain-label">Why</p>
+        <p><span class="study-inline">Añoranza</span> is the melancholy longing for a place or time one is away from — exactly what years abroad produce. <span class="study-inline">Vergüenza</span> (shame) and <span class="study-inline">desidia</span> (apathy) don’t fit “por su tierra,” and <span class="study-inline">soltura</span> (ease, fluency) is a positive trait, not a feeling directed at home.</p>
+      </section>
+
+    </main>
+
+    <footer class="action-region">
+      <span class="verdict-line is-correct">Correct.</span>
+      <button class="btn-primary" type="button">Next</button>
+    </footer>
+
+  </div>
+  <p class="mockup-caption">REVIEW · ES CLOZE · ANSWERED, “EXPLAIN WHY” OPEN · 390px</p>
+</div>
+
+<!-- ============================================================
+     FRAME 2 · Grammar quiz — multiple choice, full-sentence
+     options, one selected, pre-verdict (D3 §3.7 lesson quiz)
+     ============================================================ -->
+<div class="frame-stack">
+  <div class="phone-frame" data-screen-label="Grammar quiz — sentence MC, selected">
+
+    <header>
+      <div class="session-bar">
+        <button class="session-close" type="button" aria-label="End session">×</button>
+        <span class="session-progress-label">Q 2 of 8</span>
+      </div>
+      <div class="session-progress-track"><div class="session-progress-fill" style="width: 25%;"></div></div>
+    </header>
+
+    <main class="session-body">
+
+      <section class="review-card">
+        <p class="tagline">Subjuntivo · Lesson quiz</p>
+        <p class="prompt">Choose the correct sentence.</p>
+      </section>
+
+      <div class="option-list" aria-label="Answer options">
+        <button class="quiz-option is-study" type="button"><span>Me alegra que vienes a vernos.</span></button>
+        <button class="quiz-option is-study is-selected" type="button" aria-pressed="true"><span>Me alegra que vengas a vernos.</span></button>
+        <button class="quiz-option is-study" type="button"><span>Me alegra que vendrás a vernos.</span></button>
+        <button class="quiz-option is-study" type="button"><span>Me alegra de que vengas a vernos.</span></button>
+      </div>
+
+    </main>
+
+    <footer class="action-region">
+      <button class="btn-quiet" type="button">Don’t know</button>
+      <button class="btn-primary" type="button">Check answer</button>
+    </footer>
+
+  </div>
+  <p class="mockup-caption">GRAMMAR QUIZ · SENTENCE MC · OPTION 2 SELECTED · 390px</p>
+</div>
+
+<!-- ============================================================
+     FRAME 3 · Grammar lesson — generated long-form reading
+     (D3 §3.7 lesson view, desktop)
+     ============================================================ -->
+<div class="frame-stack">
+  <div class="desktop-frame" data-screen-label="Grammar lesson — desktop">
+
+    <header class="app-nav">
+      <span class="screen-title">Grammar</span>
+      <nav>
+        <a href="#">Today</a>
+        <a href="#">Library</a>
+        <a href="#" class="is-active">Grammar</a>
+        <a href="#">Ingest</a>
+        <a href="#">Progress</a>
+        <a href="#">System</a>
+      </nav>
+    </header>
+
+    <div class="lesson-scroll">
+      <article class="lesson-column">
+        <a class="lesson-back" href="#">← All topics</a>
+        <h1 class="lesson-title">Subjuntivo: disparadores de emoción</h1>
+        <p class="lesson-meta">READ ONCE · LAST QUIZ 80% · GENERATED JUN 2</p>
+
+        <p class="body">When a main clause expresses an emotion about something — joy, fear, surprise, irritation — the verb in the subordinate clause takes the subjunctive, even when the fact itself is completely real. Spanish marks that you are <em>reacting</em> to the event, not reporting it.</p>
+
+        <p class="lesson-example">Me alegra que <strong>vengas</strong> a vernos. <span class="gloss-inline">— I’m glad you’re coming to see us.</span></p>
+        <p class="lesson-example">Temía que el tren <strong>no llegara</strong> a tiempo. <span class="gloss-inline">— I was afraid the train wouldn’t arrive on time.</span></p>
+
+        <p class="body">The trigger is the emotion verb plus <em>que</em> with a change of subject. If the subject doesn’t change, the infinitive replaces the whole construction — no subjunctive, no <em>que</em>.</p>
+
+        <p class="lesson-example">Me alegra <strong>verte</strong>. <span class="gloss-inline">— same subject: infinitive, not subjunctive.</span></p>
+
+        <p class="body">Watch the tense pairing: a present-tense emotion takes the present subjunctive; a past-tense emotion pulls the imperfect subjunctive. Mixing them (<em>temía que no llegue</em>) is the most common B2-level slip — and the one this topic’s quiz will press on.</p>
+
+      </article>
+    </div>
+
+    <footer class="lesson-footer">
+      <button class="btn-primary" type="button">Take the quiz</button>
+    </footer>
+
+  </div>
+  <p class="mockup-caption">GRAMMAR LESSON · GENERATED LONG-FORM READING · 1100px</p>
+</div>
+
+</body>
+</html>

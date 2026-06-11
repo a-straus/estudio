@@ -1,23 +1,10 @@
-# ★ D3 · Global shell
+> Global chrome shared by every screen — read together with `design/tokens.md`.
 
-<!--
-The chrome every screen shares: navigation, any full-screen takeover
-patterns, page background, content max-widths. Every visual value names a
-tokens.md token.
+## D3 — Global shell
 
-Each screen then gets its OWN FILE in this directory — kebab-case, named
-after the screen (e.g. screens/today.md), one per screen in scope — using
-this skeleton:
+**Global shell.** Two chrome patterns:
 
-# <Screen>
-**Purpose.** One sentence: what the user comes here to do.
-**Regions.** Numbered, top to bottom; every visual value names a token.
-**Layout sketch.** ASCII, mobile and desktop side by side — optional, but
-it settles layout arguments cheaply.
-**Responsive.** What changes at each tokens.md breakpoint.
-**States.** All four, every screen: Empty · Loading · Error · Overflow
-(too many items / too-long strings). Error states name what happened and
-the next action.
--->
+- **`AppNav`** — persistent navigation. Below `bp-tablet`: bottom bar, 4 items (Today · Library · Grammar · Progress), each `--hit-target` tall, `--font-app` `--text-xs` labels, active item `--color-accent` with `--color-accent-wash` underline-pill; Ingest and System are reached from within Today/Library and Progress respectively. At `bp-tablet`+: a single top bar — screen title left, nav links right (Today · Library · Grammar · Ingest · Progress · System) in `--font-app` `--text-sm`, active link `--color-accent` with 2px bottom rule; bar bottom edge is a `--color-rule` hairline.
+- **Session takeover** (Review, Quiz play, Triage) — no AppNav. A slim session bar: close `×` (44px square) left, center `--font-meta` progress ("7 of 23"), and a 2px `--color-rule` track under the bar with `--color-accent` fill = progress. Closing mid-session asks nothing; progress is already saved per answer.
 
-**Global shell.**
+All screens: background `--color-paper`, content max-width `--measure-app` centered at `bp-desktop`+ except where noted.

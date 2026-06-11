@@ -1,59 +1,25 @@
-# Design contract — index
+# Design contract — Personal Learning App
 
-<!--
-INSTRUCTIONS FOR HUMANS:
-This directory is the design contract for everything user-facing — the UI
-peer of ARCHITECTURE.md. Anything you leave unspecified, the agents fill
-with the most generic plausible answer; the more you specify, the more the
-product looks like yours instead of theirs.
+> Build-ready specification for a single-user, AI-assisted study tool.
+> Stack contract: React + Vite, plain CSS, every value below is a CSS custom property.
+> The app is name-agnostic: no logotype appears on any screen. The masthead is the screen title.
 
-It is a directory rather than one file so each task loads only the sections
-it needs: worker briefs name the specific files that apply, and workers
-read those and nothing else here. Keep every file self-contained.
-
-Three ways to use it:
-- You have a design → fill these files (or paste a spec that covers the
-  same sections) before starting the orchestrator. It is then the law for
-  all UI.
-- The product has a UI but you have no design → leave the templates
-  unfilled; the orchestrator drafts every file in the design phase
-  (iteration 1, challenged by the same critic that attacks ARCHITECTURE.md)
-  and you review it at the first-hour checkpoint.
-- No UI → ignore this directory; it stays inert.
-
-Files marked ★ in the map below must be filled — by you or by the design
-phase — before any UI task is spawned. D0/D1/D5/D6 multiply consistency but
-may start thin.
-
-How agents use it:
-- Workers build UI from the files their brief names and never edit any of
-  them — `integrate` mechanically refuses any branch that touches design/.
-- Where the contract is silent, workers don't stop and don't ask: they
-  extrapolate from the identity and principles here and the rules in
-  tokens.md. The orchestrator folds genuinely new shared components and
-  tokens back into the contract as they land (components.md / tokens.md +
-  a Change log line below), so it always matches the built product. You
-  are never asked to approve a component.
-- The first UI task — the design foundation — materializes tokens.md
-  verbatim as the project's token stylesheet and builds the components.md
-  base components; every later UI brief names the design files it
-  implements and composes that library.
-
-Steer it like everything else: small design changes via FEEDBACK.md
-## Inbox; identity-level changes by editing these files between runs.
--->
+This directory is the design contract (the UI peer of ARCHITECTURE.md). It
+has one writer — the orchestrator — and is split into files so a task loads
+only the sections it needs: worker briefs name the specific files that
+apply, and workers read those and nothing else here.
 
 ## Files
 
 | File | Contents | A task reads it when |
 |---|---|---|
 | `INDEX.md` | identity (D0), principles (D1), this map, the Change log | every UI task (always) |
-| ★ `tokens.md` | D2 — all design tokens, breakpoints, token-usage rules | every UI task (always) |
-| ★ `screens/shell.md` | the global shell: navigation chrome, takeover patterns, page defaults | tasks that build or change a screen |
-| ★ `screens/<screen>.md` | one file per screen: purpose, regions, layout, responsive, states | only the screen(s) the brief names |
-| ★ `components.md` | D4 — shared component library: anatomy, variants, states | tasks that build or compose components |
-| `interaction.md` | D5 — feedback choreography, keyboard map, touch ergonomics, microcopy | interaction work and any user-facing strings |
-| `mockups.md` | D6 — reference mockup list | a listed mockup covers the task's screen |
+| `tokens.md` | D2 — all design tokens, breakpoints, token-usage rules | every UI task (always) |
+| `screens/shell.md` | global chrome: AppNav, session takeover, page defaults | tasks that build or change a screen |
+| `screens/<screen>.md` | one per screen: today, review, quiz, ingest, triage, library, grammar, progress, system | only the screen(s) the brief names |
+| `components.md` | D4 — WordEntry, ReviewCard, QuizOption, TriageRow, WordDetail, ProgressStat, JobStatus, Toast, Button, TextInput, SegmentedControl, EmptyState | tasks that build or compose components |
+| `interaction.md` | D5 — answer-feedback choreography, keyboard map, thumb-zone rules, bilingual typography rules, final microcopy strings | session/interaction work and any user-facing strings |
+| `mockups.md` | D6 — reference HTML mockup list | a listed mockup covers the task's screen |
 
 Once the design foundation has landed in code, the token stylesheet and the
 component sources are the ground truth for HOW things are built; these
@@ -61,40 +27,27 @@ files remain the ground truth for WHAT to build (screens, states, strings).
 
 ---
 
-## D0 · Design identity
+## 0 — Design identity: The Entry
 
-<!--
-Two paragraphs at most: the single expressive idea the product is
-recognized by, and the discipline around it.
-- Name ONE signature element (an object, a typographic form, a layout move)
-  and list where it appears.
-- State what stays deliberately plain so the signature reads: chrome, how
-  many colors, how much motion.
-If there is no signature, write "none — strictly utilitarian" so agents
-stop looking for one.
--->
+The visual identity is **the dictionary entry**. Every vocabulary word in the app — on a review card, in a triage row, in the library — is set as the same typographic object (`WordEntry`): bold serif headword, a small monospaced tag line (language · part of speech · level), a sans-serif gloss, and a hanging-indented serif-italic example. Hairline rules divide entries like a dictionary column.
 
--
+The entry object and its hanging indent are the one expressive element. Everything around it is disciplined: one accent color, hairline rules, small radii, motion only on answer feedback. Chrome, buttons, and status are plain sans so the entries read as the only content on the page. The product feels like a fine dictionary that quizzes you back — never like a game.
 
 ---
 
-## D1 · Design principles
+## D1 — Design principles
 
-<!--
-5–8 numbered rules a worker can apply to a screen you never specified.
-Operational, not aspirational: "every count appears with its unit in plain
-words", not "clean and modern". Good principles decide real cases: what
-earns the accent color, what is allowed to animate, which voice a string
-belongs to, who owns the bottom of a mobile viewport.
--->
-
-1.
-2.
-3.
+1. **One object, everywhere.** A word is always rendered as the same dictionary entry (`WordEntry`); review, triage, quiz, and library are different frames around the same object — never different typography.
+2. **Serif is the studied language; sans is the app.** If text is _in_ Spanish or _from_ literature — headwords, example sentences, quotations, cloze stems — it is serif. If the app is _talking to you_ — definitions-as-gloss, buttons, labels, status — it is sans. The eye learns this in one session and never has to read a flag icon.
+3. **Hairlines, not boxes.** Entries and rows are separated by 1px rules, like a dictionary column. Cards (elevated surfaces) are reserved for the one active object on screen — the current review card, the current triage row.
+4. **Feedback is a verdict, not a celebration.** Correct and incorrect are stated once, in color and words, within 150ms, and then get out of the way. Nothing bounces.
+5. **Counts are sentences.** Numbers always appear with their honest unit in plain words — "23 due today," "412 words · 61 mature" — set in the mono tag style. No big-number dashboard tiles.
+6. **The thumb owns the bottom 30%.** On mobile, every action a session requires lives in the lower third; the upper two-thirds is for reading only.
+7. **The machine reports in mono.** Anything generated, running, or costing money (jobs, spend, provenance, level estimates) is tagged in the monospace meta style — visible, quiet, never colored unless failing.
 
 ---
 
-**Consistency rule.** `tokens.md` is the single source of truth: every
+**Consistency rule.** `tokens.md` (D2) is the single source of truth: every
 visual value in the other design files and in implementation references a
 token by name — never a raw value where a token exists. Genuinely new needs
 become new tokens, added to tokens.md (+ Change log here) as they land, so
@@ -102,6 +55,6 @@ this contract and the product never drift more than one iteration apart.
 
 ## Change log
 
-<!-- Kept by the orchestrator once the build is underway: one line per
-amendment after the initial draft — date · file · what changed · why. This
-is how the contract stays in sync with the built product. -->
+- 2026-06-10 — Split the single DESIGN.md into this directory (content unchanged: D2 → tokens.md, D3 → screens/, D4 → components.md, D5 → interaction.md, D6 → mockups.md) so each task loads only the sections it needs.
+- 2026-06-10 — Synced to GOAL v2 Phase 1 scope: lemma beside the encountered form (WordEntry); dual es/en definition lines with a reveal preference (WordEntry, ReviewCard flip-back, System → Preferences); likely-known groups with per-group bulk actions (Triage); "I forgot this" on rows and detail (Library, WordDetail); practice queue on the Grammar home; curriculum wording corrected to AI-seeded; "OCR" microcopy replaced with vision-pipeline wording (Ingest, System, D5 table).
+- 2026-06-10 — Known gap, deliberate: Phase 2 surfaces (Ask chat, Suggestions, lesson-audio ingest, voice questions, transcription spend on System) are not yet specified. The orchestrator extends this contract when Phase 2 approaches; do not treat their absence as a non-goal.
