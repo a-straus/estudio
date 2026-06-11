@@ -14,7 +14,7 @@ Done levels (from GOAL.md §15):
 
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
-- **bootstrap**: monorepo scaffold + check.sh + DB layer with migration runner + 001_init.sql (full ARCHITECTURE.md schema) + job queue + logger/error_log + config + healthcheck (spawned: 2026-06-10, `--model "$ORCH_MODEL" --effort high --include ARCHITECTURE.md`)
+- **bootstrap**: monorepo scaffold + check.sh + DB layer with migration runner + 001_init.sql (full ARCHITECTURE.md schema) + job queue + logger/error_log + config + healthcheck (spawned: 2026-06-10, `--model "$ORCH_MODEL" --effort high --include ARCHITECTURE.md`) — **re-spawn 1** (2026-06-10): integrate exit 7 from base drift (forked before iteration-5 commit) AND schema built from pre-reconciliation draft (missing extraction_item/source_page/error_log etc.); brief = sync state files to main + update 001_init.sql to finalized ARCHITECTURE.md
 
 ## Backlog
 
