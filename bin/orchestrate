@@ -225,17 +225,12 @@ echo $$ > "$pidfile"
 trap 'rm -f "$pidfile"' EXIT
 cd "$repo"
 
-PROMPT='Run ONE orchestrator iteration for this repository, following the
-Orchestrator guide (CLAUDE.md): process any [ANSWERED] questions into
-DECISIONS.md; inspect worker branches with list-agents and integrate the
-FINISHED ones; reconcile BLOCKED / FAILED / STALE / ORPHAN branches; keep the
-trunk green; spawn new workers up to capacity from the TASKS.md backlog (or
-decompose GOAL.md into the backlog if it is empty); escalate per GOAL.md §13
-by writing [PENDING] questions; keep TASKS.md current and commit state-file
-changes. GOAL.md is read-only — never modify it. When this pass is complete,
-print a short status report and exit — do not wait for workers, sleep, or
-loop inside this session. If GOAL.md §15 "Release done" is fully satisfied,
-write the summary file .release-done.'
+# A trigger, not a spec: the canonical iteration procedure lives in CLAUDE.md
+# (auto-loaded by `claude -p` from the project cwd). Restating it here is how
+# the two drift apart — keep this prompt free of procedural content.
+PROMPT='Run ONE orchestrator iteration for this repository, exactly as
+specified in the Orchestrator guide (CLAUDE.md). When the pass is complete,
+print a short status report and exit.'
 
 iter=0
 total_cost=0
