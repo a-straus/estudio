@@ -6,6 +6,7 @@ import { JobQueue } from "./jobs/queue.js";
 import {
   registerBackupHandler,
   registerGrammarSeedHandler,
+  registerLessonGenHandler,
   registerQuizGenHandler,
   registerTextIngestionHandler,
 } from "./jobs/handlers.js";
@@ -32,6 +33,7 @@ registerTextIngestionHandler(queue, db, llm);
 registerPdfIngestionHandler(queue, db, llm);
 registerGrammarSeedHandler(queue, db, llm);
 registerQuizGenHandler(queue, db, llm);
+registerLessonGenHandler(queue, db, llm);
 registerBackupHandler(queue, db, config.dataDir);
 const reverted = queue.recoverRunningJobs();
 if (reverted > 0)
@@ -53,6 +55,7 @@ const app = createApp(db, {
   serveWeb: config.nodeEnv === "production",
   queue,
   dataDir: config.dataDir,
+  llm,
 });
 app.listen(config.port, () => {
   logger.info("server listening", {

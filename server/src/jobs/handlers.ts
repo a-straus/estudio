@@ -12,6 +12,11 @@ import {
   runQuizGen,
   type QuizGenPayload,
 } from "./quizGen.js";
+import {
+  JOB_TYPE_LESSON_GEN,
+  runLessonGen,
+  type LessonGenPayload,
+} from "./lessonGen.js";
 export { registerBackupHandler } from "./backup.js";
 
 /** Register the text_ingestion job handler. */
@@ -42,5 +47,16 @@ export function registerQuizGenHandler(
 ): void {
   queue.register(JOB_TYPE_QUIZ_GEN, (payload) =>
     runQuizGen(db, llm, payload as QuizGenPayload),
+  );
+}
+
+/** Register the lesson_gen job handler. */
+export function registerLessonGenHandler(
+  queue: JobQueue,
+  db: DB,
+  llm: LlmService,
+): void {
+  queue.register(JOB_TYPE_LESSON_GEN, (payload) =>
+    runLessonGen(db, llm, payload as LessonGenPayload),
   );
 }
