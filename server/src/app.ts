@@ -9,12 +9,17 @@ import express, {
 import type { HealthResponse } from "@estudio/shared";
 import { listJobs } from "./db/queries.js";
 import type { DB } from "./db/db.js";
+import type { JobQueue } from "./jobs/queue.js";
 import { logger } from "./logger.js";
+import { registerSourceRoutes } from "./routes/sources.js";
 
 // web/dist sits two levels up from both server/src/ and server/dist/.
 const webDistDir = fileURLToPath(new URL("../../web/dist/", import.meta.url));
 
-export function createApp(db: DB, opts: { serveWeb?: boolean } = {}): Express {
+export function createApp(
+  db: DB,
+  opts: { serveWeb?: boolean; queue?: JobQueue; dataDir?: string } = {},
+): Express {
   const app = express();
   app.use(express.json());
 
@@ -40,6 +45,11 @@ export function createApp(db: DB, opts: { serveWeb?: boolean } = {}): Express {
   app.get("/api/jobs", (_req: Request, res: Response) => {
     res.json(listJobs(db));
   });
+
+  // Source routes need the queue (to enqueue ingestion) and DATA_DIR (uploads).
+  if (opts.queue && opts.dataDir) {
+    registerSourceRoutes(app, db, opts.queue, opts.dataDir);
+  }
 
   app.use("/api", (_req: Request, res: Response) => {
     res
