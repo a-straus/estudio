@@ -421,10 +421,12 @@ describe("POST /api/quiz/generate validation", () => {
     const styles = got.body.questions.map((q: { style: string }) => q.style);
     expect(styles).toContain("def_match");
     expect(styles).toContain("cloze");
-    // served questions never leak the answer.
+    // served questions carry their answer for instant client-side grading;
+    // the answer is one of the shuffled options.
     for (const q of got.body.questions) {
-      expect(q).not.toHaveProperty("correct");
       expect(Array.isArray(q.options)).toBe(true);
+      expect(typeof q.answer).toBe("string");
+      expect(q.options).toContain(q.answer);
     }
   });
 });

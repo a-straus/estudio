@@ -105,23 +105,6 @@
   color: var(--color-ink);
 }
 
-.quiz-result__explain-toggle {
-  align-self: flex-start;
-  border: none;
-  background: none;
-  padding: var(--space-1) 0;
-  font-family: var(--font-meta);
-  font-size: var(--text-xs);
-  letter-spacing: var(--tracking-meta);
-  color: var(--color-accent);
-  cursor: pointer;
-}
-
-.quiz-result__explain-toggle:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
-}
-
 .quiz-result__explanation {
   font-family: var(--font-study);
   font-size: var(--text-base);
@@ -135,11 +118,18 @@
   gap: var(--space-3);
 }
 
+/* Inline grade / attempt failures, mirroring the lesson quiz. */
+.quiz__grade-error {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-incorrect);
+}
+
 /* Desktop (bp-desktop 960px): wider results column; answers sit in a right
    column beside the entry instead of stacking. */
 @media (min-width: 960px) /* bp-desktop */ {
   .quiz--results {
-    max-width: 680px;
+    max-width: var(--measure-reading);
   }
 
   .quiz-result {

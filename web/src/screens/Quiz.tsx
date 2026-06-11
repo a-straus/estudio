@@ -34,11 +34,10 @@ interface QuizProps {
 
 type Phase = "setup" | "loading" | "play" | "results";
 
-/** Setup "Deck" maps to a deck id; "All" defaults to the Spanish deck for now. */
+/** Setup "Deck" maps to a deck id. */
 const DECK_OPTIONS = [
   { value: "1", label: "Spanish" },
   { value: "2", label: "English" },
-  { value: "all", label: "All" },
 ];
 const LENGTH_OPTIONS = [
   { value: "10", label: "10" },
@@ -78,7 +77,7 @@ export interface QuizOutcome {
 }
 
 function deckIdFor(value: string): number {
-  return value === "all" ? 1 : Number(value);
+  return Number(value);
 }
 
 /** Options that are studied-language text (Spanish) render serif. */
@@ -108,45 +107,61 @@ function QuestionFront({ q }: { q: QuizQuestionView }) {
 interface QuizCardProps {
   question: QuizQuestionView;
   onAnswered: (outcome: QuizOutcome) => void;
+  onExplained: (questionId: number, explanation: string) => void;
   onNext: () => void;
 }
 
-function QuizCard({ question, onAnswered, onNext }: QuizCardProps) {
+function QuizCard({
+  question,
+  onAnswered,
+  onExplained,
+  onNext,
+}: QuizCardProps) {
   const [selected, setSelected] = useState<number | null>(null);
   const [outcome, setOutcome] = useState<QuizOutcome | null>(null);
-  const [pending, setPending] = useState(false);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [explain, setExplain] = useState(false);
+  const [gradeError, setGradeError] = useState<string | null>(null);
   const serif = isSerif(question);
 
-  const grade = useCallback(
-    async (given: string | null) => {
-      if (outcome || pending) return;
-      setPending(true);
-      try {
-        const res = await answerQuiz({
-          questionId: question.id,
-          given,
-          direction: question.direction,
+  // Pick-one: color the moment an option is chosen (graded locally against the
+  // served answer), then persist the result and fetch the explanation in the
+  // background — the visual feedback never waits on the network.
+  const select = useCallback(
+    (i: number) => {
+      if (outcome) return;
+      const given = question.options[i];
+      const correct = given === question.answer;
+      const result: QuizOutcome = {
+        question,
+        given,
+        correct,
+        correctAnswer: question.answer,
+        explanation: "",
+      };
+      setSelected(i);
+      setOutcome(result);
+      setExplain(!correct); // auto-expand the explanation on a wrong answer
+      onAnswered(result);
+      answerQuiz({
+        questionId: question.id,
+        given,
+        direction: question.direction,
+      })
+        .then((res) => {
+          setExplanation(res.explanation);
+          onExplained(question.id, res.explanation);
+        })
+        .catch((err) => {
+          setGradeError(
+            err instanceof ApiError
+              ? err.message
+              : "Couldn't save that answer. Your score still counts.",
+          );
         });
-        const result: QuizOutcome = {
-          question,
-          given,
-          correct: res.correct,
-          correctAnswer: res.correctAnswer,
-          explanation: res.explanation,
-        };
-        setOutcome(result);
-        onAnswered(result);
-      } finally {
-        setPending(false);
-      }
     },
-    [outcome, pending, question, onAnswered],
+    [outcome, question, onAnswered, onExplained],
   );
-
-  const check = useCallback(() => {
-    if (selected === null) return;
-    void grade(question.options[selected]);
-  }, [selected, question.options, grade]);
 
   const optionState = (i: number): QuizOptionState => {
     if (!outcome) return selected === i ? "selected" : "default";
@@ -155,7 +170,7 @@ function QuizCard({ question, onAnswered, onNext }: QuizCardProps) {
     return "disabled";
   };
 
-  // Keyboard: 1–4 select, Enter check/advance, D don't know.
+  // Keyboard: 1–4 pick (and grade); Enter advances once answered.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -166,16 +181,12 @@ function QuizCard({ question, onAnswered, onNext }: QuizCardProps) {
       }
       if (/^[1-4]$/.test(e.key)) {
         const idx = Number(e.key) - 1;
-        if (idx < question.options.length) setSelected(idx);
-      } else if (e.key === "Enter") {
-        check();
-      } else if (e.key.toLowerCase() === "d") {
-        void grade(null);
+        if (idx < question.options.length) select(idx);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [outcome, question.options.length, check, grade, onNext]);
+  }, [outcome, question.options.length, select, onNext]);
 
   return (
     <div className="review__card-region">
@@ -194,34 +205,26 @@ function QuizCard({ question, onAnswered, onNext }: QuizCardProps) {
             ordinal={i + 1}
             cloze={serif}
             state={optionState(i)}
-            onClick={() => {
-              if (!outcome) setSelected(i);
-            }}
+            onClick={() => select(i)}
           >
             {opt}
           </QuizOption>
         ))}
       </div>
 
+      {outcome && !outcome.correct && (
+        <div className="review__reveal">
+          <Button variant="quiet" onClick={() => setExplain((v) => !v)}>
+            Explain why
+          </Button>
+          {explain && explanation && (
+            <p className="review__explanation">{explanation}</p>
+          )}
+        </div>
+      )}
+
       <div className="review__actions">
-        {!outcome ? (
-          <>
-            <Button
-              variant="primary"
-              disabled={selected === null || pending}
-              onClick={check}
-            >
-              Check answer
-            </Button>
-            <Button
-              variant="quiet"
-              disabled={pending}
-              onClick={() => void grade(null)}
-            >
-              Don&rsquo;t know
-            </Button>
-          </>
-        ) : (
+        {outcome && (
           <>
             <span
               className="review__verdict"
@@ -234,6 +237,7 @@ function QuizCard({ question, onAnswered, onNext }: QuizCardProps) {
             </Button>
           </>
         )}
+        {gradeError && <span className="quiz__grade-error">{gradeError}</span>}
       </div>
     </div>
   );
@@ -271,13 +275,9 @@ function ResultRow({ outcome }: { outcome: QuizOutcome }) {
             </span>
           </>
         )}
-        <button
-          type="button"
-          className="quiz-result__explain-toggle"
-          onClick={() => setExplain((v) => !v)}
-        >
+        <Button variant="quiet" onClick={() => setExplain((v) => !v)}>
           Explain why
-        </button>
+        </Button>
         {explain && (
           <p className="quiz-result__explanation">{outcome.explanation}</p>
         )}
@@ -289,7 +289,7 @@ function ResultRow({ outcome }: { outcome: QuizOutcome }) {
 export function Quiz({ pollIntervalMs = 1000 }: QuizProps) {
   const [phase, setPhase] = useState<Phase>("setup");
   const [deck, setDeck] = useState("1");
-  const [length, setLength] = useState("20");
+  const [length, setLength] = useState("10");
   const [style, setStyle] = useState("mixed");
   const [direction, setDirection] = useState("mixed");
 
@@ -303,6 +303,7 @@ export function Quiz({ pollIntervalMs = 1000 }: QuizProps) {
   const [questions, setQuestions] = useState<QuizQuestionView[]>([]);
   const [index, setIndex] = useState(0);
   const [outcomes, setOutcomes] = useState<QuizOutcome[]>([]);
+  const [attemptError, setAttemptError] = useState<string | null>(null);
 
   const start = useCallback(async () => {
     setGenError(null);
@@ -378,6 +379,19 @@ export function Quiz({ pollIntervalMs = 1000 }: QuizProps) {
     setOutcomes((prev) => [...prev, outcome]);
   }, []);
 
+  // The explanation arrives async after the local grade; patch it into the
+  // recorded outcome so the Results reveal has it too.
+  const recordExplanation = useCallback(
+    (questionId: number, explanation: string) => {
+      setOutcomes((prev) =>
+        prev.map((o) =>
+          o.question.id === questionId ? { ...o, explanation } : o,
+        ),
+      );
+    },
+    [],
+  );
+
   const finish = useCallback(
     (all: QuizOutcome[]) => {
       const answers: QuizAttemptAnswer[] = all.map((o) => ({
@@ -386,13 +400,20 @@ export function Quiz({ pollIntervalMs = 1000 }: QuizProps) {
         correct: o.correct,
       }));
       // Persist the attempt; the session is already saved per-answer, so a
-      // failure here only loses the aggregate record.
+      // failure here only loses the aggregate record — but surface it anyway.
+      setAttemptError(null);
       submitAttempt({
         deckId: deckIdFor(deck),
         style: style as QuizStyleOption,
         direction: direction as QuizDirectionOption,
         answers,
-      }).catch(() => {});
+      }).catch((err) => {
+        setAttemptError(
+          err instanceof ApiError
+            ? err.message
+            : "Couldn't save the attempt summary.",
+        );
+      });
       setPhase("results");
     },
     [deck, style, direction],
@@ -424,6 +445,7 @@ export function Quiz({ pollIntervalMs = 1000 }: QuizProps) {
     setQuestions(missed);
     setOutcomes([]);
     setIndex(0);
+    setAttemptError(null);
     setPhase("play");
   }, [missed]);
 
@@ -529,6 +551,9 @@ export function Quiz({ pollIntervalMs = 1000 }: QuizProps) {
             <ResultRow key={`${o.question.id}-${i}`} outcome={o} />
           ))}
         </ul>
+        {attemptError && (
+          <span className="quiz__grade-error">{attemptError}</span>
+        )}
         <div className="quiz__results-actions">
           {missed.length > 0 && (
             <Button variant="quiet" onClick={retakeMissed}>
@@ -555,7 +580,7 @@ export function Quiz({ pollIntervalMs = 1000 }: QuizProps) {
         <div className="review__progress-track" aria-hidden="true">
           <div
             className="review__progress-fill"
-            style={{ width: `${(index / total) * 100}%` }}
+            style={{ width: `${(outcomes.length / total) * 100}%` }}
           />
         </div>
       </header>
@@ -565,6 +590,7 @@ export function Quiz({ pollIntervalMs = 1000 }: QuizProps) {
           key={`${current.id}-${index}`}
           question={current}
           onAnswered={recordOutcome}
+          onExplained={recordExplanation}
           onNext={advance}
         />
       )}

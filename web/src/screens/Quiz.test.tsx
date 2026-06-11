@@ -45,6 +45,7 @@ function defMatchQ(over: Partial<QuizQuestionView> = {}): QuizQuestionView {
     stemBefore: null,
     stemAfter: null,
     options: ["boat", "car", "plane", "train"],
+    answer: "boat",
     term: "barco",
     lemma: null,
     partOfSpeech: "sustantivo",
@@ -117,7 +118,7 @@ describe("Quiz — Loading", () => {
 });
 
 describe("Quiz — Play → Results", () => {
-  it("plays a question and shows the results score", async () => {
+  it("colors instantly on tap with no Check-answer click", async () => {
     mockApi.generateQuiz.mockResolvedValue({ jobId: 7 });
     mockApi.fetchQuizQuestions.mockResolvedValue({
       status: "done",
@@ -137,8 +138,12 @@ describe("Quiz — Play → Results", () => {
     // Play begins once questions exist.
     expect(await screen.findByText("Q 1 of 1")).toBeTruthy();
 
+    // No Check-answer / Don't know affordances on multiple choice.
+    expect(screen.queryByRole("button", { name: "Check answer" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Don’t know" })).toBeNull();
+
+    // Picking the option grades immediately (local), then still POSTs.
     fireEvent.click(screen.getByText("boat"));
-    fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
     expect(await screen.findByText("Correct.")).toBeTruthy();
     expect(mockApi.answerQuiz).toHaveBeenCalledWith({
       questionId: 1,
@@ -153,7 +158,7 @@ describe("Quiz — Play → Results", () => {
     await waitFor(() => expect(mockApi.submitAttempt).toHaveBeenCalled());
   });
 
-  it("counts 'Don't know' as wrong and offers Retake missed", async () => {
+  it("auto-reveals the explanation on a wrong tap and offers Retake missed", async () => {
     mockApi.generateQuiz.mockResolvedValue({ jobId: 7 });
     mockApi.fetchQuizQuestions.mockResolvedValue({
       status: "done",
@@ -171,19 +176,42 @@ describe("Quiz — Play → Results", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start quiz" }));
     await screen.findByText("Q 1 of 1");
 
-    fireEvent.click(screen.getByRole("button", { name: "Don’t know" }));
+    // Pick a wrong option: instant "Not quite.", explanation auto-expanded.
+    fireEvent.click(screen.getByText("car"));
     expect(await screen.findByText("Not quite.")).toBeTruthy();
     expect(mockApi.answerQuiz).toHaveBeenCalledWith({
       questionId: 1,
-      given: null,
+      given: "car",
       direction: "w2d",
     });
+    expect(screen.getByRole("button", { name: "Explain why" })).toBeTruthy();
+    expect(await screen.findByText("a boat floats.")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(await screen.findByText("0 of 1")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Retake missed" })).toBeTruthy();
-    // "Explain why" reveals the cached explanation.
-    fireEvent.click(screen.getByRole("button", { name: "Explain why" }));
-    expect(await screen.findByText("a boat floats.")).toBeTruthy();
+  });
+
+  it("surfaces a grade-persistence failure without blocking the local color", async () => {
+    mockApi.generateQuiz.mockResolvedValue({ jobId: 7 });
+    mockApi.fetchQuizQuestions.mockResolvedValue({
+      status: "done",
+      progress: { step: 1, total: 1 },
+      error: null,
+      questions: [defMatchQ()],
+    });
+    mockApi.answerQuiz.mockRejectedValue(new Error("network down"));
+
+    render(<Quiz pollIntervalMs={10} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start quiz" }));
+    await screen.findByText("Q 1 of 1");
+
+    fireEvent.click(screen.getByText("boat"));
+    // Local grade still shows green/Correct.
+    expect(await screen.findByText("Correct.")).toBeTruthy();
+    // The failed persist surfaces an inline error.
+    expect(
+      await screen.findByText("Couldn't save that answer. Your score still counts."),
+    ).toBeTruthy();
   });
 });
