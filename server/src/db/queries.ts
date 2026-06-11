@@ -1,5 +1,13 @@
-import type { JobStatus, JobView } from "@estudio/shared";
-import type { DB } from "./db.js";
+import type {
+  JobStatus,
+  JobView,
+  SourcePageKind,
+  SourcePageStatus,
+  SourcePageView,
+  SourceType,
+  SourceView,
+} from "@estudio/shared";
+import { nowIso, type DB } from "./db.js";
 
 // snake_case → camelCase mapping happens here, at the query layer.
 
@@ -32,4 +40,118 @@ export function listJobs(db: DB): JobView[] {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   }));
+}
+
+interface SourceRowDb {
+  id: number;
+  type: SourceType;
+  title: string | null;
+  ref: string | null;
+  stored_path: string | null;
+  transcript: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface SourcePageRowDb {
+  id: number;
+  source_id: number;
+  page_no: number;
+  kind: SourcePageKind;
+  status: SourcePageStatus;
+  error: string | null;
+  grammar_topic_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function toSourceView(r: SourceRowDb): SourceView {
+  return {
+    id: r.id,
+    type: r.type,
+    title: r.title,
+    ref: r.ref,
+    storedPath: r.stored_path,
+    transcript: r.transcript,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+function toSourcePageView(r: SourcePageRowDb): SourcePageView {
+  return {
+    id: r.id,
+    sourceId: r.source_id,
+    pageNo: r.page_no,
+    kind: r.kind,
+    status: r.status,
+    error: r.error,
+    grammarTopicId: r.grammar_topic_id,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+export function insertSource(
+  db: DB,
+  source: {
+    type: SourceType;
+    title: string;
+    ref: string;
+    storedPath: string;
+  },
+): number {
+  const now = nowIso();
+  const result = db
+    .prepare(
+      "INSERT INTO source (type, title, ref, stored_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .run(source.type, source.title, source.ref, source.storedPath, now, now);
+  return Number(result.lastInsertRowid);
+}
+
+export function getSource(db: DB, id: number): SourceView | null {
+  const row = db
+    .prepare(
+      "SELECT id, type, title, ref, stored_path, transcript, created_at, updated_at FROM source WHERE id = ?",
+    )
+    .get(id) as SourceRowDb | undefined;
+  return row ? toSourceView(row) : null;
+}
+
+/**
+ * One pending row per page. `kind` is NOT NULL in the schema but only known
+ * after classification — 'vocab' is the placeholder until the ingestion job
+ * sets the real value.
+ */
+export function insertSourcePages(
+  db: DB,
+  sourceId: number,
+  pageCount: number,
+): void {
+  const now = nowIso();
+  const insert = db.prepare(
+    "INSERT INTO source_page (source_id, page_no, kind, status, created_at, updated_at) VALUES (?, ?, 'vocab', 'pending', ?, ?)",
+  );
+  for (let pageNo = 1; pageNo <= pageCount; pageNo++) {
+    insert.run(sourceId, pageNo, now, now);
+  }
+}
+
+export function listSourcePages(db: DB, sourceId: number): SourcePageView[] {
+  const rows = db
+    .prepare(
+      "SELECT id, source_id, page_no, kind, status, error, grammar_topic_id, created_at, updated_at FROM source_page WHERE source_id = ? ORDER BY page_no",
+    )
+    .all(sourceId) as SourcePageRowDb[];
+  return rows.map(toSourcePageView);
+}
+
+export function getSourcePage(db: DB, id: number): SourcePageView | null {
+  const row = db
+    .prepare(
+      "SELECT id, source_id, page_no, kind, status, error, grammar_topic_id, created_at, updated_at FROM source_page WHERE id = ?",
+    )
+    .get(id) as SourcePageRowDb | undefined;
+  return row ? toSourcePageView(row) : null;
 }
