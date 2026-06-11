@@ -6,7 +6,7 @@
 
 **Regions — Setup.** A single form column (max 480px): SegmentedControl "Deck" (Spanish / English / All), SegmentedControl "Length" (10 / 20 / 40), SegmentedControl "Style" (Multiple choice / Cloze / Mixed), SegmentedControl "Direction" (Word → definition / Definition → word / Mixed), primary Button "Start quiz".
 
-**Regions — Play.** Identical components to Review (same `ReviewCard`, `QuizOption`, session bar). Differences: progress reads "Q 4 of 20"; no spaced-repetition writeback; "Don't know" counts as wrong.
+**Regions — Play.** Identical components to Review (same `ReviewCard`, `QuizOption`, session bar). Differences: progress reads "Q 4 of 20"; correct answers don't advance the SRS schedule, but every miss writes an SRS failure and pulls that word's card due now (per GOAL.md quiz Must); "Don't know" counts as wrong.
 
 **Regions — Results.** Score line "17 of 20" (`--text-2xl`); per-question list: each row a compact `WordEntry` + your answer vs. correct answer (incorrect rows tinted `--color-incorrect-wash` rule-left none — tint on the row background only), "Explain why" per row; primary Button "Done", quiet "Retake missed".
 

@@ -8,7 +8,7 @@
 
 1. _Toolbar_ — TextInput search ("Search words…"), filter SegmentedControls: Deck (ES/EN/All), Status (New/Learning/Mature/All), Source (dropdown when >3 sources). Quiet Button "Add word".
 2. _Word list_ — hairline-ruled compact `WordEntry` rows: headword + tag + one-line gloss (`--color-ink-soft`, single line, ellipsis); right-aligned status in `--font-meta`; at `bp-desktop`+ a hover/focus-revealed quiet row action "I forgot this" (card due now, info Toast — mobile reaches it via detail). Tap/click → detail.
-3. _Word detail_ (`WordDetail`, D4) — full entry with editable gloss/example (TextInput inline), level, source provenance line ("from Moby-Dick ch. 41 · defined by machine, edited by you"), review-history sparkline (last 20 results as 3px ticks: `--color-correct`/`--color-incorrect`), danger-quiet Button "Delete word…" with confirm dialog ("Delete _desasosiego_? Its review history goes with it. [Delete] [Keep]").
+3. _Word detail_ (`WordDetail`, D4) — full entry with editable gloss/example (TextInput inline), level, source provenance line ("from Moby-Dick ch. 41 · defined by machine, edited by you"), review-history sparkline (last 20 results as 3px ticks: `--color-correct`/`--color-incorrect`), danger-quiet Button "Delete word…" with confirm dialog ("Delete _desasosiego_? Its card and schedule go with it. [Delete] [Keep]").
 4. _Add form_ — headword TextInput; on blur the gloss auto-fills via machine ("defining…" meta line) into an editable TextInput; example optional; primary Button "Save word".
 
 ```
