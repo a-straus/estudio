@@ -8,3 +8,9 @@ node_modules/
 /work/
 /projects/
 .claude/settings.local.json
+
+# Estudio app
+.env
+/data/
+dist/
+*.tsbuildinfo

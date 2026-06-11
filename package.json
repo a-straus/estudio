@@ -1,0 +1,30 @@
+{
+  "name": "estudio",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "build": "npm run build -w shared && npm run build -w server && npm run build -w web",
+    "typecheck": "npm run build -w shared && npm run typecheck -w server && npm run typecheck -w web",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "start": "node server/dist/index.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "eslint": "^9.20.0",
+    "prettier": "^3.5.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.24.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
