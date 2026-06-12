@@ -1,6 +1,7 @@
 import type {
   JobStatus,
   JobView,
+  LessonInsightType,
   SourcePageKind,
   SourcePageStatus,
   SourcePageView,
@@ -154,4 +155,38 @@ export function getSourcePage(db: DB, id: number): SourcePageView | null {
     )
     .get(id) as SourcePageRowDb | undefined;
   return row ? toSourcePageView(row) : null;
+}
+
+/**
+ * Insert one lesson_insight row. payload is JSON-serialized here; its shape is
+ * the per-type DTO in @estudio/shared (FlaggedWordPayload, CorrectionPayload,
+ * …). word_id/topic_id default null — only topic_covered carries a topic link.
+ */
+export function insertLessonInsight(
+  db: DB,
+  insight: {
+    sourceId: number;
+    type: LessonInsightType;
+    payload: unknown;
+    wordId?: number | null;
+    topicId?: number | null;
+  },
+): number {
+  const now = nowIso();
+  const result = db
+    .prepare(
+      `INSERT INTO lesson_insight
+         (source_id, type, payload, word_id, topic_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      insight.sourceId,
+      insight.type,
+      JSON.stringify(insight.payload),
+      insight.wordId ?? null,
+      insight.topicId ?? null,
+      now,
+      now,
+    );
+  return Number(result.lastInsertRowid);
 }

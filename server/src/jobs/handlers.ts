@@ -1,6 +1,12 @@
 import type { DB } from "../db/db.js";
 import type { LlmService } from "../llm/service.js";
+import type { TranscriptionService } from "../transcription/service.js";
 import type { JobQueue } from "./queue.js";
+import {
+  JOB_TYPE_LESSON_AUDIO_INGESTION,
+  runLessonAudioIngestion,
+  type LessonAudioIngestionPayload,
+} from "./lessonAudioIngestion.js";
 import {
   JOB_TYPE_TEXT_INGESTION,
   runTextIngestion,
@@ -47,6 +53,23 @@ export function registerQuizGenHandler(
 ): void {
   queue.register(JOB_TYPE_QUIZ_GEN, (payload) =>
     runQuizGen(db, llm, payload as QuizGenPayload),
+  );
+}
+
+/** Register the lesson_audio_ingestion job handler. */
+export function registerLessonAudioIngestionHandler(
+  queue: JobQueue,
+  db: DB,
+  llm: LlmService,
+  transcription: TranscriptionService,
+): void {
+  queue.register(JOB_TYPE_LESSON_AUDIO_INGESTION, (payload) =>
+    runLessonAudioIngestion(
+      db,
+      llm,
+      transcription,
+      payload as LessonAudioIngestionPayload,
+    ),
   );
 }
 

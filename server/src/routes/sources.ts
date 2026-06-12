@@ -3,6 +3,7 @@ import path from "node:path";
 import multer from "multer";
 import type { Express, Request, Response } from "express";
 import type {
+  AudioUploadResponse,
   PdfUploadResponse,
   RetryPageResponse,
   SourceDetailResponse,
@@ -17,6 +18,7 @@ import {
   listSourcePages,
 } from "../db/queries.js";
 import { enqueuePdfIngestion } from "../jobs/pdfIngestion.js";
+import { enqueueLessonAudioIngestion } from "../jobs/lessonAudioIngestion.js";
 import {
   chunkCount,
   detectLanguage,
@@ -24,15 +26,44 @@ import {
 } from "../jobs/textIngestion.js";
 import type { JobQueue } from "../jobs/queue.js";
 import { getPageCount } from "../pdf/pages.js";
+import { estimateWhisperCostUsd } from "../transcription/openai.js";
+import {
+  readAudioDurationMinutes,
+  type ReadAudioDurationMinutes,
+} from "../transcription/duration.js";
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+/** Audio extensions accepted by POST /api/sources/audio (typical phone memos). */
+const AUDIO_EXTENSIONS = new Set([
+  "m4a",
+  "mp3",
+  "mp4",
+  "ogg",
+  "oga",
+  "webm",
+  "aac",
+  "flac",
+  "opus",
+  "wav",
+]);
+
+function extOf(filename: string): string {
+  const i = filename.lastIndexOf(".");
+  return i >= 0 ? filename.slice(i + 1).toLowerCase() : "";
+}
 
 export function registerSourceRoutes(
   app: Express,
   db: DB,
   queue: JobQueue,
   dataDir: string,
+  // Injectable duration seam (defaults to the music-metadata impl) so the audio
+  // route is unit-testable without a real audio file. createApp passes 4 args,
+  // so this stays optional and app.ts is untouched.
+  opts: { readAudioDuration?: ReadAudioDurationMinutes } = {},
 ): void {
+  const readAudioDuration = opts.readAudioDuration ?? readAudioDurationMinutes;
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_UPLOAD_BYTES },
@@ -96,6 +127,79 @@ export function registerSourceRoutes(
         source: getSource(db, sourceId)!,
         jobId,
         pageCount,
+      };
+      res.status(201).json(body);
+    },
+  );
+
+  app.post(
+    "/api/sources/audio",
+    upload.single("file"),
+    async (req: Request, res: Response) => {
+      if (!req.file) {
+        res.status(400).json({
+          error: {
+            message: 'multipart field "file" is required',
+            code: "missing_file",
+          },
+        });
+        return;
+      }
+
+      const originalName = req.file.originalname || "recording";
+      if (!AUDIO_EXTENSIONS.has(extOf(originalName))) {
+        res.status(400).json({
+          error: {
+            message: `unsupported audio format; accepted: ${[...AUDIO_EXTENSIONS].join(", ")}`,
+            code: "invalid_audio",
+          },
+        });
+        return;
+      }
+
+      // Read the recording's duration up front (pure-JS, no ffmpeg) for the cost
+      // estimate. A file that carries no usable duration metadata isn't a
+      // readable recording — reject it before persisting anything.
+      let minutes: number;
+      try {
+        minutes = await readAudioDuration(req.file.buffer, originalName);
+      } catch {
+        res.status(400).json({
+          error: {
+            message: "not a readable audio file",
+            code: "invalid_audio",
+          },
+        });
+        return;
+      }
+
+      const safeName = path.basename(originalName).replace(/[^\w.\- ]+/g, "_");
+      const uploadsDir = path.join(dataDir, "uploads");
+      fs.mkdirSync(uploadsDir, { recursive: true });
+      const storedPath = path.join(
+        uploadsDir,
+        `${nowIso().replace(/[:.]/g, "-")}-${safeName}`,
+      );
+      fs.writeFileSync(storedPath, req.file.buffer);
+
+      const title =
+        (typeof req.body?.title === "string" && req.body.title.trim()) ||
+        safeName.replace(/\.[^.]+$/, "");
+
+      // File + source persisted before the job exists, so a job failure never
+      // loses the uploaded recording.
+      const sourceId = insertSource(db, {
+        type: "lesson_audio",
+        title,
+        ref: originalName,
+        storedPath,
+      });
+      const jobId = enqueueLessonAudioIngestion(db, queue, { sourceId });
+
+      const body: AudioUploadResponse = {
+        source: getSource(db, sourceId)!,
+        jobId,
+        costEstimateUsd: estimateWhisperCostUsd(minutes),
       };
       res.status(201).json(body);
     },
