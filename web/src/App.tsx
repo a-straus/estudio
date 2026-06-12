@@ -11,6 +11,7 @@ import { Triage } from "./screens/Triage";
 import { Ask } from "./screens/Ask";
 import { Suggestions } from "./screens/Suggestions";
 import { Lessons } from "./screens/Lessons";
+import { Notes } from "./screens/Notes";
 import { applyTheme, readTheme } from "./theme";
 
 // Apply the persisted theme before first paint, for every screen (including the
@@ -141,6 +142,14 @@ export function App() {
     return (
       <AppShell title="Lessons" activeHref="/lessons">
         {() => <Lessons />}
+      </AppShell>
+    );
+  }
+
+  if (window.location.pathname.startsWith("/notes")) {
+    return (
+      <AppShell title="Notes" activeHref="/notes">
+        {() => <Notes />}
       </AppShell>
     );
   }

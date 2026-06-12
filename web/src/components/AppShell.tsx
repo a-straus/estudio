@@ -43,6 +43,7 @@ const NAV: { label: string; href: string }[] = [
 /** Quiet utility links closing the footer — real routes only. */
 const FOOTER_LINKS: FooterLink[] = [
   { label: "Ingest", href: "/ingest" },
+  { label: "Notes", href: "/notes" },
   { label: "System", href: "/system" },
 ];
 

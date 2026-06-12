@@ -22,6 +22,7 @@ import {
   generateLesson,
   submitLessonAttempt,
 } from "./grammarApi";
+import { NoteAffordance } from "./NoteAffordance";
 import "./Lesson.css";
 
 interface LessonProps {
@@ -228,9 +229,12 @@ function LessonQuizCard({
             </Button>
           </>
         ) : (
-          <Button variant="primary" onClick={onNext}>
-            {index + 1 >= total ? "See results" : "Next"}
-          </Button>
+          <>
+            <Button variant="primary" onClick={onNext}>
+              {index + 1 >= total ? "See results" : "Next"}
+            </Button>
+            <NoteAffordance questionId={question.id} />
+          </>
         )}
         {gradeError && (
           <span className="lesson-quiz__grade-error">{gradeError}</span>

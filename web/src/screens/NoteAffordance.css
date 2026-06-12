@@ -1,0 +1,20 @@
+/* NoteAffordance — compact post-grade note capture (D2 tokens throughout). */
+
+.note-affordance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-rule);
+}
+
+.note-affordance__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.note-affordance__error {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  color: var(--color-incorrect);
+}

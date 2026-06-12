@@ -7,6 +7,7 @@ import {
   type LessonContent,
   type LessonQuestionPayload,
 } from "../db/grammar-queries.js";
+import { getNotesForTopic } from "../db/notes-queries.js";
 import { loadPrompt } from "../llm/prompts.js";
 import { logger } from "../logger.js";
 import type { LlmService } from "../llm/service.js";
@@ -158,9 +159,17 @@ export async function runLessonGen(
   if (!topic) throw new Error(`grammar_topic ${payload.topicId} not found`);
 
   const promptVersion = loadPrompt("grammar_lesson").version;
+  const topicNotes = getNotesForTopic(db, payload.topicId);
+  const notesBlock =
+    topicNotes.length > 0
+      ? "Learner's own notes on past answers — weight these when choosing what to test / how to explain:\n" +
+        topicNotes.map((n) => `- ${n}`).join("\n") +
+        "\n\n"
+      : "";
   const raw = await llm.complete("grammar_lesson", {
     topicName: topic.name,
     topicDescription: topic.description ?? "",
+    notes: notesBlock,
   });
   const parsed = parseLesson(raw);
 
