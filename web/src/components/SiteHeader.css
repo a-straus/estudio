@@ -70,8 +70,13 @@
   }
 
   /* The Ask button is visually separated from the nav links. */
+  .site-header__quick-add {
+    margin-left: var(--space-5);
+    flex-shrink: 0;
+  }
+
   .site-header__ask {
-    margin-left: var(--space-1);
+    margin-left: var(--space-3);
   }
 }
 
