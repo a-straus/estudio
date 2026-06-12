@@ -24,6 +24,10 @@ Done levels (from GOAL.md §15):
 
 ## Backlog
 
+### Reviews (cadence — OVERDUE: ~18 integrations since review-03 at iter 55 vs the ~5-integration cadence)
+
+- **review-04** — strong-model audit (`spawn --model "$ORCH_MODEL" --effort medium --include GOAL.md --include design review-04 "<brief>"`) of the architecturally/visually significant work landed since review-03: the **design-polish pass** (design-polish-foundation, home-nav-footer, the 3 polish-sweeps, mobile-nav-and-review-landing) audited for token discipline (no raw visual values), component reuse, and microcopy conformance against design/ — this is the human's explicit "Apple-handoff" quality bar and has never been reviewed; AND the **Phase-2 foundation backend** (transcription-layer, lesson-recording-backend) audited for correctness against ARCHITECTURE.md (transcription adapter seam + cost estimate; lesson ingestion multi-table writes, job resumability, the read-API-less note). Reviewer reads GOAL.md + ARCHITECTURE.md + design/, writes findings to REVIEW.md, commits. EXCLUDE the Phase-1 behavioral fixes (quiz/lesson/triage — they were themselves review-03/FEEDBACK responses) and the in-flight Phase-2 UI/feature wave (lesson-recording-ui, ask-chatbot, suggestions → a later review-05). **File-disjoint from every worker (writes only REVIEW.md) → spawn on the FIRST freed slot, even while the other two Phase-2 UI workers still hold the web/server seams; the only thing blocking it now is the 3/3 capacity cap.** [review cadence]
+
 ### Phase 1 fixes — remaining (human stepped away 2026-06-11; finish these, then design polish, then Phase 2)
 
 <!-- mobile-nav-and-review-landing + library-forgot-button-layout → In Progress (spawned iteration 90, gate lifted) -->
