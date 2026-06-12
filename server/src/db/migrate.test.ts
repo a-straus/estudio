@@ -4,7 +4,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import { openDb, type DB } from "./db.js";
-import { runMigrations } from "./migrate.js";
+import { defaultMigrationsDir, runMigrations } from "./migrate.js";
 
 const tmpDirs: string[] = [];
 const dbs: DB[] = [];
@@ -33,7 +33,11 @@ describe("runMigrations with the real migrations", () => {
     const db = openTmpDb(dataDir);
     const applied = runMigrations(db, dataDir);
 
-    expect(applied).toEqual(["001_init.sql", "002_quiz_question_check.sql"]);
+    expect(applied).toEqual([
+      "001_init.sql",
+      "002_quiz_question_check.sql",
+      "003_note_mixed_phase2.sql",
+    ]);
     const tables = (
       db
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -52,6 +56,7 @@ describe("runMigrations with the real migrations", () => {
       "lesson",
       "quiz_question",
       "quiz_attempt",
+      "note",
       "lesson_insight",
       "chat_thread",
       "chat_message",
@@ -149,6 +154,127 @@ describe("runMigrations with the real migrations", () => {
     expect(db.prepare("SELECT COUNT(*) AS c FROM quiz_question").get()).toEqual(
       { c: 2 },
     );
+  });
+
+  it("003: note exists, quiz_attempt accepts 'mixed' only among valid styles, chat_thread requires its columns, suggestion is unique", () => {
+    const dataDir = makeTmpDir();
+    const db = openTmpDb(dataDir);
+    runMigrations(db, dataDir);
+
+    const columns = (table: string) =>
+      db.prepare(`PRAGMA table_info(${table})`).all() as {
+        name: string;
+        notnull: number;
+      }[];
+
+    // The five schema-gate tables all exist with their spec'd columns.
+    expect(columns("note").map((c) => c.name)).toEqual([
+      "id",
+      "quiz_question_id",
+      "body",
+      "created_at",
+      "updated_at",
+    ]);
+    expect(columns("transcription_call").map((c) => c.name)).toEqual(
+      expect.arrayContaining(["task", "provider", "model", "minutes", "status"]),
+    );
+    expect(columns("chat_message").map((c) => c.name)).toEqual(
+      expect.arrayContaining(["thread_id", "role", "content", "tool_calls"]),
+    );
+    expect(columns("suggestion").map((c) => c.name)).toEqual(
+      expect.arrayContaining(["item_type", "normalized_key", "payload", "status"]),
+    );
+    // chat_thread's page_context and title are NOT NULL per ARCHITECTURE.md.
+    const chatThread = columns("chat_thread");
+    for (const col of ["page_context", "title"]) {
+      expect(chatThread.find((c) => c.name === col)?.notnull).toBe(1);
+    }
+
+    // note attaches to a quiz question and requires a body.
+    db.prepare(
+      "INSERT INTO word (term, term_normalized, language, status, deck_id) VALUES ('hola', 'hola', 'es', 'new', 1)",
+    ).run();
+    db.prepare(
+      "INSERT INTO quiz_question (word_id, style, payload, explanation, prompt_version) VALUES (1, 'cloze', '{}', 'because', 'v1')",
+    ).run();
+    db.prepare(
+      "INSERT INTO note (quiz_question_id, body) VALUES (1, 'tricky one')",
+    ).run();
+    expect(() =>
+      db.prepare("INSERT INTO note (quiz_question_id, body) VALUES (1, NULL)").run(),
+    ).toThrow(/NOT NULL/);
+
+    // quiz_attempt accepts 'mixed' and still rejects unknown styles.
+    const insertAttempt = (style: string) =>
+      db
+        .prepare(
+          "INSERT INTO quiz_attempt (deck_id, style, answers) VALUES (1, ?, '[]')",
+        )
+        .run(style);
+    insertAttempt("mixed");
+    insertAttempt("def_match");
+    expect(() => insertAttempt("bogus")).toThrow(/CHECK/);
+
+    // suggestion rejects a duplicate (item_type, normalized_key).
+    const insertSuggestion = (itemType: string, key: string) =>
+      db
+        .prepare(
+          "INSERT INTO suggestion (item_type, normalized_key, payload) VALUES (?, ?, '{}')",
+        )
+        .run(itemType, key);
+    insertSuggestion("word", "barco");
+    expect(() => insertSuggestion("word", "barco")).toThrow(/UNIQUE/);
+    // The same key under the other item_type is fine.
+    insertSuggestion("grammar_topic", "barco");
+  });
+
+  it("003: existing quiz_attempt rows survive the table rebuild", () => {
+    const dataDir = makeTmpDir();
+    const db = openTmpDb(dataDir);
+
+    // Stage a migrations dir holding only 001+002, apply them, and write a row
+    // the way a pre-003 database would have one.
+    const stagedDir = path.join(dataDir, "migrations");
+    fs.mkdirSync(stagedDir);
+    for (const file of ["001_init.sql", "002_quiz_question_check.sql"]) {
+      fs.copyFileSync(
+        path.join(defaultMigrationsDir, file),
+        path.join(stagedDir, file),
+      );
+    }
+    runMigrations(db, dataDir, stagedDir);
+    db.prepare(
+      "INSERT INTO quiz_attempt (id, deck_id, style, direction, answers, created_at, updated_at) VALUES (7, 1, 'def_match', 'w2d', '[]', '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z')",
+    ).run();
+
+    // Backup stamps are second-precision; clear the first run's backup so the
+    // second backed-up run can't collide on the same file name.
+    fs.rmSync(path.join(dataDir, "backups"), { recursive: true, force: true });
+
+    // Now 003 lands and the rebuild preserves the row exactly.
+    fs.copyFileSync(
+      path.join(defaultMigrationsDir, "003_note_mixed_phase2.sql"),
+      path.join(stagedDir, "003_note_mixed_phase2.sql"),
+    );
+    expect(runMigrations(db, dataDir, stagedDir)).toEqual([
+      "003_note_mixed_phase2.sql",
+    ]);
+    expect(db.prepare("SELECT * FROM quiz_attempt").all()).toEqual([
+      {
+        id: 7,
+        deck_id: 1,
+        topic_id: null,
+        style: "def_match",
+        direction: "w2d",
+        answers: "[]",
+        created_at: "2026-06-01T00:00:00Z",
+        updated_at: "2026-06-01T00:00:00Z",
+      },
+    ]);
+    // And the rebuilt table now accepts 'mixed'.
+    db.prepare(
+      "INSERT INTO quiz_attempt (deck_id, style, answers) VALUES (1, 'mixed', '[]')",
+    ).run();
   });
 
   it("enforces UNIQUE(term, language) on word", () => {

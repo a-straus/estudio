@@ -290,17 +290,7 @@ export function registerGrammarRoutes(
       answers.reduce((sum, a) => sum + verdictWeight(a.verdict), 0) /
       answers.length;
 
-    // quiz_attempt.style stores one concrete style; a lesson quiz mixes styles,
-    // so we record the first question's style — the per-question detail lives in
-    // the answers JSON.
-    const firstStyle =
-      getLessonQuestion(db, answers[0]!.questionId)?.style ?? "free_text";
-
-    const id = insertLessonAttempt(db, {
-      topicId,
-      style: firstStyle,
-      answers,
-    });
+    const id = insertLessonAttempt(db, { topicId, answers });
     const { masteryBefore, mastery } = updateTopicMastery(db, topicId, score);
 
     const response: LessonAttemptResponse = { id, masteryBefore, mastery };

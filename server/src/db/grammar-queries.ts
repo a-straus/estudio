@@ -341,12 +341,15 @@ export function getLessonQuestion(
   return row ? toLessonQuestionRow(row) : null;
 }
 
-/** Record a completed lesson-quiz attempt against a topic. */
+/**
+ * Record a completed lesson-quiz attempt against a topic. A lesson quiz mixes
+ * styles, so the attempt always stores style 'mixed' — the per-question detail
+ * lives in the answers JSON.
+ */
 export function insertLessonAttempt(
   db: DB,
   attempt: {
     topicId: number;
-    style: LessonQuestionStyle;
     answers: unknown;
   },
 ): number {
@@ -355,15 +358,9 @@ export function insertLessonAttempt(
     .prepare(
       `INSERT INTO quiz_attempt
          (deck_id, topic_id, style, direction, answers, created_at, updated_at)
-       VALUES (NULL, ?, ?, NULL, ?, ?, ?)`,
+       VALUES (NULL, ?, 'mixed', NULL, ?, ?, ?)`,
     )
-    .run(
-      attempt.topicId,
-      attempt.style,
-      JSON.stringify(attempt.answers),
-      now,
-      now,
-    );
+    .run(attempt.topicId, JSON.stringify(attempt.answers), now, now);
   return Number(result.lastInsertRowid);
 }
 

@@ -246,11 +246,10 @@ describe("grammar queries", () => {
       expect(row.mastery).toBeCloseTo(0.357, 10);
     });
 
-    it("records a lesson attempt against the topic", () => {
+    it("records a lesson attempt against the topic with style 'mixed'", () => {
       const id = makeTopic();
       const attemptId = insertLessonAttempt(db, {
         topicId: id,
-        style: "fill_in",
         answers: [{ questionId: 1, given: "x", correct: true }],
       });
       const row = db
@@ -261,7 +260,7 @@ describe("grammar queries", () => {
         deck_id: number | null;
       };
       expect(row.topic_id).toBe(id);
-      expect(row.style).toBe("fill_in");
+      expect(row.style).toBe("mixed");
       expect(row.deck_id).toBeNull();
     });
   });

@@ -228,9 +228,6 @@ export function insertQuizAttempt(
   },
 ): number {
   const now = nowIso();
-  // quiz_attempt.style only allows the five concrete styles; a 'mixed' quiz is
-  // recorded as 'def_match' (the per-question detail lives in answers JSON).
-  const style = attempt.style === "mixed" ? "def_match" : attempt.style;
   const result = db
     .prepare(
       `INSERT INTO quiz_attempt
@@ -239,7 +236,7 @@ export function insertQuizAttempt(
     )
     .run(
       attempt.deckId,
-      style,
+      attempt.style,
       attempt.direction,
       JSON.stringify(attempt.answers),
       now,
