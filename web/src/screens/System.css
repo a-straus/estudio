@@ -138,6 +138,25 @@
   background: var(--color-rule-strong);
 }
 
+/* ---- Preferences ---- */
+.system__prefs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.system__pref {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.system__pref-label {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+}
+
 /* Tables become stacked label/value pairs below bp-tablet (640px). */
 @media (max-width: 640px) /* bp-tablet */ {
   .system__row:not(.system__row--stacked) {

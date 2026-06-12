@@ -1,4 +1,7 @@
 import type {
+  GetSettingsResponse,
+  PutSettingsRequest,
+  PutSettingsResponse,
   SystemBackupResponse,
   SystemErrorsResponse,
   SystemJobsResponse,
@@ -58,4 +61,17 @@ export function fetchStatus(): Promise<SystemStatusResponse> {
 
 export function triggerBackup(): Promise<SystemBackupResponse> {
   return api<SystemBackupResponse>("/api/system/backup", { method: "POST" });
+}
+
+export function getSettings(): Promise<GetSettingsResponse> {
+  return api<GetSettingsResponse>("/api/settings");
+}
+
+export function putSettings(
+  patch: PutSettingsRequest,
+): Promise<PutSettingsResponse> {
+  return api<PutSettingsResponse>("/api/settings", {
+    method: "PUT",
+    body: JSON.stringify(patch),
+  });
 }
