@@ -6,5 +6,6 @@ export * from "./library-api.js";
 export * from "./ingest-api.js";
 export * from "./grammar-api.js";
 export * from "./system-api.js";
+export * from "./overview-api.js";
 export * from "./settings-api.js";
 export * from "./quiz-api.js";

@@ -42,9 +42,11 @@ export function SiteHeader({ title, nav, onAsk }: SiteHeaderProps) {
             </a>
           ))}
         </nav>
-        <Button variant="quiet" className="site-header__ask" onClick={onAsk}>
-          Ask
-        </Button>
+        {onAsk && (
+          <Button variant="quiet" className="site-header__ask" onClick={onAsk}>
+            Ask
+          </Button>
+        )}
       </div>
     </header>
   );

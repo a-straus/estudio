@@ -19,7 +19,7 @@ export function HomeHero({ headword, subhead, primaryAction }: HomeHeroProps) {
   return (
     <section className="home-hero">
       <h1 className="home-hero__headword">{headword}</h1>
-      {subhead && <p className="home-hero__subhead">{subhead}</p>}
+      {subhead && <div className="home-hero__subhead">{subhead}</div>}
       {primaryAction && <div className="home-hero__action">{primaryAction}</div>}
     </section>
   );

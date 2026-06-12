@@ -1,3 +1,5 @@
+export { AppShell } from "./AppShell";
+export type { OverviewState } from "./AppShell";
 export { Button } from "./Button";
 export type { ButtonVariant } from "./Button";
 export { EmptyState } from "./EmptyState";
