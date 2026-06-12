@@ -7,10 +7,24 @@ import { QuickAddModal } from "./QuickAddModal";
 
 vi.mock("../screens/libraryApi", () => ({
   createWord: vi.fn(),
+  transcribeAudio: vi.fn(),
 }));
 
-import { createWord } from "../screens/libraryApi";
+vi.mock("./RecordButton", () => ({
+  RecordButton: ({ onRecorded }: { onRecorded?: (b: Blob) => void }) => (
+    <button
+      type="button"
+      data-testid="record-button"
+      onClick={() => onRecorded?.(new Blob(["fake"], { type: "audio/webm" }))}
+    >
+      🎙
+    </button>
+  ),
+}));
+
+import { createWord, transcribeAudio } from "../screens/libraryApi";
 const mockCreateWord = createWord as ReturnType<typeof vi.fn>;
+const mockTranscribeAudio = transcribeAudio as ReturnType<typeof vi.fn>;
 
 const FAKE_WORD: WordDetailResponse = {
   id: 1,
@@ -37,6 +51,7 @@ const FAKE_WORD: WordDetailResponse = {
 
 beforeEach(() => {
   mockCreateWord.mockReset();
+  mockTranscribeAudio.mockReset();
 });
 
 describe("QuickAddModal", () => {
@@ -112,5 +127,18 @@ describe("QuickAddModal", () => {
     render(<QuickAddModal open onClose={onClose} />);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("fills the term field via RecordButton dictation", async () => {
+    mockTranscribeAudio.mockResolvedValue({ text: "hola" });
+    render(<QuickAddModal open onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId("record-button"));
+
+    await waitFor(() => {
+      expect(
+        (screen.getByLabelText("Word or phrase") as HTMLInputElement).value,
+      ).toBe("hola");
+    });
   });
 });

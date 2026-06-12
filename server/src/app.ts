@@ -25,6 +25,7 @@ import { registerSystemRoutes } from "./routes/system.js";
 import { registerTriageRoutes } from "./routes/triage.js";
 import { registerWordRoutes } from "./routes/words.js";
 import { registerChatRoutes } from "./routes/chat.js";
+import { registerTranscribeRoutes } from "./routes/transcribe.js";
 import { registerSuggestionRoutes } from "./routes/suggestions.js";
 import { registerLessonReadRoutes } from "./routes/lessons.js";
 import { registerNotesRoutes } from "./routes/notes.js";
@@ -84,6 +85,7 @@ export function createApp(
   // suggestions / lesson-recording-ui fill them in). Each owns only its own
   // routes file; this registration block is the orchestrator's.
   registerChatRoutes(app, db, opts.llm, opts.transcription);
+  registerTranscribeRoutes(app, db, opts.transcription);
   registerSuggestionRoutes(app, db, opts.llm);
   registerLessonReadRoutes(app, db);
   registerNotesRoutes(app, db);

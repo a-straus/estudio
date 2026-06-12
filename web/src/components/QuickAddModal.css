@@ -44,6 +44,16 @@
   margin: 0;
 }
 
+.quick-add-panel__term-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.quick-add-panel__term-row .text-input {
+  flex: 1;
+}
+
 .quick-add-panel__actions {
   display: flex;
   gap: var(--space-3);

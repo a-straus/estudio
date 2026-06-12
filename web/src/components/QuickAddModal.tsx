@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { WordDetailResponse, WordLanguage } from "@estudio/shared";
-import { createWord } from "../screens/libraryApi";
+import { createWord, transcribeAudio, ApiError } from "../screens/libraryApi";
 import { Button } from "./Button";
+import { RecordButton } from "./RecordButton";
 import { SegmentedControl } from "./SegmentedControl";
 import { TextInput } from "./TextInput";
 import "./QuickAddModal.css";
@@ -21,6 +22,7 @@ export function QuickAddModal({ open, onClose, onAdded }: QuickAddModalProps) {
   const [term, setTerm] = useState("");
   const [language, setLanguage] = useState<WordLanguage>("es");
   const [saving, setSaving] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const titleId = "quick-add-title";
   const openerRef = useRef<Element | null>(null);
@@ -32,6 +34,7 @@ export function QuickAddModal({ open, onClose, onAdded }: QuickAddModalProps) {
       setTerm("");
       setLanguage("es");
       setSaving(false);
+      setTranscribing(false);
       setError(undefined);
       if (openerRef.current instanceof HTMLElement) {
         openerRef.current.focus();
@@ -61,6 +64,20 @@ export function QuickAddModal({ open, onClose, onAdded }: QuickAddModalProps) {
       setSaving(false);
     }
   }, [term, language, onAdded, onClose]);
+
+  const handleRecorded = useCallback(async (audio: Blob) => {
+    if (saving) return;
+    setTranscribing(true);
+    try {
+      const { text } = await transcribeAudio(audio);
+      setTerm(text);
+      if (error) setError(undefined);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Could not transcribe — type it instead.");
+    } finally {
+      setTranscribing(false);
+    }
+  }, [saving, error]);
 
   useEffect(() => {
     if (!open) return;
@@ -95,18 +112,24 @@ export function QuickAddModal({ open, onClose, onAdded }: QuickAddModalProps) {
             void handleSubmit();
           }}
         >
-          <TextInput
-            label="Word or phrase"
-            value={term}
-            onChange={(v) => {
-              setTerm(v);
-              if (error) setError(undefined);
-            }}
-            study
-            autoFocus
-            disabled={saving}
-            error={error}
-          />
+          <div className="quick-add-panel__term-row">
+            <TextInput
+              label="Word or phrase"
+              value={term}
+              onChange={(v) => {
+                setTerm(v);
+                if (error) setError(undefined);
+              }}
+              study
+              autoFocus
+              disabled={saving}
+              error={error}
+            />
+            <RecordButton
+              onRecorded={(blob) => void handleRecorded(blob)}
+              state={transcribing ? "transcribing" : undefined}
+            />
+          </div>
           {/* hidden submit so Enter in the field fires onSubmit */}
           <button type="submit" hidden aria-hidden="true" />
         </form>
