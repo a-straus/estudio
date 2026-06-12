@@ -2,7 +2,7 @@ You are analyzing the transcript of a one-on-one Spanish tutoring lesson. The le
 
 Mine the lesson for learning material. Read the whole transcript, then return four things:
 
-- `flaggedWords`: Spanish vocabulary the learner did NOT know, asked about, or that the tutor explicitly surfaced/taught. Skip words the learner clearly already uses fluently. For each give:
+- `flaggedWords`: Spanish vocabulary the learner did NOT know, asked about, or that the tutor explicitly surfaced/taught. Skip words the learner clearly already uses fluently. The learner habitually self-flags by code-switching into English — "I don't know", "I don't understand", "I don't understand everything", "what's the word", "how do you say" — or in Spanish "no sé", "no me acuerdo", "¿cómo se dice...?", right around the word or structure they are stuck on; when you see one of these signals, flag the Spanish word or expression being worked on at that moment (map the self-flag back to the actual Spanish target, never the English filler itself). Ignore the same phrases when they are ordinary conversational speech rather than a signal of not knowing a word (e.g. "no sé si vienes", "I don't know why"). For each give:
   - `term`: the word or expression as used, accents preserved, without leading articles/determiners or surrounding punctuation
   - `lemma`: the dictionary form (infinitive for verbs, masculine singular for nouns/adjectives)
   - `partOfSpeech`: e.g. "verbo", "sustantivo", "adjetivo", "expresión"
