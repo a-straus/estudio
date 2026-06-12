@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import type { OverviewSummary } from "@estudio/shared";
 import "../test/setup";
@@ -50,6 +50,18 @@ describe("Home", () => {
     // Primary action + due-count sentence.
     expect(screen.getByRole("button", { name: "Start review" })).toBeTruthy();
     expect(screen.getByText("23 due today")).toBeTruthy();
+  });
+
+  it("hero 'Start review' CTA navigates to /review?autostart=1", () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign, href: "http://localhost/", pathname: "/" });
+    render(<Home overview={loaded()} />);
+
+    const btn = screen.getByRole("button", { name: "Start review" });
+    btn.click();
+    expect(assign).toHaveBeenCalledWith("/review?autostart=1");
+
+    vi.unstubAllGlobals();
   });
 
   it("swaps to a quiz prompt when nothing is due", () => {

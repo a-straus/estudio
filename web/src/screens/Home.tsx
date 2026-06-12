@@ -61,7 +61,7 @@ function renderHero(state: OverviewState) {
   const due = state.summary!.review.due;
   const action =
     due > 0
-      ? { label: "Start review", href: "/review", sentence: `${due} due today` }
+      ? { label: "Start review", href: "/review?autostart=1", sentence: `${due} due today` }
       : {
           label: "Start a quiz",
           href: "/quiz",

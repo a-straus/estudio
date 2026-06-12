@@ -167,13 +167,18 @@ function Card({
   const [wasCorrect, setWasCorrect] = useState(false);
   const [flipped, setFlipped] = useState(false);
 
-  const check = useCallback(() => {
-    if (!optionSet || selected === null || answered) return;
-    const correct = selected === optionSet.correctIndex;
-    setWasCorrect(correct);
-    setAnswered(true);
-    onGrade(card, correct ? "good" : "fail");
-  }, [optionSet, selected, answered, card, onGrade]);
+  // Pick-one: grade the moment an option is chosen (mirrors Quiz.tsx select()).
+  const select = useCallback(
+    (i: number) => {
+      if (!optionSet || answered) return;
+      setSelected(i);
+      const correct = i === optionSet.correctIndex;
+      setWasCorrect(correct);
+      setAnswered(true);
+      onGrade(card, correct ? "good" : "fail");
+    },
+    [optionSet, answered, card, onGrade],
+  );
 
   const dontKnow = useCallback(() => {
     if (answered) return;
@@ -191,7 +196,7 @@ function Card({
     [card, onGrade, onNext],
   );
 
-  // Keyboard map (D5): 1–4 select, Enter check/advance, Space flip, D don't know.
+  // Keyboard map (D5): 1–4 pick (and grade); Enter advances once answered; Space flip; D don't know.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -209,16 +214,14 @@ function Card({
       }
       if (optionSet && /^[1-4]$/.test(e.key)) {
         const idx = Number(e.key) - 1;
-        if (idx < optionSet.options.length) setSelected(idx);
-      } else if (e.key === "Enter") {
-        check();
+        if (idx < optionSet.options.length) select(idx);
       } else if (e.key.toLowerCase() === "d") {
         dontKnow();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [mode, flipped, answered, optionSet, check, dontKnow, onNext]);
+  }, [mode, flipped, answered, optionSet, select, dontKnow, onNext]);
 
   const optionState = (i: number): QuizOptionState => {
     if (!answered) return selected === i ? "selected" : "default";
@@ -280,9 +283,7 @@ function Card({
             ordinal={i + 1}
             cloze={card.direction === "d2w"}
             state={optionState(i)}
-            onClick={() => {
-              if (!answered) setSelected(i);
-            }}
+            onClick={() => select(i)}
           >
             {opt}
           </QuizOption>
@@ -297,18 +298,9 @@ function Card({
 
       <div className="review__actions">
         {!answered ? (
-          <>
-            <Button
-              variant="primary"
-              disabled={selected === null}
-              onClick={check}
-            >
-              Check answer
-            </Button>
-            <Button variant="quiet" onClick={dontKnow}>
-              Don&rsquo;t know
-            </Button>
-          </>
+          <Button variant="quiet" onClick={dontKnow}>
+            Don&rsquo;t know
+          </Button>
         ) : (
           <>
             <span
@@ -346,14 +338,19 @@ function ClozeCard({ card, cloze, reveal, onGrade, onNext }: ClozeCardProps) {
   const [wasCorrect, setWasCorrect] = useState(false);
   const [explain, setExplain] = useState(false);
 
-  const check = useCallback(() => {
-    if (selected === null || answered) return;
-    const correct =
-      normalize(cloze.options[selected]) === normalize(cloze.correct);
-    setWasCorrect(correct);
-    setAnswered(true);
-    onGrade(card, correct ? "good" : "fail", cloze.questionId);
-  }, [selected, answered, cloze, card, onGrade]);
+  // Pick-one: grade the moment an option is chosen (mirrors Quiz.tsx select()).
+  const select = useCallback(
+    (i: number) => {
+      if (answered) return;
+      setSelected(i);
+      const correct =
+        normalize(cloze.options[i]) === normalize(cloze.correct);
+      setWasCorrect(correct);
+      setAnswered(true);
+      onGrade(card, correct ? "good" : "fail", cloze.questionId);
+    },
+    [answered, cloze, card, onGrade],
+  );
 
   const dontKnow = useCallback(() => {
     if (answered) return;
@@ -362,6 +359,26 @@ function ClozeCard({ card, cloze, reveal, onGrade, onNext }: ClozeCardProps) {
     setAnswered(true);
     onGrade(card, "fail", cloze.questionId);
   }, [answered, cloze.questionId, card, onGrade]);
+
+  // Keyboard: 1–4 pick (and grade); Enter advances once answered; D don't know.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (answered) {
+        if (e.key === "Enter") onNext();
+        return;
+      }
+      if (/^[1-4]$/.test(e.key)) {
+        const idx = Number(e.key) - 1;
+        if (idx < cloze.options.length) select(idx);
+      } else if (e.key.toLowerCase() === "d") {
+        dontKnow();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [answered, cloze.options.length, select, dontKnow, onNext]);
 
   const optionState = (i: number): QuizOptionState => {
     if (!answered) return selected === i ? "selected" : "default";
@@ -388,9 +405,7 @@ function ClozeCard({ card, cloze, reveal, onGrade, onNext }: ClozeCardProps) {
             ordinal={i + 1}
             cloze
             state={optionState(i)}
-            onClick={() => {
-              if (!answered) setSelected(i);
-            }}
+            onClick={() => select(i)}
           >
             {opt}
           </QuizOption>
@@ -411,18 +426,9 @@ function ClozeCard({ card, cloze, reveal, onGrade, onNext }: ClozeCardProps) {
 
       <div className="review__actions">
         {!answered ? (
-          <>
-            <Button
-              variant="primary"
-              disabled={selected === null}
-              onClick={check}
-            >
-              Check answer
-            </Button>
-            <Button variant="quiet" onClick={dontKnow}>
-              Don&rsquo;t know
-            </Button>
-          </>
+          <Button variant="quiet" onClick={dontKnow}>
+            Don&rsquo;t know
+          </Button>
         ) : (
           <>
             <span
@@ -480,7 +486,12 @@ export function Review({ deckId }: ReviewProps) {
       setIndex(0);
       setCorrectCount(0);
       setMissed([]);
-      setPhase(data.items.length === 0 ? "landing" : "landing");
+      const autostart = new URLSearchParams(window.location.search).has(
+        "autostart",
+      );
+      setPhase(
+        data.items.length > 0 && autostart ? "active" : "landing",
+      );
     } catch {
       setLoadError(true);
       setPhase("landing");

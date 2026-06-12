@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { DueQueueItem } from "@estudio/shared";
 import "../test/setup";
@@ -130,9 +130,9 @@ describe("Review screen", () => {
     mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
     await startReview();
 
-    // The correct option for a w2d card is the card's own English meaning.
+    // Selecting an option immediately grades — no "Check answer" step.
+    expect(screen.queryByRole("button", { name: "Check answer" })).toBeNull();
     fireEvent.click(await screen.findByText("meaning of arpón"));
-    fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
 
     await waitFor(() =>
       expect(mockApi.submitReview).toHaveBeenCalledWith({
@@ -148,8 +148,8 @@ describe("Review screen", () => {
     mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
     await startReview();
 
+    // Selecting the correct option immediately reveals.
     fireEvent.click(await screen.findByText("meaning of arpón"));
-    fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
 
     // Spanish definition line only appears in the reveal panel.
     expect(await screen.findByText("definición de arpón")).toBeTruthy();
@@ -204,10 +204,12 @@ describe("Review screen", () => {
     await startReview();
 
     // Multiple choice, not flip: 1 queue distractor + 2 deck distractors.
-    fireEvent.click(await screen.findByText("meaning of arpón"));
+    // Selecting an option grades immediately — no "Check answer" button.
+    await screen.findByText("meaning of arpón");
     expect(screen.getByText("meaning of casa")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Flip to check" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(screen.queryByRole("button", { name: "Check answer" })).toBeNull();
+    fireEvent.click(screen.getByText("meaning of arpón"));
 
     await waitFor(() =>
       expect(mockApi.submitReview).toHaveBeenCalledWith({
@@ -238,6 +240,50 @@ describe("Review screen", () => {
     render(<Review deckId={1} />);
 
     expect(await screen.findByText(/Couldn't load your decks/)).toBeTruthy();
+  });
+});
+
+describe("Review autostart", () => {
+  beforeEach(() => {
+    vi.stubGlobal("location", {
+      search: "?autostart=1",
+      assign: vi.fn(),
+      href: "http://localhost/review?autostart=1",
+      pathname: "/review",
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("skips the landing and enters the active run when autostart=1 and cards are due", async () => {
+    mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
+    render(<Review deckId={1} />);
+
+    // The first card appears without clicking "Start review".
+    expect(await screen.findByText("arpón")).toBeTruthy();
+    expect(screen.queryByText("4 cards due today")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Start review" })).toBeNull();
+  });
+
+  it("shows the normal empty landing when autostart=1 but no cards are due", async () => {
+    mockApi.fetchDueQueue.mockResolvedValue(queue([]));
+    render(<Review deckId={1} />);
+
+    expect(await screen.findByText(/Nothing due/)).toBeTruthy();
+    expect(screen.queryByText("arpón")).toBeNull();
+  });
+});
+
+describe("Review no-autostart", () => {
+  it("shows the landing page when there is no autostart param", async () => {
+    // window.location.search is "" by default in jsdom.
+    mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
+    render(<Review deckId={1} />);
+
+    expect(await screen.findByText("4 cards due today")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Start review" })).toBeTruthy();
+    expect(screen.queryByText("arpón")).toBeNull();
   });
 });
 
