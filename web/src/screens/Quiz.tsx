@@ -58,7 +58,7 @@ const DIRECTION_OPTIONS = [
 const PROMPT: Record<string, string> = {
   w2d: "Choose the definition.",
   d2w: "Choose the word.",
-  cloze: "Fill in the blank.",
+  cloze: "Complete the sentence.",
 };
 
 const CARD_DIRECTION: Record<string, ReviewCardDirection> = {
@@ -453,7 +453,6 @@ export function Quiz({ pollIntervalMs = 1000 }: QuizProps) {
   if (phase === "setup") {
     return (
       <main className="quiz">
-        <h1 className="quiz__title">Quiz</h1>
         <div className="quiz__setup">
           <SegmentedControl
             label="Deck"
@@ -515,7 +514,6 @@ export function Quiz({ pollIntervalMs = 1000 }: QuizProps) {
   if (phase === "loading") {
     return (
       <main className="quiz">
-        <h1 className="quiz__title">Quiz</h1>
         <div className="quiz__setup">
           {genError ? (
             <JobStatus

@@ -11,13 +11,6 @@
   padding: var(--space-4);
 }
 
-.quiz__title {
-  font-family: var(--font-app);
-  font-size: var(--text-xl);
-  color: var(--color-ink);
-  margin-bottom: var(--space-5);
-}
-
 /* ---- Setup ---- */
 .quiz__setup {
   display: flex;
@@ -105,8 +98,9 @@
   color: var(--color-ink);
 }
 
+/* The "Explain why" panel (D5): the app explaining itself — app voice. */
 .quiz-result__explanation {
-  font-family: var(--font-study);
+  font-family: var(--font-app);
   font-size: var(--text-base);
   line-height: var(--leading-base);
   color: var(--color-ink);
