@@ -441,8 +441,10 @@ function ClozeCard({ card, cloze, reveal, onGrade, onNext }: ClozeCardProps) {
   );
 }
 
+type ReviewPhase = "loading" | "landing" | "active" | "finished";
+
 export function Review({ deckId }: ReviewProps) {
-  const [loading, setLoading] = useState(true);
+  const [phase, setPhase] = useState<ReviewPhase>("loading");
   const [loadError, setLoadError] = useState(false);
   const [queue, setQueue] = useState<DueQueueItem[]>([]);
   const [distractors, setDistractors] = useState<DistractorCandidate[]>([]);
@@ -452,7 +454,6 @@ export function Review({ deckId }: ReviewProps) {
   const [index, setIndex] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [missed, setMissed] = useState<DueQueueItem[]>([]);
-  const [finished, setFinished] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   // "Definitions on reveal" preference; defaults to "both" until/if it loads.
   const [reveal, setReveal] = useState<DefinitionDisplay>("both");
@@ -467,7 +468,7 @@ export function Review({ deckId }: ReviewProps) {
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setPhase("loading");
     setLoadError(false);
     try {
       const data = await fetchDueQueue(deckId);
@@ -479,11 +480,10 @@ export function Review({ deckId }: ReviewProps) {
       setIndex(0);
       setCorrectCount(0);
       setMissed([]);
-      setFinished(false);
+      setPhase(data.items.length === 0 ? "landing" : "landing");
     } catch {
       setLoadError(true);
-    } finally {
-      setLoading(false);
+      setPhase("landing");
     }
   }, [deckId]);
 
@@ -497,7 +497,7 @@ export function Review({ deckId }: ReviewProps) {
   const advance = useCallback(() => {
     setIndex((i) => {
       if (i + 1 >= queue.length) {
-        setFinished(true);
+        setPhase("finished");
         return i;
       }
       return i + 1;
@@ -542,65 +542,82 @@ export function Review({ deckId }: ReviewProps) {
     [tally, onSaveError],
   );
 
-  const endSession = useCallback(() => setFinished(true), []);
+  // Returns to landing instead of "/" — user stays in chrome context.
+  const endSession = useCallback(() => {
+    setPhase("landing");
+    // Reload queue state so due count reflects any grading that happened.
+    void load();
+  }, [load]);
 
   const reviewMissed = useCallback(() => {
     setQueue(missed);
     setIndex(0);
     setCorrectCount(0);
     setMissed([]);
-    setFinished(false);
+    setPhase("active");
   }, [missed]);
 
   // End session on Esc (progress saved server-side as each card is graded).
   useEffect(() => {
-    if (finished || loading) return;
+    if (phase !== "active") return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") endSession();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [finished, loading, endSession]);
+  }, [phase, endSession]);
 
-  if (loading) {
+  if (phase === "loading") {
     return (
-      <main className="review">
+      <div className="review__landing">
         <p className="review__status">Loading…</p>
-      </main>
+      </div>
     );
   }
 
   if (loadError) {
     return (
-      <main className="review">
+      <div className="review__landing">
         <EmptyState message="Couldn't load your decks. Reload, or check System for details.">
           <Button variant="secondary" onClick={() => void load()}>
             Reload
           </Button>
         </EmptyState>
-      </main>
+      </div>
     );
   }
 
-  if (total === 0) {
+  if (phase === "landing") {
+    if (total === 0) {
+      return (
+        <div className="review__landing">
+          <EmptyState message="Nothing due. Ingest something new?">
+            <Button
+              variant="quiet"
+              onClick={() => window.location.assign("/ingest")}
+            >
+              Ingest
+            </Button>
+          </EmptyState>
+        </div>
+      );
+    }
     return (
-      <main className="review">
-        <EmptyState message="Nothing due. Ingest something new?">
-          <Button
-            variant="quiet"
-            onClick={() => window.location.assign("/ingest")}
-          >
-            Ingest
-          </Button>
-        </EmptyState>
-      </main>
+      <div className="review__landing">
+        <p className="review__due-count">
+          {total} {total === 1 ? "card" : "cards"} due today
+        </p>
+        <Button variant="primary" onClick={() => setPhase("active")}>
+          Start review
+        </Button>
+      </div>
     );
   }
 
-  if (finished) {
+  if (phase === "finished") {
     const reviewed = correctCount + missed.length;
     return (
-      <main className="review review--summary">
+      <div className="review__landing review__landing--summary">
         <p className="review__summary-count">
           {reviewed} {reviewed === 1 ? "card" : "cards"} · {correctCount}{" "}
           correct
@@ -632,12 +649,13 @@ export function Review({ deckId }: ReviewProps) {
             {toast.text}
           </Toast>
         )}
-      </main>
+      </div>
     );
   }
 
+  // Active run — full-bleed takeover (same mechanism as quiz--play)
   return (
-    <main className="review">
+    <main className="review review--active">
       <header className="review__bar">
         <button
           type="button"

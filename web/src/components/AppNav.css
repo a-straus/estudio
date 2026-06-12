@@ -1,0 +1,58 @@
+/* AppNav — fixed bottom bar, phone only (shell.md D3 AppNav).
+   Visible below bp-tablet (640px); hidden at bp-tablet+. */
+
+.app-nav {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--hit-target);
+  background: var(--color-paper);
+  border-top: 1px solid var(--color-rule);
+  z-index: 20;
+}
+
+.app-nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--hit-target);
+  text-decoration: none;
+  color: var(--color-ink-soft);
+  font-family: var(--font-app);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  position: relative;
+}
+
+.app-nav__item--active {
+  color: var(--color-accent);
+}
+
+.app-nav__label {
+  display: block;
+}
+
+/* Underline-pill indicator on the active item */
+.app-nav__indicator {
+  display: block;
+  width: 24px;
+  height: 3px;
+  background: var(--color-accent-wash);
+  border-radius: var(--radius-pill);
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Hidden at bp-tablet+ — SiteHeader nav owns navigation there */
+@media (min-width: 640px) {
+  .app-nav {
+    display: none;
+  }
+}
