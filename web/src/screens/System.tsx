@@ -24,6 +24,38 @@ import "./System.css";
 /** Last 20 errors render at once; older ones reveal behind "Older →" (§3.9). */
 const ERRORS_PAGE = 20;
 
+/**
+ * Machine identifiers (LLM task keys, job-queue types) are stored snake_case;
+ * the ledger reads them back as the spec's plain feature words (§3.9 — "per-
+ * feature breakdown … definitions / questions / lessons / grading / chat").
+ * Unknown keys fall back to a humanized form so a new task never leaks raw.
+ */
+function humanize(key: string): string {
+  const spaced = key.replace(/_/g, " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+const TASK_LABELS: Record<string, string> = {
+  word_definition: "Definitions",
+  pdf_extraction: "PDF extraction",
+  page_classification: "Page sorting",
+  text_extraction: "Text extraction",
+  grammar_curriculum: "Curriculum",
+  grammar_lesson: "Lessons",
+  quiz_cloze: "Quiz questions",
+  quiz_grading: "Grading",
+};
+
+const JOB_LABELS: Record<string, string> = {
+  text_ingestion: "Text ingestion",
+  pdf_ingestion: "PDF ingestion",
+  grammar_seed: "Curriculum seed",
+  lesson_audio: "Lesson audio",
+};
+
+const taskLabel = (task: string) => TASK_LABELS[task] ?? humanize(task);
+const jobLabel = (type: string) => JOB_LABELS[type] ?? humanize(type);
+
 const DEFINITION_OPTIONS = [
   { value: "es", label: "Spanish" },
   { value: "en", label: "English" },
@@ -105,7 +137,7 @@ function SpendSection({ spend }: { spend: Section<SystemSpendResponse> }) {
         <ul className="system__rows">
           {spend.byTask.map((t) => (
             <li key={t.task} className="system__row">
-              <span className="system__row-name">{t.task}</span>
+              <span className="system__row-name">{taskLabel(t.task)}</span>
               <span className="system__row-meta">
                 {usd(t.costUsd)} · {t.callCount}×
               </span>
@@ -135,7 +167,7 @@ function JobsSection({ jobs }: { jobs: Section<JobView[]> }) {
               className={`system__dot system__dot--${j.status}`}
               aria-hidden="true"
             />
-            {j.type}
+            {jobLabel(j.type)}
           </span>
           <span className="system__row-meta">
             {j.status}
