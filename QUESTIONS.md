@@ -21,69 +21,6 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
 
-### [PENDING] ffmpeg in the container — to transcribe full-length (~1 hr) lesson recordings (Phase-2 done gate)
-
-Phase 2's lesson-recording feature transcribes audio via OpenAI Whisper, which
-caps each request at ~24 MB. A real one-hour tutor lesson exceeds that at any
-normal bitrate (≈25–33 min of voice audio already hits 24 MB), so it must be
-**split into chunks → transcribed → stitched** — and frame-aware splitting of
-compressed audio (m4a/mp3) needs **ffmpeg**, a system binary. GOAL §16/§17
-pre-approve ffmpeg as free OSS for local audio handling.
-
-Today the pipeline handles recordings **under 24 MB** (typical short phone
-voice-memos) correctly; anything larger fails with a clean, surfaced job error
-(no crash, no silent loss, the upload is preserved). review-04 (the latest code
-audit) flagged this as the one gap blocking the Phase-2 acceptance criterion
-("audio up to ~60 min is transcribed").
-
-I can't provision a system binary myself — the orchestrator never edits the
-devcontainer/Dockerfile and apt is firewalled, exactly the same class as the
-`api.openai.com` firewall change you handled earlier. **What's needed from you:**
-add `ffmpeg` (which provides both `ffmpeg` and `ffprobe`) to the container image
-and rebuild.
-
-**Status update (as of iteration 131):** when this was first written (iter 99)
-it was *"not blocking current construction"* because Phase-2 features were still
-being built. That's no longer true — **all Phase-2 construction is now complete**
-(voice-questions, the last build task, shipped iter 103; everything is merged and
-trunk is green at 571 tests). This ffmpeg rebuild + the real lesson-audio fixtures
-below are now the **only two things gating forward progress**: together they form
-the Phase-2 *done* gate, and per your force-ranked build order (GOAL §11) that
-gate sits before Phase 3 (English/Gutenberg) — so the loop is currently **fully
-idle, holding for these two human actions**. Both are yours to provide:
-(1) add `ffmpeg` to the container image and rebuild; (2) drop the real lesson
-recordings into `docs/fixtures/lesson-audio/` (GOAL §17 — still absent). If
-convenient, bundle both into one rebuild. Nothing else is lost by waiting — no
-work is stuck mid-flight — but nothing new can advance until at least one lands.
-
-Timing note: a container rebuild wipes in-flight worker worktrees (as the
-firewall rebuild did in iteration 89). Branches and their commits survive, but a
-worker's *uncommitted* work is lost and gets re-done — lowest-disruption time is
-when the loop reports no workers mid-build; otherwise the loop just re-spawns the
-affected tasks.
-
-**Your answer:**
-- I have added ffmpeg and the audio into lesson audio.  Plug away sir
-
-**Orchestrator status (iteration 139):** Thank you — both received and confirmed.
-The lesson-audio fixture is in place (`docs/fixtures/lesson-audio/xaj-jnyr-wgv
-(2026-06-05 12_34 GMT-4).m4a`, ~26 MB — a real full-length lesson, and indeed
-**>24 MB, so it genuinely needs the ffmpeg split→transcribe→stitch path**), and
-your `ffmpeg` line is in `.devcontainer/Dockerfile` (commit 466614a, lines
-30-31). **One step remains before I can "plug away": the currently-running
-container was built BEFORE that Dockerfile edit, so ffmpeg isn't actually
-installed in it yet** — verified just now: `which ffmpeg` → "not found", and it's
-not in `dpkg`. A Dockerfile change only takes effect on an **image rebuild**,
-which I can't trigger (the orchestrator never builds the devcontainer — same
-boundary as the firewall change you handled earlier). **Please rebuild the
-devcontainer** ("Dev Containers: Rebuild Container", or your usual rebuild) so
-the image installs ffmpeg. Now is a clean moment — `list-agents` shows **0
-workers running**, so a rebuild wipes no in-flight work. The instant ffmpeg is
-live in the container I'll build the oversized-audio splitting and run your real
-lesson end-to-end (the Phase-2 *done* gate). Leaving this `[PENDING]` only
-because that rebuild is the remaining blocker — your answer itself is fully
-received and recorded (DECISIONS.md iter 139).
-
 ### [PENDING] Disable /ingest on mobile — confirm, it conflicts with a Phase-1 done-criterion
 
 You asked (FEEDBACK, 2026-06-12): *"Restrict and disable the /ingest route and its
@@ -177,6 +114,29 @@ see FEEDBACK.md ## Processed for the task each maps to):
 ## Answered
 
 <!-- Resolved questions are moved here by the orchestrator for record-keeping. -->
+
+### [ANSWERED] ffmpeg in the container — to transcribe full-length (~1 hr) lesson recordings (Phase-2 done gate)
+
+Phase 2 transcribes lesson audio via Whisper (≤24 MB/request); a real ~1 hr lesson
+exceeds that at any bitrate, so it must be split→transcribed→stitched, and
+frame-aware splitting of compressed audio (m4a/mp3) needs **ffmpeg** (a system
+binary the orchestrator can't provision — apt is firewalled, devcontainer is
+human-owned, same class as the `api.openai.com` firewall change). GOAL §16/§17
+pre-approve ffmpeg as free OSS.
+
+**Your answer:** "I have added ffmpeg and the audio into lesson audio. Plug away sir"
+(+ the real 26 MB lesson fixture dropped into `docs/fixtures/lesson-audio/`).
+
+**Resolution (orchestrator, iteration 146):** Fully unblocked. The owner added
+`ffmpeg` to `.devcontainer/Dockerfile` (commit 466614a, iter 139) and — the step
+that was outstanding through iters 139–145 — **rebuilt the container**: verified
+this pass that `ffmpeg`/`ffprobe` 5.1.9 are live in `/usr/bin/` (`command -v`),
+the worker worktrees were wiped (the 2 ORPHANs report "no worktree — container
+rebuilt?"), and trunk is green on base after the rebuild (596 passed). The owner
+removed the iter-145 `STOP` file and re-ran the loop = resume signal. Acted:
+spawned `lesson-audio-oversized-splitting` (opus/high) to build the real
+ffmpeg `SplitAudio`; the real-recording validation run follows once it integrates
+(the 26 MB fixture needs the merged split path). Recorded in DECISIONS.md iter 146.
 
 ### [ANSWERED] Transcription provider: firewall host + API key (Phase 2 live use)
 

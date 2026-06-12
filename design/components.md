@@ -33,13 +33,14 @@ The active question frame in Review and Quiz.
 
 **Anatomy.** Surface `--color-surface`, `--radius-2`, `--shadow-1`, padding `--space-5`; contains (a) `WordEntry size=hero` _or_ a cloze stem (`--font-study`, `--text-lg`, `--leading-base`, blank rendered as 5 underscores in `--color-accent`), (b) prompt line (`--font-app`, `--text-sm`, `--color-ink-soft`: "Choose the definition." / "Choose the word." / "Complete the sentence.").
 
-**Props.** `mode: choice | flip` · `direction: wordToDef | defToWord | cloze`.
+**Props.** `mode: choice | flip | yesno` · `direction: wordToDef | defToWord | cloze`.
 
 **States.**
 
 - `questioning` — as above.
 - `answered` — unchanged (verdict lives on options/actions, not the card).
 - `flip front/back` — flip mode: front is hero entry; back adds the definition line(s) per the Settings preference (default: both) + example; transition: opacity `--motion-base` `--motion-ease` cross-fade, **no 3D rotation**.
+- `yesno front/revealed` — yesno mode (Review's binary format, `screens/review.md` §3.2b): front is the hero entry (or d2w cue) + prompt "Do you know it?", the whole card a tap target with a "Tap to reveal" hint below it; revealed keeps the question on top, adds a `--color-rule` hairline, then the same definition line(s) + example the flip-back shows (both sides visible at once). Cross-fade in the revealed half, `--motion-base`. The binary self-grade is two Buttons in the action region — "Didn't know" (`secondary`) / "Knew it" (`primary`) → SM-2 `fail` / `good` — not on the card. No MC options, no "Easy", no distractor pool needed.
 - Overflow: card max-height 60vh, inner scroll; prompt pinned at top of card.
 
 ---
