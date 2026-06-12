@@ -122,7 +122,7 @@ Transient confirmation, bottom-center (mobile: above AppNav), max-width 420px.
 
 **Variants.**
 
-- `primary` — background `--color-accent`, text `--color-accent-ink`, `--radius-1`, padding `--space-3` `--space-5`, `--font-app` `--text-base` `--weight-medium`; hover: background lightness +0.04; active: −0.04; busy: text → "…ing" form + disabled.
+- `primary` — background `--color-accent`, text `--color-accent-ink`, `--radius-1`, padding `--space-3` `--space-5`, `--font-app` `--text-base` `--weight-medium`; hover/active: background `--color-accent-strong` (named step, no runtime lightness math); busy: text → "…ing" form + disabled.
 - `secondary` — transparent, border 1px `--color-rule-strong`, text `--color-ink`; hover border `--color-ink-faint`.
 - `quiet` — no border, text `--color-accent`, underline on hover; for tertiary actions and links-that-act.
 - `danger` — as secondary but text/border `--color-incorrect`; only ever behind a confirm.
@@ -183,6 +183,46 @@ Voice capture for Ask questions (browser MediaRecorder).
 **Anatomy.** A 44px (`--hit-target`) square secondary-style button with a mic glyph, sitting beside the composer's Send. Recording state swaps it to a stop square plus an inline timer chip: 8px `--color-incorrect` dot pulsing at 1.2s (same animation budget as JobStatus running; removed under reduced-motion) + elapsed time `--font-meta` `--text-sm` ("0:42"). Cap 2:00; the last 15 s the timer counts down in `--color-incorrect`.
 
 **States.** `idle` · `recording` (as above; tap stops and submits) · `denied` (mic permission refused: "Microphone blocked. Allow it in the browser, or type instead." as a TextInput error line) · `transcribing` (button disabled; the pending turn carries the status).
+
+---
+
+### SiteHeader
+
+The persistent masthead + navigation (full spec in `screens/shell.md`). Composes nothing else of note; listed here as the canonical chrome component.
+
+**Anatomy.** Sticky bar, `--header-height` tall, `--color-paper`, bottom `--color-rule` hairline, content centered to `--measure-app`. Left: screen title `--font-app` `--text-lg` `--weight-bold` `--color-ink`. Right: at `bp-tablet`+ the nav links (`--font-app` `--text-sm` `--color-ink-soft`, hover `--color-ink`, active `--color-accent` + 2px `--color-accent` bottom rule) then the Ask Button, separated `--space-5`; below `bp-tablet` only the Ask Button (nav is the bottom `AppNav`).
+
+**States.** `default` · `scrolled` (no visual change beyond the always-present hairline — the bar never grows a shadow) · active-link per current route. Session screens render the session bar instead (shell.md), not this component.
+
+---
+
+### SiteFooter
+
+Quiet utility footer closing every non-session screen (full spec in `screens/shell.md`).
+
+**Anatomy.** Full-bleed `--color-paper-sunken` band, top `--color-rule` hairline, inner content `--measure-app` centered, padding-block `--space-6`. Row of quiet utility links (`--font-app` `--text-sm` `--color-ink-soft`, hover `--color-ink`): Ingest · Progress · System · Docs. Meta line `--font-meta` `--text-xs` `--color-ink-faint` stating live counts as a sentence, with a right-aligned theme-toggle quiet Button. No logotype, no copyright, no icons.
+
+**States.** Static. The theme toggle reflects and persists `data-theme`; its label is the *current* theme word.
+
+---
+
+### HomeHero
+
+The home centerpiece — the day's featured word as the app's largest entry. Composes `WordEntry`.
+
+**Anatomy.** Lifted object: `--color-surface`, `--radius-2`, `--shadow-3`, padding `--space-6` (`--space-5` phone). Inside: `WordEntry` with headword at `--text-display` (desktop) / `--text-3xl` (phone), `--tracking-display`, `--leading-display` — full entry (tagline, both definition lines, hanging-indent example). Below the entry: a `--font-meta` `--text-xs` `--color-ink-faint` provenance/status line; then a primary Button ("Start review" / "Start a quiz") with the due-count sentence beside it in `--font-meta`.
+
+**States.** `default` · `loading` (headword em-dash per WordEntry `loading`; reserve height to avoid shift) · `empty` (no words: the hero region renders an `EmptyState` centerpiece instead, not this component). Entrance: fade + rise `--space-2` over `--motion-slow` `--motion-ease`, removed under reduced-motion. The only use of `--shadow-3` and `--motion-slow` in the app.
+
+---
+
+### OverviewCard
+
+A single entry point on Home: a titled, status-stating link into one area.
+
+**Anatomy.** `<a>` block, `--color-surface`, `--radius-2`, `--shadow-1`, padding `--space-5`, min-height `--hit-target`. Title `--font-app` `--text-lg` `--weight-bold` `--color-ink`; status sentence below, `--font-app` `--text-sm` `--color-ink-soft` with any counts in `--font-meta` (counts-are-sentences). No icons.
+
+**States.** `default` · `hover/focus` (border → `--color-ink-faint`, title → `--color-accent`; transition `--motion-fast`) · `loading` (status counts em-dash) · `zero` (status sentence `--color-ink-faint`, an inviting verb — "No words yet — ingest a PDF to begin"). Whole card is one link/tap target.
 
 ---
 
