@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# iter-summary <iter-json> <out-md> [model]
+#
+# Write a short, human-readable summary of ONE orchestrator iteration beside
+# its JSON log. The raw logs/orchestrator/iter-N.json is a metadata envelope
+# with the status report buried in an escaped .result string — unpleasant to
+# read. This passes that report to a lightweight model (Sonnet, low thinking)
+# and asks for a couple of plain-English paragraphs the human can skim, so the
+# JSON no longer has to be copy-pasted elsewhere to be understood.
+#
+# Best-effort by contract: any missing tool, empty input, model error, or
+# timeout leaves no summary file and exits 0, so the orchestrate loop that
+# calls this can never break or stall on it. Requested in FEEDBACK (iter 145).
+set -uo pipefail
+
+json="${1:?usage: iter-summary <iter-json> <out-md> [model]}"
+out="${2:?usage: iter-summary <iter-json> <out-md> [model]}"
+model="${3:-sonnet}"
+
+# Quietly no-op if prerequisites are missing or the iteration produced no JSON.
+command -v claude >/dev/null 2>&1 || exit 0
+command -v jq     >/dev/null 2>&1 || exit 0
+[[ -s "$json" ]] || exit 0
+
+# Make `claude -p` authenticate regardless of who calls us. The orchestrate loop
+# already carries CLAUDE_CODE_OAUTH_TOKEN; a child shell or cron may not. Mirror
+# bin/spawn's worker-auth pattern: load the container env file only when no token
+# is already present. repo root is this script's parent dir (<repo>/bin/..).
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}${ANTHROPIC_API_KEY:-}" ] \
+        && [ -f "$repo_root/.devcontainer/devcontainer.env" ]; then
+    set -a; . "$repo_root/.devcontainer/devcontainer.env"; set +a
+fi
+
+label="$(basename "$json" .json)"
+
+# The orchestrator's own status report is the .result field; fall back to the
+# whole envelope if it's empty (e.g. an errored iteration).
+report="$(jq -r '.result // empty' "$json" 2>/dev/null)" || report=""
+[[ -n "$report" ]] || report="$(cat "$json" 2>/dev/null)"
+[[ -n "$report" ]] || exit 0
+
+prompt="You are writing a short status note for the human overseeing an autonomous
+coding orchestrator. Below is the end-of-iteration status report from one
+iteration ($label). Rewrite it for a busy human as 1-3 short paragraphs of plain
+English they can skim in under a minute: what actually happened this iteration
+(what was integrated, shipped, spawned, decided, escalated, or left blocked) and
+the project's current state at the end. Lead with the most important outcome. No
+preamble, no headings, no bullet lists, no markdown emphasis — just clear prose.
+Do not invent anything that is not in the report; if the report is thin, keep the
+summary thin.
+
+--- ITERATION REPORT ---
+$report"
+
+# Time-box the model call so a hung request can never stall the loop.
+runner=(claude -p "$prompt" --model "$model" --effort low)
+if command -v timeout >/dev/null 2>&1; then
+    runner=(timeout 180 "${runner[@]}")
+fi
+
+summary="$("${runner[@]}" 2>/dev/null)" || exit 0
+[[ -n "$summary" ]] || exit 0
+
+{
+    printf '# %s — run summary\n\n' "$label"
+    printf '%s\n' "$summary"
+} > "$out" 2>/dev/null || exit 0
+
+exit 0

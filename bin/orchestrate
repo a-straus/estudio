@@ -83,7 +83,7 @@ ORCH_EFFORT="${ORCH_EFFORT:-max}"
 ORCH_DESIGN_EFFORT="${ORCH_DESIGN_EFFORT:-high}"
 WORKER_EFFORT="${WORKER_EFFORT:-max}"
 ORCH_SYNC="${ORCH_SYNC:-0}"
-MAX_WORKERS="${MAX_WORKERS:-3}"
+MAX_WORKERS="${MAX_WORKERS:-5}"
 MAX_WORKER_TURNS="${MAX_WORKER_TURNS:-150}"
 WORKER_TIMEOUT_SECS="${WORKER_TIMEOUT_SECS:-7200}"
 ITERATION_TIMEOUT_SECS="${ITERATION_TIMEOUT_SECS:-2700}"
@@ -487,6 +487,16 @@ while :; do
     total_cost="$(awk -v a="$total_cost" -v b="$cost" 'BEGIN{printf "%.4f", a + b}')"
     log_line "iteration $iter done — \$$cost ($turns turns, $in_tok in / $out_tok out tokens, session $session)"
     [[ -n "$result" ]] && printf '%s\n' "$result"
+
+    # Human-readable iteration summary (FEEDBACK iter 145): pass this iteration's
+    # JSON to a lightweight model and write a couple-paragraph plain-English
+    # digest beside it (iter-N.md), so a run can be skimmed without parsing JSON.
+    # Best-effort and time-boxed inside iter-summary — never fatal to the loop.
+    if [[ -n "$result" ]]; then
+        "$(dirname "$self")/iter-summary" "$out_json" \
+            "logs/orchestrator/iter-$iter.md" "${ORCH_SUMMARY_MODEL:-sonnet}" \
+            >/dev/null 2>&1 || true
+    fi
 
     sync_push
 
