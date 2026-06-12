@@ -1,0 +1,121 @@
+/* Home — the `/` overview (home.md). A calm content spine of three stacked
+   bands: hero centerpiece, overview grid, activity well. Tokens only. */
+
+.home {
+  max-width: var(--measure-app);
+  margin-inline: auto;
+  padding: var(--space-7) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7); /* phone band rhythm */
+}
+
+/* --- Hero band --- */
+
+.home__band--hero {
+  display: flex;
+  justify-content: center;
+  /* Reserve height so the loading em-dash → full entry causes no layout jump. */
+  min-height: 13rem;
+}
+
+.home__band--hero .home-hero {
+  width: 100%;
+}
+
+/* HomeHero already renders the headword at display scale; the WordEntry inside
+   the subhead supplies the rest of the entry, so hide its duplicate headword. */
+.home__band--hero .home-hero__subhead .word-entry__headword {
+  display: none;
+}
+
+.home__provenance {
+  display: block;
+  margin-top: var(--space-3);
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  line-height: var(--leading-snug);
+}
+
+.home__due-sentence {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+/* --- Overview grid --- */
+
+.home__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+}
+
+/* --- Activity band --- */
+
+.home__activity {
+  background: var(--color-paper-sunken);
+  border-top: 1px solid var(--color-rule);
+  padding: var(--space-6) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.home__recent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.home__recent-label {
+  margin: 0;
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  line-height: var(--leading-snug);
+}
+
+.home__recent-row {
+  display: block;
+  text-decoration: none;
+  border-radius: var(--radius-2);
+  padding: var(--space-2);
+  transition: background var(--motion-fast) var(--motion-ease);
+}
+
+.home__recent-row:hover,
+.home__recent-row:focus-visible {
+  background: var(--color-surface);
+}
+
+.home__recent-row:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* bp-tablet: two-column grid, looser band rhythm. */
+@media (min-width: 640px) {
+  .home {
+    padding: var(--space-9) var(--space-5);
+    gap: var(--space-9);
+  }
+
+  .home__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* bp-desktop: three-column grid. */
+@media (min-width: 960px) {
+  .home__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home__recent-row {
+    transition: none;
+  }
+}

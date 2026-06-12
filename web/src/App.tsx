@@ -1,5 +1,6 @@
-import "./App.css";
+import { AppShell } from "./components";
 import { Grammar } from "./screens/Grammar";
+import { Home } from "./screens/Home";
 import { Lesson } from "./screens/Lesson";
 import { Ingest } from "./screens/Ingest";
 import { Library } from "./screens/Library";
@@ -7,10 +8,15 @@ import { Quiz } from "./screens/Quiz";
 import { Review } from "./screens/Review";
 import { System } from "./screens/System";
 import { Triage } from "./screens/Triage";
+import { applyTheme, readTheme } from "./theme";
 
-// Minimal routing until the full app shell lands: the triage screen is reached
-// at /triage?source=<id> (linked from Today/Ingest in later tasks). Anything
-// else shows the placeholder shell.
+// Apply the persisted theme before first paint, for every screen (including the
+// session screens, which carry no footer toggle of their own).
+applyTheme(readTheme());
+
+// Minimal routing: the app routes on window.location.pathname (no react-router).
+// Session screens (Review, Triage, Quiz play) take the full screen with no
+// chrome; every other screen is wrapped in the shared AppShell.
 function readSourceId(): number | null {
   const { pathname, search } = window.location;
   if (!pathname.startsWith("/triage")) return null;
@@ -40,6 +46,7 @@ function readLessonTopicId(): number | null {
 }
 
 export function App() {
+  // --- Session screens: full-screen takeover, no SiteHeader/SiteFooter. ---
   const sourceId = readSourceId();
   if (sourceId !== null) {
     return <Triage sourceId={sourceId} />;
@@ -50,38 +57,63 @@ export function App() {
     return <Review deckId={deckId} />;
   }
 
+  // --- Non-session screens: wrapped in the shared AppShell chrome. ---
   if (window.location.pathname.startsWith("/library")) {
-    return <Library />;
+    return (
+      <AppShell title="Library" activeHref="/library">
+        {() => <Library />}
+      </AppShell>
+    );
   }
 
   if (window.location.pathname.startsWith("/ingest")) {
-    return <Ingest />;
+    return (
+      <AppShell title="Ingest" activeHref="/ingest">
+        {() => <Ingest />}
+      </AppShell>
+    );
   }
 
   const lessonTopicId = readLessonTopicId();
   if (lessonTopicId !== null) {
-    return <Lesson topicId={lessonTopicId} />;
+    return (
+      <AppShell title="Lesson" activeHref="/grammar">
+        {() => <Lesson topicId={lessonTopicId} />}
+      </AppShell>
+    );
   }
 
   if (window.location.pathname.startsWith("/grammar")) {
-    return <Grammar />;
+    return (
+      <AppShell title="Grammar" activeHref="/grammar">
+        {() => <Grammar />}
+      </AppShell>
+    );
   }
 
+  // Quiz is one component for both config and play. Config shows the chrome;
+  // the play phase visually takes over per shell.md's session rule (Quiz owns
+  // that internally — we don't refactor it here).
   if (window.location.pathname.startsWith("/quiz")) {
-    return <Quiz />;
+    return (
+      <AppShell title="Quiz" activeHref="/quiz">
+        {() => <Quiz />}
+      </AppShell>
+    );
   }
 
   if (window.location.pathname.startsWith("/system")) {
-    return <System />;
+    return (
+      <AppShell title="System" activeHref="/system">
+        {() => <System />}
+      </AppShell>
+    );
   }
 
+  // --- Home (`/`): the navigable overview front door. ---
   return (
-    <main className="app-shell">
-      <h1 className="app-shell__title">Estudio</h1>
-      <p className="app-shell__note">
-        Open <code>/triage?source=&lt;id&gt;</code> to sort an extraction, or{" "}
-        <code>/review</code> to study what&rsquo;s due.
-      </p>
-    </main>
+    <AppShell title="Home" activeHref="/">
+      {(overview) => <Home overview={overview} />}
+    </AppShell>
   );
 }

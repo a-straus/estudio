@@ -1,0 +1,14 @@
+/* AppShell — the shared chrome layout (shell.md D3). Header sticky at top,
+   content spine in the middle, static footer at the end. */
+
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--color-paper);
+}
+
+/* The content spine grows to push the footer to the bottom on short pages. */
+.app-layout__main {
+  flex: 1 0 auto;
+}
