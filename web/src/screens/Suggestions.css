@@ -1,0 +1,129 @@
+/* Suggestions screen — centered single-card layout. */
+
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-5) var(--space-4);
+  gap: var(--space-4);
+  width: 100%;
+}
+
+/* Tally: "12 SUGGESTED · 7 ADDED · 5 SKIPPED" */
+.suggestions__tally {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* Proposal card — same surface anatomy as ReviewCard */
+.suggestion-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-5);
+  width: 100%;
+  max-width: 520px;
+  transition: opacity var(--motion-base) var(--motion-ease);
+}
+
+.suggestion-card--fading {
+  opacity: 0;
+}
+
+/* Interim "Choosing the next one…" state shown during loading */
+.suggestion-card__choosing {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-faint);
+  padding: var(--space-4) 0;
+}
+
+/* Reason line beneath the word/topic content */
+.suggestion-card__reason {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  margin-top: var(--space-3);
+}
+
+/* Topic variant */
+.suggestion-card__topic-title {
+  font-family: var(--font-app);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-ink);
+  line-height: var(--leading-tight);
+  margin-bottom: var(--space-2);
+}
+
+.suggestion-card__topic-preview {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  color: var(--color-ink-soft);
+  line-height: var(--leading-base);
+}
+
+/* Action buttons */
+.suggestions__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 520px;
+}
+
+.suggestions__actions .btn {
+  width: 100%;
+  min-height: var(--hit-target);
+}
+
+/* Key hints — hidden on mobile, shown on desktop */
+.suggestions__key-hint {
+  display: none;
+  margin-left: var(--space-2);
+  opacity: 0.6;
+}
+
+/* Error state */
+.suggestions__error {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  color: var(--color-ink-soft);
+  text-align: center;
+}
+
+/* bp-tablet (640px): side-by-side buttons */
+@media (min-width: 640px) {
+  .suggestions__actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .suggestions__actions .btn {
+    width: auto;
+    min-width: 140px;
+  }
+}
+
+/* bp-desktop (960px): show keyboard hints */
+@media (min-width: 960px) {
+  .suggestions__key-hint {
+    display: inline;
+    font-family: var(--font-meta);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-meta);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .suggestion-card {
+    transition-duration: 0ms;
+  }
+}
