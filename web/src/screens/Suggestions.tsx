@@ -174,7 +174,7 @@ export function Suggestions() {
               example={suggestion.example ?? undefined}
             />
             <p className="suggestion-card__reason">
-              SUGGESTED · {suggestion.reason}
+              <span className="suggestion-card__reason-label">SUGGESTED · </span>{suggestion.reason}
             </p>
           </>
         ) : suggestion?.type === "grammar_topic" ? (
@@ -182,7 +182,7 @@ export function Suggestions() {
             <p className="suggestion-card__topic-title">{suggestion.name}</p>
             <p className="suggestion-card__topic-preview">{suggestion.preview}</p>
             <p className="suggestion-card__reason">
-              SUGGESTED · {suggestion.reason}
+              <span className="suggestion-card__reason-label">SUGGESTED · </span>{suggestion.reason}
             </p>
           </>
         ) : (

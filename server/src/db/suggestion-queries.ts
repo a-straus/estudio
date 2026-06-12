@@ -131,7 +131,7 @@ export function insertWordSuggestion(
   db: DB,
   payload: WordPayload,
 ): SuggestionView | null {
-  const normalizedKey = normalize(payload.term);
+  const normalizedKey = normalize(payload.lemma ?? payload.term);
 
   const exists = db
     .prepare(
@@ -140,10 +140,10 @@ export function insertWordSuggestion(
     .get(normalizedKey);
   if (exists) return null;
 
-  // Don't suggest a word already in the deck (any language variant).
+  // Don't suggest a word whose lemma is already in the deck.
   const inDeck = db
     .prepare(
-      "SELECT 1 FROM word WHERE term_normalized = ? AND language = ?",
+      "SELECT 1 FROM word WHERE lemma_normalized = ? AND language = ?",
     )
     .get(normalizedKey, payload.language ?? "es");
   if (inDeck) return null;
@@ -179,7 +179,12 @@ export function insertTopicSuggestion(
   db: DB,
   payload: TopicPayload,
 ): SuggestionView | null {
-  const normalizedKey = String(payload.topicId);
+  const topicRow = db
+    .prepare("SELECT name FROM grammar_topic WHERE id = ?")
+    .get(payload.topicId) as { name: string } | undefined;
+  if (!topicRow) return null;
+
+  const normalizedKey = normalize(topicRow.name);
 
   const exists = db
     .prepare(
@@ -187,11 +192,6 @@ export function insertTopicSuggestion(
     )
     .get(normalizedKey);
   if (exists) return null;
-
-  const topicRow = db
-    .prepare("SELECT name FROM grammar_topic WHERE id = ?")
-    .get(payload.topicId) as { name: string } | undefined;
-  if (!topicRow) return null;
 
   const now = nowIso();
   const result = db
@@ -268,7 +268,7 @@ export interface CalibrationSignal {
 export function gatherCalibrationSignal(db: DB): CalibrationSignal {
   const rows = db
     .prepare(
-      "SELECT term_normalized FROM word WHERE language = 'es' ORDER BY created_at DESC LIMIT 120",
+      "SELECT term_normalized FROM word WHERE language = 'es' AND status IN ('known','mature') ORDER BY created_at DESC LIMIT 120",
     )
     .all() as { term_normalized: string }[];
   const deckWordCount = (

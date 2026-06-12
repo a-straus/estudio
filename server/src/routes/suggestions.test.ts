@@ -16,6 +16,11 @@ import { LlmService } from "../llm/service.js";
 import type { LlmProvider } from "../llm/types.js";
 import { registerSuggestionRoutes } from "./suggestions.js";
 import { normalize } from "@estudio/shared";
+import {
+  insertWordSuggestion,
+  gatherCalibrationSignal,
+  type WordPayload,
+} from "../db/suggestion-queries.js";
 
 let dataDir: string;
 let db: DB;
@@ -181,12 +186,13 @@ describe("GET /api/suggestions/next", () => {
     expect(res.body.suggestion).toBeNull();
   });
 
-  it("does not suggest a word already in the deck", async () => {
+  it("does not suggest a word already in the deck (matched on lemma_normalized)", async () => {
+    // lemma_normalized must match; term_normalized alone is not enough (S1 fix).
     db.prepare(
       `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language,
          part_of_speech, definition_en, status, deck_id)
-       VALUES ('desenvolverse', ?, null, null, 'es', 'verbo', 'to cope', 'new', 1)`,
-    ).run(normalize("desenvolverse"));
+       VALUES ('desenvolverse', ?, 'desenvolverse', ?, 'es', 'verbo', 'to cope', 'new', 1)`,
+    ).run(normalize("desenvolverse"), normalize("desenvolverse"));
 
     const res = await request(app).get("/api/suggestions/next").expect(200);
     expect(res.body.suggestion).toBeNull();
@@ -303,5 +309,118 @@ describe("POST /api/suggestions/:id/decision", () => {
       .post(`/api/suggestions/${id}/decision`)
       .send({ action: "maybe" })
       .expect(400);
+  });
+
+  // S2: addWordToDeck failure → non-2xx, suggestion stays pending
+  it("returns 500 and keeps suggestion pending when addWordToDeck fails", async () => {
+    // Pre-insert a word so addWordToDeck hits a UNIQUE constraint.
+    db.prepare(
+      `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language,
+         part_of_speech, definition_en, status, deck_id)
+       VALUES ('desenvolverse', ?, 'desenvolverse', ?, 'es', 'verbo', 'to cope', 'new', 1)`,
+    ).run(normalize("desenvolverse"), normalize("desenvolverse"));
+
+    // Manually insert a pending suggestion (bypassing deck-exclusion).
+    const payload: WordPayload = {
+      term: "desenvolverse",
+      lemma: "desenvolverse",
+      language: "es",
+      partOfSpeech: "verbo",
+      level: "C1",
+      glossEs: null,
+      glossEn: null,
+      example: null,
+      reason: "test",
+    };
+    const now = new Date().toISOString();
+    const { lastInsertRowid } = db
+      .prepare(
+        `INSERT INTO suggestion (item_type, normalized_key, payload, status, created_at, updated_at)
+         VALUES ('word', ?, ?, 'pending', ?, ?)`,
+      )
+      .run(normalize("desenvolverse"), JSON.stringify(payload), now, now);
+    const id = Number(lastInsertRowid);
+
+    await request(app)
+      .post(`/api/suggestions/${id}/decision`)
+      .send({ action: "add" })
+      .expect(500);
+
+    const { status } = db
+      .prepare("SELECT status FROM suggestion WHERE id = ?")
+      .get(id) as { status: string };
+    expect(status).toBe("pending");
+  });
+});
+
+// S1: uniqueness & deck-exclusion keyed on lemma, not surface term
+describe("insertWordSuggestion (S1 lemma keying)", () => {
+  it("excludes a suggestion whose lemma is already in the deck", () => {
+    // Deck has 'corriendo' with lemma 'correr'.
+    db.prepare(
+      `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language, status, deck_id)
+       VALUES ('corriendo', ?, 'correr', ?, 'es', 'new', 1)`,
+    ).run(normalize("corriendo"), normalize("correr"));
+
+    const payload: WordPayload = {
+      term: "corro",
+      lemma: "correr",
+      language: "es",
+      partOfSpeech: null,
+      level: null,
+      glossEs: null,
+      glossEn: null,
+      example: null,
+      reason: "test",
+    };
+    // 'corro' (lemma 'correr') should be blocked because lemma_normalized='correr' is in deck.
+    expect(insertWordSuggestion(db, payload)).toBeNull();
+  });
+
+  it("blocks a second surface form when the same lemma was already suggested", () => {
+    const base: Omit<WordPayload, "term"> = {
+      lemma: "correr",
+      language: "es",
+      partOfSpeech: null,
+      level: null,
+      glossEs: null,
+      glossEn: null,
+      example: null,
+      reason: "test",
+    };
+    // First surface form: inserted fine.
+    const first = insertWordSuggestion(db, { ...base, term: "corriendo" });
+    expect(first).not.toBeNull();
+
+    // Second surface form with the same lemma: blocked.
+    const second = insertWordSuggestion(db, { ...base, term: "corro" });
+    expect(second).toBeNull();
+  });
+});
+
+// S3: calibration signal uses only known/mature words
+describe("gatherCalibrationSignal (S3)", () => {
+  it("returns only known/mature words in deckWords", () => {
+    const words = [
+      ["conocido", "known"],
+      ["maduro", "mature"],
+      ["nuevo", "new"],
+      ["aprendiendo", "learning"],
+      ["suspendido", "suspended"],
+    ] as const;
+    for (const [term, status] of words) {
+      db.prepare(
+        `INSERT INTO word (term, term_normalized, language, status, deck_id)
+         VALUES (?, ?, 'es', ?, 1)`,
+      ).run(term, normalize(term), status);
+    }
+
+    const signal = gatherCalibrationSignal(db);
+    // Only known + mature in the calibration sample.
+    expect(signal.deckWords).toHaveLength(2);
+    expect(signal.deckWords).toContain("conocido");
+    expect(signal.deckWords).toContain("maduro");
+    // Total deck count includes all statuses.
+    expect(signal.deckWordCount).toBe(5);
   });
 });
