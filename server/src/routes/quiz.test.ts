@@ -213,7 +213,7 @@ describe("POST /api/quiz/answer — miss writes SRS failure and pulls due now", 
     expect(card.due_at >= before).toBe(true);
   });
 
-  it("a def_match miss logs the quiz direction with a null quiz_question_id", async () => {
+  it("a def_match miss logs the quiz direction and carries its quiz_question_id", async () => {
     const wordId = insertWord();
     insertCard(wordId, FUTURE);
     const qid = insertQuestion(wordId, defMatch({ direction: "d2w" }));
@@ -223,11 +223,12 @@ describe("POST /api/quiz/answer — miss writes SRS failure and pulls due now", 
       .send({ questionId: qid, given: "car", direction: "d2w" });
 
     const logs = reviewLogRows();
+    // def_match misses are now traceable to the exact question served.
     expect(logs[0]).toMatchObject({
       word_id: wordId,
       direction: "d2w",
       origin: "quiz",
-      quiz_question_id: null,
+      quiz_question_id: qid,
     });
   });
 

@@ -179,7 +179,9 @@ export function registerQuizRoutes(
       recordQuizMiss(db, {
         wordId: q.wordId,
         direction: renderDirection(q),
-        quizQuestionId: q.style === "cloze" ? q.id : null,
+        // Every quiz-origin miss carries its question id, def_match included, so
+        // the failure is traceable back to the exact question that was served.
+        quizQuestionId: q.id,
       });
     }
 

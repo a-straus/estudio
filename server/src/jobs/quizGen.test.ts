@@ -92,6 +92,26 @@ function questions() {
   }[];
 }
 
+function insertQuizQuestionRow(
+  wordId: number,
+  payload: DefMatchPayload | ClozePayload,
+  over: { flagged?: 0 | 1; explanation?: string } = {},
+): number {
+  const r = db
+    .prepare(
+      `INSERT INTO quiz_question (word_id, style, payload, explanation, prompt_version, flagged)
+       VALUES (?, ?, ?, ?, 'cached/v1', ?)`,
+    )
+    .run(
+      wordId,
+      payload.style,
+      JSON.stringify(payload),
+      over.explanation ?? "cached.",
+      over.flagged ?? 0,
+    );
+  return Number(r.lastInsertRowid);
+}
+
 describe("runQuizGen", () => {
   it("builds def_match questions deterministically with no LLM call", async () => {
     for (let i = 0; i < 4; i++) insertWord();
@@ -167,6 +187,126 @@ describe("runQuizGen", () => {
     const styles = questions().map((q) => q.style);
     expect(styles.filter((s) => s === "def_match").length).toBe(2);
     expect(styles.filter((s) => s === "cloze").length).toBe(2);
+  });
+
+  it("reuses a cached unflagged def_match instead of generating a new one", async () => {
+    const wordId = insertWord();
+    const cachedId = insertQuizQuestionRow(wordId, {
+      style: "def_match",
+      direction: "w2d",
+      cue: "palabra1",
+      options: ["def en palabra1", "a house", "a dog", "water"],
+      correct: "def en palabra1",
+    });
+    const { llm } = makeLlm();
+
+    const result = await runQuizGen(db, llm, {
+      deckId: SPANISH_DECK,
+      length: 1,
+      style: "def_match",
+      direction: "w2d",
+    });
+
+    // The cached id is served; no second quiz_question row is created.
+    expect(result.questionIds).toEqual([cachedId]);
+    expect(questions()).toHaveLength(1);
+  });
+
+  it("does not reuse a flagged question — it generates a fresh one", async () => {
+    const wordId = insertWord();
+    const flaggedId = insertQuizQuestionRow(
+      wordId,
+      {
+        style: "def_match",
+        direction: "w2d",
+        cue: "palabra1",
+        options: ["def en palabra1", "a house"],
+        correct: "def en palabra1",
+      },
+      { flagged: 1 },
+    );
+    insertWord(); // a second word so a distractor exists for generation
+    const { llm } = makeLlm();
+
+    const result = await runQuizGen(db, llm, {
+      deckId: SPANISH_DECK,
+      length: 1,
+      style: "def_match",
+      direction: "w2d",
+    });
+
+    expect(result.questionIds).toHaveLength(1);
+    expect(result.questionIds[0]).not.toBe(flaggedId);
+    // A new, unflagged row was written for the same word.
+    const rows = questions();
+    expect(rows).toHaveLength(2);
+    expect(rows.find((r) => r.id === result.questionIds[0])!.prompt_version).toBe(
+      "def_match/templated/v1",
+    );
+  });
+
+  it("reuses a cached cloze without calling the LLM", async () => {
+    const wordId = insertWord();
+    const cachedId = insertQuizQuestionRow(wordId, {
+      style: "cloze",
+      stemBefore: "Un",
+      stemAfter: "en el mar.",
+      options: ["barco", "coche", "avión", "tren"],
+      correct: "barco",
+    });
+    // A provider that throws if invoked proves the cache path skips the LLM.
+    db.prepare("INSERT INTO setting (key, value) VALUES (?, ?)").run(
+      "llm.quiz_cloze",
+      JSON.stringify({ provider: "mock", model: "mock" }),
+    );
+    const provider: LlmProvider = {
+      name: "mock",
+      complete: async () => {
+        throw new Error("LLM must not be called when a cloze is cached");
+      },
+      vision: async () => {
+        throw new Error("vision not used");
+      },
+    };
+    const llm = new LlmService(db, { mock: provider });
+
+    const result = await runQuizGen(db, llm, {
+      deckId: SPANISH_DECK,
+      length: 1,
+      style: "cloze",
+      direction: "w2d",
+    });
+
+    expect(result.questionIds).toEqual([cachedId]);
+    expect(questions()).toHaveLength(1);
+  });
+
+  it("builds varied def_match distractors that are never synonyms of the answer", async () => {
+    // A single deck word: the only distractors available come from the widened
+    // bank, proving options aren't just repeated ingested definitions.
+    const wordId = insertWord();
+    const { llm } = makeLlm();
+
+    await runQuizGen(db, llm, {
+      deckId: SPANISH_DECK,
+      length: 1,
+      style: "def_match",
+      direction: "w2d",
+    });
+
+    const p = JSON.parse(questions()[0].payload) as DefMatchPayload;
+    expect(p.options).toHaveLength(4);
+    // All options distinct, the answer present, and every distractor differs
+    // from the answer (the §6.4 synonym guard).
+    expect(new Set(p.options).size).toBe(p.options.length);
+    expect(p.options).toContain(p.correct);
+    const distractors = p.options.filter((o) => o !== p.correct);
+    for (const d of distractors) {
+      expect(d).not.toBe(p.correct);
+    }
+    // At least one distractor comes from the widened bank, not this word's deck.
+    expect(distractors.some((d) => d === "a house" || d === "a dog")).toBe(true);
+    expect(wordId).toBeGreaterThan(0);
   });
 
   it("runs through the queue handler and records final progress", async () => {

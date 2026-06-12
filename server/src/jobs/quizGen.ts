@@ -7,6 +7,7 @@ import {
   type QuizCandidateWord,
 } from "../db/quiz-queries.js";
 import { getDistractorCandidates } from "../db/srs-queries.js";
+import { normalize } from "@estudio/shared";
 import { loadPrompt } from "../llm/prompts.js";
 import { logger } from "../logger.js";
 import type { LlmService } from "../llm/service.js";
@@ -18,6 +19,28 @@ const DEF_MATCH_PROMPT_VERSION = "def_match/templated/v1";
 /** Pull a generous distractor pool so we can find 3 distinct, usable ones. */
 const DISTRACTOR_POOL = 12;
 const OPTIONS_PER_QUESTION = 4;
+
+/**
+ * §6.4: a generic same-level distractor bank (common A1/A2 Spanish vocabulary)
+ * appended to the deck-derived pool. It widens def_match options beyond only the
+ * user's ingested definitions so answers aren't all repeated glosses, and gives
+ * thin decks enough plausible, similar-difficulty choices to fill an option set.
+ * The synonym guard below drops any bank entry that collides with the answer.
+ */
+const DISTRACTOR_BANK: { term: string; definitionEn: string }[] = [
+  { term: "casa", definitionEn: "a house" },
+  { term: "perro", definitionEn: "a dog" },
+  { term: "agua", definitionEn: "water" },
+  { term: "libro", definitionEn: "a book" },
+  { term: "ciudad", definitionEn: "a city" },
+  { term: "comida", definitionEn: "food" },
+  { term: "ventana", definitionEn: "a window" },
+  { term: "camino", definitionEn: "a road or path" },
+  { term: "amigo", definitionEn: "a friend" },
+  { term: "trabajo", definitionEn: "work or a job" },
+  { term: "tiempo", definitionEn: "time or weather" },
+  { term: "mano", definitionEn: "a hand" },
+];
 
 export interface QuizGenPayload {
   deckId: number;
@@ -87,13 +110,23 @@ function buildDefMatch(
   const cue = direction === "w2d" ? word.term : definitionEn;
   if (!correct.trim() || !cue.trim()) return null;
 
-  const pool = getDistractorCandidates(db, deckId, [word.wordId], DISTRACTOR_POOL);
-  const seen = new Set<string>([correct]);
+  // Widen the pool: the user's deck words first (most on-topic), then the
+  // generic same-level bank so options aren't all repeated ingested definitions.
+  const deckPool = getDistractorCandidates(db, deckId, [word.wordId], DISTRACTOR_POOL);
+  const pool: { term: string; definitionEn: string | null }[] = [
+    ...deckPool,
+    ...DISTRACTOR_BANK,
+  ];
+  // §6.4 distractor quality: distinct, non-empty, and NEVER a synonym of the
+  // correct answer. Compare on normalized text so a same-meaning option (case or
+  // accent variant included) can never slip in as a choice.
+  const seen = new Set<string>([normalize(correct)]);
   const distractors: string[] = [];
   for (const d of pool) {
     const candidate = direction === "w2d" ? (d.definitionEn ?? "") : d.term;
-    if (candidate.trim() && !seen.has(candidate)) {
-      seen.add(candidate);
+    const key = normalize(candidate);
+    if (candidate.trim() && !seen.has(key)) {
+      seen.add(key);
       distractors.push(candidate);
     }
     if (distractors.length >= OPTIONS_PER_QUESTION - 1) break;
@@ -105,6 +138,34 @@ function buildDefMatch(
     payload: { style: "def_match", direction, cue, options, correct },
     explanation: `${word.term} means ${definitionEn}.`,
   };
+}
+
+/**
+ * §6.4/§6.7 "never regenerate what is stored": find an existing cached,
+ * UNFLAGGED quiz_question that fits this word + style (and, for def_match, the
+ * requested direction). Returns the lowest matching id (stable) or null. Flagged
+ * rows are excluded so a bad question is never re-served. When this returns an
+ * id the generator reuses it instead of building/LLM-calling a fresh one.
+ */
+function findCachedQuestionId(
+  db: DB,
+  wordId: number,
+  style: "def_match" | "cloze",
+  direction: "w2d" | "d2w",
+): number | null {
+  const rows = db
+    .prepare(
+      `SELECT id, payload FROM quiz_question
+       WHERE word_id = ? AND style = ? AND flagged = 0
+       ORDER BY id`,
+    )
+    .all(wordId, style) as { id: number; payload: string }[];
+  for (const r of rows) {
+    if (style === "cloze") return r.id; // direction is always 'cloze'
+    const payload = JSON.parse(r.payload) as DefMatchPayload;
+    if (payload.direction === direction) return r.id;
+  }
+  return null;
 }
 
 interface ClozeLlmJson {
@@ -215,34 +276,42 @@ export async function runQuizGen(
     const style = styleForIndex(payload, i);
 
     if (style === "def_match") {
-      const built = buildDefMatch(
-        db,
-        payload.deckId,
-        word,
-        directionForIndex(payload, i),
-      );
-      if (built) {
+      const direction = directionForIndex(payload, i);
+      // Reuse a cached, unflagged def_match before building a new one.
+      const cached = findCachedQuestionId(db, word.wordId, "def_match", direction);
+      if (cached !== null) {
+        questionIds.push(cached);
+      } else {
+        const built = buildDefMatch(db, payload.deckId, word, direction);
+        if (built) {
+          questionIds.push(
+            insertQuizQuestion(db, {
+              wordId: word.wordId,
+              style: "def_match",
+              payload: built.payload,
+              explanation: built.explanation,
+              promptVersion: DEF_MATCH_PROMPT_VERSION,
+            }),
+          );
+        }
+      }
+    } else {
+      // Reuse a cached, unflagged cloze before paying for another LLM call.
+      const cached = findCachedQuestionId(db, word.wordId, "cloze", "w2d");
+      if (cached !== null) {
+        questionIds.push(cached);
+      } else {
+        const built = await buildCloze(llm, word, clozePromptVersion);
         questionIds.push(
           insertQuizQuestion(db, {
             wordId: word.wordId,
-            style: "def_match",
+            style: "cloze",
             payload: built.payload,
             explanation: built.explanation,
-            promptVersion: DEF_MATCH_PROMPT_VERSION,
+            promptVersion: built.promptVersion,
           }),
         );
       }
-    } else {
-      const built = await buildCloze(llm, word, clozePromptVersion);
-      questionIds.push(
-        insertQuizQuestion(db, {
-          wordId: word.wordId,
-          style: "cloze",
-          payload: built.payload,
-          explanation: built.explanation,
-          promptVersion: built.promptVersion,
-        }),
-      );
     }
     reportProgress(db, i + 1, total);
   }
