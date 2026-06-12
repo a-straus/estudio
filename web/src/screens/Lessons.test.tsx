@@ -137,6 +137,24 @@ describe("Lessons — list", () => {
     expect(screen.getByText(/4 flagged · 6 corrections · 3 topics/)).toBeTruthy();
   });
 
+  it("rounds fractional durationMinutes to whole number in title", async () => {
+    mockApi.fetchLessons.mockResolvedValue([lessonRow({ durationMinutes: 58.4333 })]);
+    render(<Lessons />);
+    await waitFor(() => {
+      expect(screen.getByText(/· 58 min/)).toBeTruthy();
+    });
+    expect(screen.queryByText(/58\.4/)).toBeNull();
+  });
+
+  it("omits min segment when durationMinutes is null", async () => {
+    mockApi.fetchLessons.mockResolvedValue([lessonRow({ durationMinutes: null })]);
+    render(<Lessons />);
+    await waitFor(() => {
+      expect(screen.getByText(/Lesson · Jun 9/)).toBeTruthy();
+    });
+    expect(screen.queryByText(/min/)).toBeNull();
+  });
+
   it("shows JobStatus for a processing lesson", async () => {
     mockApi.fetchLessons.mockResolvedValue([
       lessonRow({
