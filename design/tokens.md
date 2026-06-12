@@ -85,6 +85,7 @@ Single source of truth. Every value in D3–D6 references these names. The dark 
   --color-incorrect-wash: oklch(0.95 0.018 25);
 
   --color-focus: var(--color-accent); /* 2px outline, 2px offset */
+  --color-scrim: oklch(0.24 0.012 95 / 0.32); /* modal / overlay backdrop dim */
 
   /* ---- Spacing ---- */
   --space-1: 4px;
@@ -142,6 +143,7 @@ Single source of truth. Every value in D3–D6 references these names. The dark 
   --color-correct-wash: oklch(0.29 0.03 155);
   --color-incorrect: oklch(0.72 0.09 25);
   --color-incorrect-wash: oklch(0.3 0.03 25);
+  --color-scrim: oklch(0 0 0 / 0.5);
 
   --shadow-1: 0 1px 2px oklch(0 0 0 / 0.4);
   --shadow-2: 0 4px 16px oklch(0 0 0 / 0.5);
