@@ -269,7 +269,6 @@ export function Library() {
       >
         <section className="library__list-pane" aria-label="Word list">
           <header className="library__toolbar">
-            <h1 className="library__title">Library</h1>
             <div className="library__search">
               <TextInput
                 label="Search words"
