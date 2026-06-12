@@ -9,6 +9,40 @@ interface GrammarProps {
   pollIntervalMs?: number;
 }
 
+/** Coarse curriculum-build progress the seed job streams onto its job row. */
+interface SeedProgress {
+  phase: "generating" | "writing";
+  categories: number;
+  topics: number;
+}
+
+function readSeedProgress(progress: unknown): SeedProgress | null {
+  if (
+    progress &&
+    typeof progress === "object" &&
+    "phase" in progress &&
+    (progress.phase === "generating" || progress.phase === "writing")
+  ) {
+    const p = progress as Record<string, unknown>;
+    return {
+      phase: progress.phase,
+      categories: typeof p.categories === "number" ? p.categories : 0,
+      topics: typeof p.topics === "number" ? p.topics : 0,
+    };
+  }
+  return null;
+}
+
+/** The stage line under the seeding spinner; counts appear once they stream. */
+function seedStageLine(progress: SeedProgress | null): string {
+  if (progress?.phase === "writing") {
+    const cats = `${progress.categories} ${progress.categories === 1 ? "category" : "categories"}`;
+    const tops = `${progress.topics} ${progress.topics === 1 ? "topic" : "topics"}`;
+    return `Writing ${cats} · ${tops}…`;
+  }
+  return "Building your grammar curriculum… ~30s";
+}
+
 /**
  * Row meta in the machine voice: "quizzed twice · seen in 2 lessons · 80%", or
  * "unread" when the topic has no quizzes, no lesson sightings, and zero mastery.
@@ -68,6 +102,7 @@ export function Grammar({ pollIntervalMs = 1000 }: GrammarProps) {
 
   const [seedJobId, setSeedJobId] = useState<number | null>(null);
   const [seedState, setSeedState] = useState<JobState | null>(null);
+  const [seedProgress, setSeedProgress] = useState<SeedProgress | null>(null);
   const [seedError, setSeedError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -90,6 +125,7 @@ export function Grammar({ pollIntervalMs = 1000 }: GrammarProps) {
 
   const startSeeding = useCallback(async () => {
     setSeedError(null);
+    setSeedProgress(null);
     setSeedState("queued");
     try {
       const { jobId } = await seedGrammar();
@@ -118,6 +154,7 @@ export function Grammar({ pollIntervalMs = 1000 }: GrammarProps) {
         const view = jobs.find((j) => j.id === seedJobId);
         if (!active || !view) return;
         setSeedState(view.status as JobState);
+        setSeedProgress(readSeedProgress(view.progress));
         if (view.status === "done") {
           setSeedJobId(null);
           void load();
@@ -159,7 +196,7 @@ export function Grammar({ pollIntervalMs = 1000 }: GrammarProps) {
           {seeding ? (
             <JobStatus
               state={seedState as JobState}
-              stage="Building your grammar curriculum… ~30s"
+              stage={seedStageLine(seedProgress)}
             />
           ) : (
             <EmptyState message="No grammar curriculum yet. Seed it to get a B1–C1 set of topics.">

@@ -121,7 +121,11 @@ describe("POST /api/sources/text", () => {
   it("creates a text source + chunk pages and enqueues the job", async () => {
     const res = await request(app)
       .post("/api/sources/text")
-      .send({ title: "My notes", text: "Una frase con estrépito.", language: "es" });
+      .send({
+        title: "My notes",
+        text: "Una frase con estrépito.",
+        language: "es",
+      });
 
     expect(res.status).toBe(201);
     expect(res.body.sourceId).toBeGreaterThan(0);
@@ -129,7 +133,9 @@ describe("POST /api/sources/text", () => {
     expect(res.body.pageCount).toBe(1);
 
     const source = db
-      .prepare("SELECT type, title, stored_path, transcript FROM source WHERE id = ?")
+      .prepare(
+        "SELECT type, title, stored_path, transcript FROM source WHERE id = ?",
+      )
       .get(res.body.sourceId) as {
       type: string;
       title: string;
@@ -189,7 +195,9 @@ describe("POST /api/sources/text", () => {
       .send({ text: "   " });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("missing_text");
-    expect(db.prepare("SELECT COUNT(*) AS c FROM source").get()).toEqual({ c: 0 });
+    expect(db.prepare("SELECT COUNT(*) AS c FROM source").get()).toEqual({
+      c: 0,
+    });
   });
 
   it("rejects an invalid language", async () => {
@@ -220,7 +228,10 @@ describe("end-to-end: paste → job → triage candidates", () => {
       done: 1,
       failed: 0,
     });
-    expect(detail.body.pages[0]).toMatchObject({ kind: "vocab", status: "done" });
+    expect(detail.body.pages[0]).toMatchObject({
+      kind: "vocab",
+      status: "done",
+    });
 
     const items = db
       .prepare(
@@ -443,6 +454,9 @@ describe("end-to-end: upload → job → triage candidates", () => {
       .prepare("SELECT status, progress FROM job WHERE id = ?")
       .get(upload.body.jobId) as { status: string; progress: string };
     expect(job.status).toBe("done");
-    expect(JSON.parse(job.progress)).toEqual({ pages: { 1: "done" } });
+    expect(JSON.parse(job.progress)).toEqual({
+      pages: { 1: "done" },
+      total: 1,
+    });
   });
 });

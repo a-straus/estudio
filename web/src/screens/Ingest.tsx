@@ -31,6 +31,8 @@ interface ProgressView {
   state: JobState;
   done: number;
   failed: number;
+  /** Total units, from the job's progress JSON when present. */
+  total: number | null;
 }
 
 interface IngestProps {
@@ -38,9 +40,14 @@ interface IngestProps {
   pollIntervalMs?: number;
 }
 
-function readProgress(progress: unknown): { done: number; failed: number } {
+function readProgress(progress: unknown): {
+  done: number;
+  failed: number;
+  total: number | null;
+} {
   let done = 0;
   let failed = 0;
+  let total: number | null = null;
   if (
     progress &&
     typeof progress === "object" &&
@@ -54,8 +61,12 @@ function readProgress(progress: unknown): { done: number; failed: number } {
       if (outcome === "done") done += 1;
       else if (outcome === "failed") failed += 1;
     }
+    // total is optional: older progress JSON (and text ingestion) omits it.
+    if ("total" in progress && typeof progress.total === "number") {
+      total = progress.total;
+    }
   }
-  return { done, failed };
+  return { done, failed, total };
 }
 
 export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
@@ -93,7 +104,7 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
         unit: "chunk",
         total: res.pageCount,
       });
-      setProgress({ state: "queued", done: 0, failed: 0 });
+      setProgress({ state: "queued", done: 0, failed: 0, total: null });
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Couldn't start extraction.",
@@ -114,7 +125,7 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
         unit: "page",
         total: res.pageCount,
       });
-      setProgress({ state: "queued", done: 0, failed: 0 });
+      setProgress({ state: "queued", done: 0, failed: 0, total: null });
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Couldn't read that file.",
@@ -134,8 +145,8 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
         const jobs = await fetchJobs();
         const view = jobs.find((j) => j.id === job.jobId);
         if (!active || !view) return;
-        const { done, failed } = readProgress(view.progress);
-        setProgress({ state: view.status as JobState, done, failed });
+        const { done, failed, total } = readProgress(view.progress);
+        setProgress({ state: view.status as JobState, done, failed, total });
       } catch {
         // Transient poll failure: keep the last known progress and retry.
       }
@@ -255,7 +266,8 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
               stage={stageLine(job, progress)}
               progress={
                 progress.state === "running"
-                  ? (progress.done + progress.failed) / Math.max(job.total, 1)
+                  ? (progress.done + progress.failed) /
+                    Math.max(progress.total ?? job.total, 1)
                   : undefined
               }
               onBackground={() => setBackgrounded(true)}
@@ -283,14 +295,17 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
 
 function stageLine(job: ActiveJob, progress: ProgressView): string {
   const noun = job.unit === "page" ? "pages" : "chunks";
+  // The job's progress JSON is the authoritative total once it streams; fall
+  // back to the count the submit response reported until the first poll lands.
+  const total = progress.total ?? job.total;
   if (progress.state === "queued") return "Queued…";
   if (progress.state === "running") {
-    const at = Math.min(progress.done + progress.failed + 1, job.total);
-    return `Reading ${job.unit} ${at} of ${job.total}`;
+    const at = Math.min(progress.done + progress.failed + 1, total);
+    return `Reading ${job.unit} ${at} of ${total}`;
   }
   if (progress.state === "failed") {
     return `Couldn't read ${progress.failed} ${noun}. ${progress.done} read — continue to triage, or retry.`;
   }
   // done
-  return `Done · ${progress.done} of ${job.total} ${noun} read.`;
+  return `Read ${progress.done} of ${total} ${noun}.`;
 }

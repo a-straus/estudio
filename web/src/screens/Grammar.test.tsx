@@ -140,6 +140,34 @@ describe("Grammar screen", () => {
     );
   });
 
+  it("shows curriculum counts once the seed job streams its writing phase", async () => {
+    mockApi.fetchGrammar.mockResolvedValue({
+      seeded: false,
+      categories: [],
+      practiceQueue: [],
+    });
+    mockApi.seedGrammar.mockResolvedValue({ jobId: 7 });
+    mockApi.fetchJobs.mockResolvedValue([
+      job({
+        id: 7,
+        status: "running",
+        progress: { phase: "writing", categories: 5, topics: 30 },
+      }),
+    ]);
+
+    render(<Grammar pollIntervalMs={10} />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Seed the curriculum" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Writing 5 categories · 30 topics…"),
+      ).toBeTruthy(),
+    );
+  });
+
   it("surfaces a load error with a reload action", async () => {
     mockApi.fetchGrammar.mockRejectedValue(new Error("boom"));
 

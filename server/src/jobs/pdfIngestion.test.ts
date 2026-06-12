@@ -143,7 +143,7 @@ describe("runPdfIngestion", () => {
     });
 
     const result = await runPdfIngestion(db, llm, { sourceId });
-    expect(result).toEqual({ pages: { 1: "done", 2: "done" } });
+    expect(result).toEqual({ pages: { 1: "done", 2: "done" }, total: 2 });
 
     const pages = pageRows(sourceId);
     expect(pages).toHaveLength(2);
@@ -205,7 +205,7 @@ describe("runPdfIngestion", () => {
     expect(calls.map((c) => c.task)).toEqual(["classify"]);
   });
 
-  it("links a grammar page to a seeded topic when the source label matches", async () => {
+  it("links a grammar page to a seeded topic by the LLM-named page topic", async () => {
     insertCurriculum(db, [
       {
         name: "Subjuntivo",
@@ -219,29 +219,8 @@ describe("runPdfIngestion", () => {
         id: number;
       }
     ).id;
-    // Source titled to match the topic by keyword containment ("subjuntivo").
-    const sourceId = insertSource(db, {
-      type: "pdf",
-      title: "El subjuntivo: práctica",
-      ref: "subjuntivo.pdf",
-      storedPath: PARAGRAPH_PDF,
-    });
-    insertSourcePages(db, sourceId, 1);
-    const { llm } = makeLlm({ classify: () => '{"kind": "grammar"}' });
-
-    await runPdfIngestion(db, llm, { sourceId });
-
-    const [page] = pageRows(sourceId);
-    expect(page).toMatchObject({ kind: "grammar", grammar_topic_id: topicId });
-  });
-
-  it("leaves grammar_topic_id null when no seeded topic matches", async () => {
-    insertCurriculum(db, [
-      {
-        name: "Subjuntivo",
-        topics: [{ name: "Subjuntivo", description: "triggers" }],
-      },
-    ]);
+    // Source label is generic ("Lectura"): the link comes from the topic the
+    // classifier picks from the seeded list, not the filename/title.
     const sourceId = insertSource(db, {
       type: "pdf",
       title: "Lectura general",
@@ -249,7 +228,58 @@ describe("runPdfIngestion", () => {
       storedPath: PARAGRAPH_PDF,
     });
     insertSourcePages(db, sourceId, 1);
-    const { llm } = makeLlm({ classify: () => '{"kind": "grammar"}' });
+    const { llm, calls } = makeLlm({
+      classify: () => '{"kind": "grammar", "topic": "Subjuntivo"}',
+    });
+
+    await runPdfIngestion(db, llm, { sourceId });
+
+    const [page] = pageRows(sourceId);
+    expect(page).toMatchObject({ kind: "grammar", grammar_topic_id: topicId });
+    // The classifier was handed the seeded topic list to choose from.
+    const classifyPrompt = calls.find((c) => c.task === "classify")!.params
+      .prompt;
+    expect(classifyPrompt).toContain("- Subjuntivo");
+  });
+
+  it("leaves grammar_topic_id null when the page topic matches no seeded topic", async () => {
+    insertCurriculum(db, [
+      {
+        name: "Subjuntivo",
+        topics: [{ name: "Subjuntivo", description: "triggers" }],
+      },
+    ]);
+    const sourceId = makeSource(PARAGRAPH_PDF, 1);
+    const { llm } = makeLlm({
+      classify: () =>
+        '{"kind": "grammar", "topic": "Pretérito de verbos regulares"}',
+    });
+
+    await runPdfIngestion(db, llm, { sourceId });
+
+    const [page] = pageRows(sourceId);
+    expect(page).toMatchObject({ kind: "grammar", grammar_topic_id: null });
+  });
+
+  it("leaves grammar_topic_id null when the model names no page topic", async () => {
+    insertCurriculum(db, [
+      {
+        name: "Subjuntivo",
+        topics: [{ name: "Subjuntivo", description: "triggers" }],
+      },
+    ]);
+    // A source label that WOULD have matched under the old filename-based logic;
+    // with null topic the link must stay null — we never fall back to the label.
+    const sourceId = insertSource(db, {
+      type: "pdf",
+      title: "El subjuntivo: práctica",
+      ref: "subjuntivo.pdf",
+      storedPath: PARAGRAPH_PDF,
+    });
+    insertSourcePages(db, sourceId, 1);
+    const { llm } = makeLlm({
+      classify: () => '{"kind": "grammar", "topic": null}',
+    });
 
     await runPdfIngestion(db, llm, { sourceId });
 
@@ -411,7 +441,7 @@ describe("runPdfIngestion", () => {
         }
       ).progress,
     );
-    expect(progress).toEqual({ pages: { 1: "done", 2: "done" } });
+    expect(progress).toEqual({ pages: { 1: "done", 2: "done" }, total: 2 });
   });
 
   it("retry payload reprocesses only the requested page", async () => {
