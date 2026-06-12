@@ -143,24 +143,48 @@
   margin-bottom: var(--space-1);
 }
 
-/* Fixed composer at the bottom of the overlay */
+/* Fixed composer at the bottom of the overlay — mobile: full-width input, mic top-right, Send bottom-right */
 .ask__composer {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 31;
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   background: var(--color-paper);
   border-top: 1px solid var(--color-rule);
 }
 
 .ask__composer-input {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
+}
+
+/* Reserve space so typed text never runs under the mic (right) or Send (bottom). */
+.ask__composer-input .text-input__field {
+  padding-right: calc(var(--hit-target) + var(--space-2));
+  padding-bottom: calc(var(--hit-target) + var(--space-2));
+}
+
+/* Mic anchored top-right of the input. */
+.ask__composer-mic {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--hit-target);
+  min-height: var(--hit-target);
+}
+
+/* Send anchored bottom-right of the input. */
+.ask__composer-send {
+  position: absolute;
+  bottom: var(--space-3);
+  right: var(--space-4);
+  display: flex;
+  align-items: flex-end;
+  min-height: var(--hit-target);
 }
 
 /* At bp-tablet+: not a fixed overlay — reading column in normal flow */
@@ -184,6 +208,7 @@
     padding-bottom: calc(var(--space-8) + var(--space-8));
   }
 
+  /* Restore inline reading-column row; reset all mobile absolute-positioning. */
   .ask__composer {
     position: sticky;
     bottom: 0;
@@ -193,6 +218,26 @@
     margin-inline: auto;
     left: auto;
     right: auto;
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-2);
+  }
+
+  .ask__composer-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ask__composer-input .text-input__field {
+    padding-right: var(--space-3);
+    padding-bottom: var(--space-3);
+  }
+
+  .ask__composer-mic,
+  .ask__composer-send {
+    position: static;
+    min-width: unset;
+    min-height: unset;
   }
 }
 
