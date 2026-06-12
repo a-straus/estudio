@@ -47,7 +47,9 @@ AUTOINCREMENT), `created_at`, `updated_at` (TEXT, ISO-8601 UTC) unless noted.
 - `source` — type (`pdf`|`text`|`lesson_audio`|`voice_question`|`gutenberg`|`mochi`|`manual`|`chat`|`suggestion`),
   title, ref (URL/ID/filename), stored_path (original file under
   `/data/uploads` or `/data/books`), transcript (TEXT, nullable; lesson
-  audio + voice questions).
+  audio + voice questions), duration_minutes (REAL, nullable; lesson-audio
+  recording length in minutes, computed at ingestion and read by the
+  Lessons list for the "· N min" row label).
 - `source_page` — source_id → source, page_no, kind (`vocab`|`grammar`),
   status (`pending`|`done`|`failed`), error (TEXT nullable),
   grammar_topic_id → grammar_topic (nullable; set when a grammar page is
@@ -226,4 +228,5 @@ AUTOINCREMENT), `created_at`, `updated_at` (TEXT, ISO-8601 UTC) unless noted.
 
 - 2026-06-10 — Initial draft from GOAL.md §8 (orchestrator, iteration 1).
 - 2026-06-12 — Schema gate (orchestrator-approved batch, iteration 88; nothing else in flight): new `note` entity (per-answer self-notes feeding future generation — FEEDBACK 2026-06-11); `quiz_attempt.style` gains `mixed` (review-03 S5 — stop falsifying mixed/lesson attempts); migration 003 also materializes the already-specified Phase-2 tables `transcription_call`, `chat_thread`, `chat_message`, `suggestion` so Phase-2 build tasks need no schema grants and can run in parallel.
+- 2026-06-12 — Schema gate (orchestrator-approved, iteration 112; nothing else in flight): `source.duration_minutes` (REAL, nullable) added via migration 004 — a plain additive `ALTER TABLE source ADD COLUMN` (no table rebuild, unlike 002/003 which altered CHECKs). Fulfills review-05 S7: the Lessons list spec (lessons.md) leads each row with "· N min", but `lesson-queries.ts` hardcoded `durationMinutes:null` and `source` had no duration column (the per-call `minutes` REAL lives on `transcription_call`, which is the spend log, not a durable per-recording domain fact). The value is already computed at ingestion (`jobs/lessonAudioIngestion.ts` → `readAudioDuration`); it was simply never persisted. Requested by: review-05 audit. Outcome: approved — additive, within §8, existing rows get NULL (the UI already renders null as no-duration). Task: `schema-gate-004` (ORCH_MODEL/high, ran alone).
 - 2026-06-10 — Critique reconciliation (arch-critique, all 13 findings adopted): no UNIQUE on normalized lemma — UNIQUE(term, language) exact + indexed normalized columns + triage-surfaced dedupe; new `extraction_item` (triage state), `source_page` (page classification, per-page retry, page→curriculum link), `error_log`; llm/transcription calls get status/error + prompt_version; word gets definition_origin/owner_edited_at/prompt_version; word↔card_state lifecycle + maturity (interval ≥ 21d) specified; lesson quiz questions live only in quiz_question (nullable lesson_id); review_log direction gains `cloze` + nullable quiz_question_id; suggestion.normalized_key defined; grammar_topic.seen_in_lessons dropped (derived).
