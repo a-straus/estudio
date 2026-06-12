@@ -101,7 +101,6 @@ export function getSpend(db: DB): SystemSpendResponse {
     totalTokensIn: byTask.reduce((s, t) => s + t.tokensIn, 0),
     totalTokensOut: byTask.reduce((s, t) => s + t.tokensOut, 0),
     callCount: byTask.reduce((s, t) => s + t.callCount, 0),
-    transcription: { totalCostUsd: 0, totalMinutes: 0, callCount: 0 },
     byTask,
     transcription: getTranscriptionSpend(db),
   };
