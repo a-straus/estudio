@@ -25,6 +25,8 @@ One slim bar, present on every non-session screen, `--header-height` tall, stick
 
 No SiteHeader, no AppNav, no footer. A slim session bar replaces the header: close `×` (44px square) left, center `--font-meta` progress ("7 of 23"), and a 2px `--color-rule` track under the bar with `--color-accent` fill = progress. Closing mid-session asks nothing; progress is saved per answer.
 
+The takeover is the **active run** only — an in-progress sequence of cards or questions. A session route's **resting states** (its pre-session landing such as "23 due today → Start review," its empty state when nothing is due, and its finished/summary state) are ordinary non-session screens with full chrome (SiteHeader, AppNav on phone, SiteFooter) so the user is never stranded without navigation; entering the active run (e.g. tapping "Start review") triggers the takeover, and the session-bar `×` returns to that landing. Quiz already follows this (config landing with chrome → play takeover); Review and Triage land the same way.
+
 ### SiteFooter — quiet utility footer
 
 A simple footer closing every non-session screen — the merriam-webster *structural* cue (a calm utility strip), never a marketing footer. Full-bleed `--color-paper-sunken` band with a `--color-rule` top hairline; inner content centered to `--measure-app`, vertical padding `--space-6`.

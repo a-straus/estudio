@@ -24,12 +24,13 @@ Altitude guide:
 ## Inbox
 
 <!-- - one item per dash; date them if you like -->
-- we need a hamburger menu or something to nav on mobile
-- navbar disappears on /review
-- the 'i forgot' button that pops up is on top of the LEARNING text on /library. It should be horizontally on the side
+
 ## Processed
 
 <!-- Moved here by the orchestrator with what it did about each. -->
+
+- 2026-06-12 (iteration 89) — "we need a hamburger menu or something to nav on mobile" + "navbar disappears on /review" → **mobile-nav-and-review-landing** task [Must]. Root cause found: the design contract (shell.md) already specifies a phone **bottom-bar nav (AppNav)**, and `SiteHeader.css` deliberately hides the header's nav links below 640px expecting AppNav to own phone nav — but **AppNav was never built** (home-nav-footer shipped SiteHeader/SiteFooter only), so phone currently has *zero* navigation. Task builds AppNav per shell.md (the contract's answer to "nav on mobile" is a thumb-zone bottom bar, not a hamburger). The /review complaint is the same nav-loss made acute by Review being a deliberate session takeover: refinement = the active card-answering run stays a focused takeover, but /review's pre-session landing + empty/finished states show standard chrome (header + AppNav + footer), aligning Review with the existing Quiz config→play pattern. shell.md amended + INDEX change-log this iteration. WAIT for schema-gate-003 to integrate (gate runs alone); no schema grant. [Must]
+- 2026-06-12 (iteration 89) — "the 'i forgot' button that pops up is on top of the LEARNING text on /library; it should be horizontally on the side" → **library-forgot-button-layout** task [Should — trivial CSS]. The "I forgot this" control overlaps the "LEARNING" status text in the Library word row/detail; lay them out horizontally (button beside the status, no overlap) using existing tokens. File-disjoint from the nav task (Library screen only), so the two parallelize once the gate lifts. WAIT for schema-gate-003 to integrate; no schema grant. [Should]
 
 - 2026-06-11 (iteration 55) — **MASTER DIRECTIVE** "if this is still here, continue into phase 2 … fix the issues … make a list of things to review … then continue phase 2 as much as you can" → Acted on: this supersedes the Phase-1 freeze gate (DECISIONS.md). The 12 issue items below are converted to a prioritized Phase-1-fix backlog (ahead of Phase 2); a Phase-1 review checklist is posted in QUESTIONS.md ("[INFO] Phase 1 review checklist"); Phase 2 spawning is unblocked and resumes once the flagged fixes are in flight / capacity frees.
 - 2026-06-11 — "real progress bar on PDF page reading + curriculum building" → **ingestion-progress-and-topic-link** task (per-page / per-topic progress reported by the jobs and rendered on Ingest + Grammar; also fixes review-03 nit#3 90%-stall). [Should]
