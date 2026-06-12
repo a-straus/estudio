@@ -21,6 +21,42 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
 
+### [PENDING] ffmpeg in the container — to transcribe full-length (~1 hr) lesson recordings (Phase-2 done gate)
+
+Phase 2's lesson-recording feature transcribes audio via OpenAI Whisper, which
+caps each request at ~24 MB. A real one-hour tutor lesson exceeds that at any
+normal bitrate (≈25–33 min of voice audio already hits 24 MB), so it must be
+**split into chunks → transcribed → stitched** — and frame-aware splitting of
+compressed audio (m4a/mp3) needs **ffmpeg**, a system binary. GOAL §16/§17
+pre-approve ffmpeg as free OSS for local audio handling.
+
+Today the pipeline handles recordings **under 24 MB** (typical short phone
+voice-memos) correctly; anything larger fails with a clean, surfaced job error
+(no crash, no silent loss, the upload is preserved). review-04 (the latest code
+audit) flagged this as the one gap blocking the Phase-2 acceptance criterion
+("audio up to ~60 min is transcribed").
+
+I can't provision a system binary myself — the orchestrator never edits the
+devcontainer/Dockerfile and apt is firewalled, exactly the same class as the
+`api.openai.com` firewall change you handled earlier. **What's needed from you:**
+add `ffmpeg` (which provides both `ffmpeg` and `ffprobe`) to the container image
+and rebuild.
+
+This is **not blocking current construction** — the last Phase-2 build task
+(voice questions, which records short clips well under the cap) proceeds without
+it. It gates Phase-2 *done*, alongside the real lesson-audio fixtures you
+committed to providing (GOAL §17, `docs/fixtures/lesson-audio/` — still absent).
+If convenient, bundle both into one rebuild.
+
+Timing note: a container rebuild wipes in-flight worker worktrees (as the
+firewall rebuild did in iteration 89). Branches and their commits survive, but a
+worker's *uncommitted* work is lost and gets re-done — lowest-disruption time is
+when the loop reports no workers mid-build; otherwise the loop just re-spawns the
+affected tasks.
+
+**Your answer:**
+
+
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
 You asked for "a list of everything that's been implemented and what I need to
