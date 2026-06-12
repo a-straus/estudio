@@ -24,7 +24,9 @@ Altitude guide:
 ## Inbox
 
 <!-- - one item per dash; date them if you like -->
-
+- we need a hamburger menu or something to nav on mobile
+- navbar disappears on /review
+- the 'i forgot' button that pops up is on top of the LEARNING text on /library. It should be horizontally on the side
 ## Processed
 
 <!-- Moved here by the orchestrator with what it did about each. -->

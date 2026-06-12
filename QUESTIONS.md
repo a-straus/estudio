@@ -41,6 +41,8 @@ lesson, ~4 lessons/month).
 
 **Your answer:**
 
+- Done!
+
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
 You asked for "a list of everything that's been implemented and what I need to
