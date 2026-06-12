@@ -36,7 +36,7 @@ function summaryLine(row: LessonListItem): string {
 
 function titleLine(row: LessonListItem): string {
   const date = monthDay(row.createdAt);
-  const dur = row.durationMinutes !== null ? ` · ${row.durationMinutes} min` : "";
+  const dur = row.durationMinutes !== null ? ` · ${Math.round(row.durationMinutes)} min` : "";
   return `Lesson · ${date}${dur}`;
 }
 
