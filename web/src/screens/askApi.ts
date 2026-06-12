@@ -66,3 +66,7 @@ export function postVoiceMessage(
     body: form,
   });
 }
+
+export function deleteThread(id: number): Promise<void> {
+  return api<void>(`/api/chat/threads/${id}`, { method: "DELETE" });
+}

@@ -10,6 +10,7 @@ vi.mock("./askApi", () => ({
   getThread: vi.fn(),
   postMessage: vi.fn(),
   confirmTool: vi.fn(),
+  deleteThread: vi.fn(),
 }));
 
 import * as askApi from "./askApi";
@@ -83,6 +84,55 @@ describe("Ask — thread list", () => {
     render(<Ask />);
     await waitFor(() =>
       expect(screen.getByText("Why is vergüenza reflexive?")).toBeTruthy(),
+    );
+  });
+});
+
+describe("Ask — thread list delete", () => {
+  it("clicking × removes the thread from the list with no confirm prompt", async () => {
+    vi.mocked(askApi.listThreads).mockResolvedValue({
+      threads: [{ ...THREAD, preview: "Why is vergüenza reflexive?" }],
+      hasMore: false,
+    });
+    vi.mocked(askApi.deleteThread).mockResolvedValue(undefined as unknown as void);
+
+    const confirmSpy = vi.spyOn(window, "confirm");
+
+    render(<Ask />);
+    await waitFor(() =>
+      expect(screen.getByText("Why is vergüenza reflexive?")).toBeTruthy(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete conversation" }));
+
+    await waitFor(() =>
+      expect(screen.queryByText("Why is vergüenza reflexive?")).toBeNull(),
+    );
+    expect(askApi.deleteThread).toHaveBeenCalledWith(THREAD.id);
+    expect(confirmSpy).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it("clicking the row body opens the thread (regression)", async () => {
+    vi.mocked(askApi.listThreads).mockResolvedValue({
+      threads: [{ ...THREAD, preview: "Why is vergüenza reflexive?" }],
+      hasMore: false,
+    });
+    vi.mocked(askApi.getThread).mockResolvedValue({
+      thread: THREAD,
+      messages: [],
+      hasMore: false,
+    });
+
+    render(<Ask />);
+    await waitFor(() =>
+      expect(screen.getByText("Why is vergüenza reflexive?")).toBeTruthy(),
+    );
+
+    fireEvent.click(screen.getByText("Why is vergüenza reflexive?"));
+
+    await waitFor(() =>
+      expect(askApi.getThread).toHaveBeenCalled(),
     );
   });
 });

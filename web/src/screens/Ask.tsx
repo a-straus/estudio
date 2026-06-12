@@ -11,6 +11,7 @@ import {
   ApiError,
   confirmTool,
   createThread,
+  deleteThread,
   getThread,
   listThreads,
   postMessage,
@@ -239,6 +240,23 @@ export function Ask() {
     void loadThreads();
   }, [loadThreads]);
 
+  const handleDeleteThread = useCallback(
+    async (id: number) => {
+      try {
+        await deleteThread(id);
+        setThreads((prev) => prev.filter((t) => t.id !== id));
+        if (thread?.id === id) {
+          setView("list");
+          setThread(null);
+          setMessages([]);
+        }
+      } catch {
+        setToast({ text: "Couldn't delete conversation.", variant: "error" });
+      }
+    },
+    [thread],
+  );
+
   // ---- Thread list ----
   if (view === "list") {
     return (
@@ -256,10 +274,10 @@ export function Ask() {
           <>
             <ul className="ask__threads-list">
               {threads.map((t) => (
-                <li key={t.id}>
+                <li key={t.id} className="ask__thread-row">
                   <button
                     type="button"
-                    className="ask__thread-row"
+                    className="ask__thread-row-open"
                     onClick={() => void openThread(t.id)}
                   >
                     <span className="ask__thread-preview">
@@ -268,6 +286,14 @@ export function Ask() {
                     <span className="ask__thread-date">
                       {formatDate(t.updatedAt)}
                     </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="ask__thread-delete"
+                    aria-label="Delete conversation"
+                    onClick={() => void handleDeleteThread(t.id)}
+                  >
+                    ×
                   </button>
                 </li>
               ))}

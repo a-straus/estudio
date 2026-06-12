@@ -331,6 +331,32 @@ describe("N3 — lookup_word normalizes accented query", () => {
   });
 });
 
+describe("DELETE /api/chat/threads/:id", () => {
+  it("deletes an existing thread and returns 204", async () => {
+    const createRes = await request(app)
+      .post("/api/chat/threads")
+      .send({ pageContext: { kind: "home", label: "Home" }, title: "To delete" });
+    const { thread } = createRes.body as CreateThreadResponse;
+
+    await request(app)
+      .post(`/api/chat/threads/${thread.id}/messages`)
+      .send({ content: "a message" });
+
+    await request(app).delete(`/api/chat/threads/${thread.id}`).expect(204);
+
+    await request(app).get(`/api/chat/threads/${thread.id}`).expect(404);
+
+    const msgCount = db
+      .prepare("SELECT COUNT(*) as count FROM chat_message WHERE thread_id = ?")
+      .get(thread.id) as { count: number };
+    expect(msgCount.count).toBe(0);
+  });
+
+  it("returns 404 when the thread does not exist", async () => {
+    await request(app).delete("/api/chat/threads/9999").expect(404);
+  });
+});
+
 describe("POST /api/chat/threads/:id/voice", () => {
   const VOICE_TRANSCRIPT = "como se dice vergüenza";
 
