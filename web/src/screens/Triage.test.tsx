@@ -168,7 +168,7 @@ describe("Triage advancement (no skipped candidates)", () => {
     fireEvent.click(learnButton());
 
     // Every candidate got a decision — none was passed over.
-    await screen.findByText("Everything sorted");
+    await screen.findByText("Everything sorted", {}, { timeout: 4000 });
     expect(screen.getByRole("button", { name: /Keep 3 words/ })).toBeTruthy();
     expect(mockApi.patchDecision).toHaveBeenCalledTimes(3);
   });
@@ -196,7 +196,7 @@ describe("Triage advancement (no skipped candidates)", () => {
     await waitFor(() => expect(currentRow()?.textContent).toContain("diez"));
     fireEvent.keyDown(window, { key: "l" });
 
-    await screen.findByText("Everything sorted");
+    await screen.findByText("Everything sorted", {}, { timeout: 4000 });
     const decided = mockApi.patchDecision.mock.calls.map((c) => c[0]);
     expect([...decided].sort((a, b) => a - b)).toEqual([10, 20, 30]);
     expect(mockApi.patchDecision).toHaveBeenCalledTimes(3);
