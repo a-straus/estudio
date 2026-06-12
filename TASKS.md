@@ -14,7 +14,7 @@ Done levels (from GOAL.md §15):
 
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
-- **design-polish-foundation**: materialize the new additive tokens + restyle the base component library to the elevated bar + build the new chrome/home components (SiteHeader, SiteFooter, HomeHero, OverviewCard). Runs ALONE — touches the token stylesheet + every base component + shell. (spawned: 2026-06-12 00:25, `--model "$ORCH_MODEL" --effort high --include design/INDEX.md --include design/tokens.md --include design/components.md --include design/interaction.md --include design/screens/shell.md --include design/screens/home.md`)
+- **home-nav-footer**: build the `/` Home overview (HomeHero centerpiece + OverviewCard grid + activity band) + wire SiteHeader/SiteFooter into the global shell across all non-session screens + read-only `/api/overview` summary endpoint (counts shared by home + footer). Touches the shell + App.tsx routing — runs ALONE. (spawned: 2026-06-12 00:35, `--include design/INDEX.md --include design/tokens.md --include design/components.md --include design/interaction.md --include design/screens/shell.md --include design/screens/home.md`)
 
 
 ## Backlog
@@ -27,8 +27,7 @@ Done levels (from GOAL.md §15):
 
 ### Design polish — AUTHORIZED iteration 55 (Apple-handoff bar; identity D0/D1 unchanged; runs after the Phase-1 fixes above because it rewrites shell/components/all screens)
 
-<!-- design-polish-foundation moved to In Progress (spawned iteration 70) -->
-- **home-nav-footer** — build the home/landing overview (the `/` route should be a navigable overview, not the current default screen — FEEDBACK), the global header nav bar, and the footer, composed from the upgraded components. Touches the shell + App.tsx routing — runs alone [Must]
+<!-- design-polish-foundation integrated iteration 74→75 (commit efc0b98); home-nav-footer moved to In Progress (spawned iteration 75) -->
 - **per-screen polish sweeps** — after the foundation lands, quick per-screen passes (one task per 2–3 screens) to adopt the upgraded components/tokens; file-disjoint by screen [Should]
 
 ### Phase 2 (gate LIFTED per human master directive; GOAL §5 phase order; §11: lesson recordings → Ask → suggestions → voice). Resume here once Phase-1 fixes are in flight and capacity frees.
@@ -49,6 +48,7 @@ Note: `no-design` and `codex-worker-engine` branches = human-owned (sandbox / sp
 
 <!-- Format: - **branch-name**: description (merged: YYYY-MM-DD HH:MM) [task/feature/release done] -->
 
+- **design-polish-foundation**: materialized the new additive tokens + restyled the base component library to the elevated bar + built the new chrome/home components (SiteHeader, SiteFooter, HomeHero, OverviewCard), each with co-located css + tests; not yet mounted into any screen (home-nav-footer does that) (merged: 2026-06-12 iter 75, commit efc0b98, check.sh green on main — 399 tests) [task done]
 - **shared-api-refold**: refold web/src/screens/grammarApi.ts + systemApi.ts onto the shared web/src/api.ts client (review-03 S11) (merged: 2026-06-12 iter 74, commit 2403f77, check.sh green on main — 383 tests) [task done]
 - **ingestion-progress-and-topic-link**: real per-page (N of M) progress on PDF reading + per-topic curriculum-building progress reported by the jobs (existing `job.progress` TEXT) and rendered on `/ingest` + `/grammar`; review-03 S12 deterministic page→topic linking from the page-classification LLM (seeded topic list wired into the prompt), NULL when unconfident (merged: 2026-06-12 iter 70, commits 16ef8b9 + c7715f1, check.sh green on main — 383 tests) [task done]
 - **system-preferences**: System screen Preferences section (review-03 S8) — "Definitions on reveal · Spanish/English/Both" + "New cards per day · 10/20/40" SegmentedControls backed by GET/PUT `/api/settings`; definitionDisplay wired into reveal; nit#5 spend time-window + errors pager. Route stub pre-partitioned on base (e15ab3c) (merged: 2026-06-11 iter 69, commit dee8595, check.sh green on main — 378 tests) [task done]
