@@ -140,12 +140,15 @@ export function insertWordSuggestion(
     .get(normalizedKey);
   if (exists) return null;
 
-  // Don't suggest a word whose lemma is already in the deck.
+  // Don't suggest a word already in the deck — check both lemma and surface term
+  // because lemma_normalized is nullable (words inserted without a lemma have it NULL).
+  const lemmaKey = normalize(payload.lemma ?? payload.term);
+  const termKey = normalize(payload.term);
   const inDeck = db
     .prepare(
-      "SELECT 1 FROM word WHERE lemma_normalized = ? AND language = ?",
+      "SELECT 1 FROM word WHERE (lemma_normalized = ? OR term_normalized = ?) AND language = ?",
     )
-    .get(normalizedKey, payload.language ?? "es");
+    .get(lemmaKey, termKey, payload.language ?? "es");
   if (inDeck) return null;
 
   const now = nowIso();
@@ -228,6 +231,16 @@ export function updateSuggestionStatus(
  * word id.
  */
 export function addWordToDeck(db: DB, payload: WordPayload): number {
+  // Defense-in-depth: return existing word id without duplicating if already in deck.
+  const lemmaKey = normalize(payload.lemma ?? payload.term);
+  const termKey = normalize(payload.term);
+  const existing = db
+    .prepare(
+      "SELECT id FROM word WHERE (lemma_normalized = ? OR term_normalized = ?) AND language = ?",
+    )
+    .get(lemmaKey, termKey, "es") as { id: number } | undefined;
+  if (existing) return existing.id;
+
   const deckId = getDefaultDeckId(db, "es") ?? 1;
   const now = nowIso();
 

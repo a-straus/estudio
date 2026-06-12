@@ -18,6 +18,7 @@ import { registerSuggestionRoutes } from "./suggestions.js";
 import { normalize } from "@estudio/shared";
 import {
   insertWordSuggestion,
+  addWordToDeck,
   gatherCalibrationSignal,
   type WordPayload,
 } from "../db/suggestion-queries.js";
@@ -311,14 +312,18 @@ describe("POST /api/suggestions/:id/decision", () => {
       .expect(400);
   });
 
-  // S2: addWordToDeck failure → non-2xx, suggestion stays pending
-  it("returns 500 and keeps suggestion pending when addWordToDeck fails", async () => {
-    // Pre-insert a word so addWordToDeck hits a UNIQUE constraint.
+  // S2: addWordToDeck is now idempotent — accepts a suggestion for an already-decked word
+  it("succeeds and marks suggestion added when word is already in deck (idempotent)", async () => {
+    // Pre-insert a word so addWordToDeck would have hit a UNIQUE constraint before Fix B.
     db.prepare(
       `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language,
          part_of_speech, definition_en, status, deck_id)
        VALUES ('desenvolverse', ?, 'desenvolverse', ?, 'es', 'verbo', 'to cope', 'new', 1)`,
     ).run(normalize("desenvolverse"), normalize("desenvolverse"));
+
+    const wordCountBefore = (
+      db.prepare("SELECT COUNT(*) AS c FROM word").get() as { c: number }
+    ).c;
 
     // Manually insert a pending suggestion (bypassing deck-exclusion).
     const payload: WordPayload = {
@@ -344,12 +349,18 @@ describe("POST /api/suggestions/:id/decision", () => {
     await request(app)
       .post(`/api/suggestions/${id}/decision`)
       .send({ action: "add" })
-      .expect(500);
+      .expect(200);
 
     const { status } = db
       .prepare("SELECT status FROM suggestion WHERE id = ?")
       .get(id) as { status: string };
-    expect(status).toBe("pending");
+    expect(status).toBe("added");
+
+    // No duplicate word row created.
+    const wordCountAfter = (
+      db.prepare("SELECT COUNT(*) AS c FROM word").get() as { c: number }
+    ).c;
+    expect(wordCountAfter).toBe(wordCountBefore);
   });
 });
 
@@ -395,6 +406,88 @@ describe("insertWordSuggestion (S1 lemma keying)", () => {
     // Second surface form with the same lemma: blocked.
     const second = insertWordSuggestion(db, { ...base, term: "corro" });
     expect(second).toBeNull();
+  });
+});
+
+// S2: deck-exclusion and addWordToDeck idempotence fixes
+describe("insertWordSuggestion (S2 deck-exclusion)", () => {
+  it("does not suggest a word when deck word has NULL lemma_normalized (matched on term_normalized)", () => {
+    // Deck word inserted without a lemma — lemma_normalized is NULL.
+    db.prepare(
+      `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language, status, deck_id)
+       VALUES ('desenvolverse', ?, null, null, 'es', 'new', 1)`,
+    ).run(normalize("desenvolverse"));
+
+    const payload: WordPayload = {
+      term: "desenvolverse",
+      lemma: null,
+      language: "es",
+      partOfSpeech: null,
+      level: null,
+      glossEs: null,
+      glossEn: null,
+      example: null,
+      reason: "test",
+    };
+    expect(insertWordSuggestion(db, payload)).toBeNull();
+  });
+
+  it("does not suggest when payload.lemma is null but surface term matches deck term_normalized", () => {
+    // Deck word has a lemma; surface term also matches.
+    db.prepare(
+      `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language, status, deck_id)
+       VALUES ('correr', ?, 'correr', ?, 'es', 'new', 1)`,
+    ).run(normalize("correr"), normalize("correr"));
+
+    const payload: WordPayload = {
+      term: "correr",
+      lemma: null,
+      language: "es",
+      partOfSpeech: null,
+      level: null,
+      glossEs: null,
+      glossEn: null,
+      example: null,
+      reason: "test",
+    };
+    expect(insertWordSuggestion(db, payload)).toBeNull();
+  });
+});
+
+describe("addWordToDeck (S2 idempotence)", () => {
+  it("returns existing word id and does not create a duplicate row when word is already in deck", () => {
+    db.prepare(
+      `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language, status, deck_id)
+       VALUES ('desenvolverse', ?, 'desenvolverse', ?, 'es', 'new', 1)`,
+    ).run(normalize("desenvolverse"), normalize("desenvolverse"));
+
+    const before = (
+      db.prepare("SELECT COUNT(*) AS c FROM word").get() as { c: number }
+    ).c;
+    const existingId = (
+      db
+        .prepare("SELECT id FROM word WHERE term = 'desenvolverse'")
+        .get() as { id: number }
+    ).id;
+
+    const payload: WordPayload = {
+      term: "desenvolverse",
+      lemma: "desenvolverse",
+      language: "es",
+      partOfSpeech: null,
+      level: null,
+      glossEs: null,
+      glossEn: null,
+      example: null,
+      reason: "test",
+    };
+    const returnedId = addWordToDeck(db, payload);
+
+    const after = (
+      db.prepare("SELECT COUNT(*) AS c FROM word").get() as { c: number }
+    ).c;
+    expect(after).toBe(before);
+    expect(returnedId).toBe(existingId);
   });
 });
 
