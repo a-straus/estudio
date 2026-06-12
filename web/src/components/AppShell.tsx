@@ -36,6 +36,8 @@ const NAV: { label: string; href: string }[] = [
   { label: "Review", href: "/review" },
   { label: "Library", href: "/library" },
   { label: "Grammar", href: "/grammar" },
+  { label: "Lessons", href: "/lessons" },
+  { label: "Suggestions", href: "/suggestions" },
   { label: "Ingest", href: "/ingest" },
   { label: "System", href: "/system" },
 ];
