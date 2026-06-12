@@ -137,41 +137,43 @@ export function RecordButton({
     .join(" ");
 
   return (
-    <button
-      type="button"
-      className={btnClass}
-      disabled={isDisabled}
-      onClick={() => void handleClick()}
-      aria-label={
-        isRecording
-          ? "Stop recording"
-          : state === "denied"
-            ? "Microphone blocked"
-            : "Record voice question"
-      }
-      title={
-        state === "denied"
-          ? "Microphone blocked. Allow it in the browser, or type instead."
-          : undefined
-      }
-    >
-      {isRecording ? (
-        <span className="record-btn__recording-inner">
-          <span className="record-btn__dot" aria-hidden="true" />
-          <span
-            className={
-              "record-btn__timer" +
-              (isWarning ? " record-btn__timer--warning" : "")
-            }
-          >
-            {isWarning
-              ? formatTime(remaining)
-              : formatTime(elapsedSeconds)}
+    <div className="record-btn__wrap">
+      <button
+        type="button"
+        className={btnClass}
+        disabled={isDisabled}
+        onClick={() => void handleClick()}
+        aria-label={
+          isRecording
+            ? "Stop recording"
+            : state === "denied"
+              ? "Microphone blocked"
+              : "Record voice question"
+        }
+      >
+        {isRecording ? (
+          <span className="record-btn__recording-inner">
+            <span className="record-btn__dot" aria-hidden="true" />
+            <span
+              className={
+                "record-btn__timer" +
+                (isWarning ? " record-btn__timer--warning" : "")
+              }
+            >
+              {isWarning
+                ? formatTime(remaining)
+                : formatTime(elapsedSeconds)}
+            </span>
           </span>
-        </span>
-      ) : (
-        <span aria-hidden="true">🎙</span>
+        ) : (
+          <span aria-hidden="true">🎙</span>
+        )}
+      </button>
+      {state === "denied" && (
+        <p className="record-btn__error">
+          Microphone blocked. Allow it in the browser, or type instead.
+        </p>
       )}
-    </button>
+    </div>
   );
 }

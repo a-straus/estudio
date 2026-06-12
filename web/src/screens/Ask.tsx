@@ -210,10 +210,18 @@ export function Ask() {
         );
         if (action === "confirm" && result.assistantMessage.toolCall) {
           const term = String(result.assistantMessage.toolCall.args.term ?? "");
-          setToast({
-            text: term ? `Added ${term} to the Spanish deck.` : "Action confirmed.",
-            variant: "info",
-          });
+          const receiptResult = result.assistantMessage.toolReceipt?.result ?? "";
+          const failed = receiptResult.startsWith("Failed");
+          const alreadyIn = receiptResult.includes("already in the deck");
+          let toastText: string;
+          if (failed) {
+            toastText = term ? `Couldn't add ${term}.` : "Action failed.";
+          } else if (alreadyIn) {
+            toastText = term ? `${term} is already in the Spanish deck.` : receiptResult;
+          } else {
+            toastText = term ? `Added ${term} to the Spanish deck.` : "Action confirmed.";
+          }
+          setToast({ text: toastText, variant: failed ? "error" : "info" });
         }
       } catch {
         setToast({ text: "Action failed.", variant: "error" });

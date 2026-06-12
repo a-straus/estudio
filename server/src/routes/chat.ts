@@ -6,6 +6,7 @@ import type {
   CreateThreadRequest,
   PostMessageRequest,
 } from "@estudio/shared";
+import { normalize } from "@estudio/shared";
 import type { DB } from "../db/db.js";
 import {
   createThread,
@@ -13,6 +14,7 @@ import {
   getThread,
   insertMessage,
   listMessages,
+  listRecentMessages,
   listThreads,
   updateMessageToolCalls,
 } from "../db/chat-queries.js";
@@ -91,7 +93,7 @@ function executeReadTool(
         `SELECT term, definition_es, definition_en, part_of_speech, level
            FROM word WHERE term = ? OR term_normalized = ? LIMIT 1`,
       )
-      .get(term, term.toLowerCase()) as
+      .get(term, normalize(term)) as
       | {
           term: string;
           definition_es: string | null;
@@ -177,7 +179,7 @@ export function registerChatRoutes(
       return insertMessage(db, threadId, "assistant", "LLM service unavailable.");
     }
 
-    const { messages } = listMessages(db, threadId, 0, 50);
+    const messages = listRecentMessages(db, threadId, 50);
     const pageContextLabel = thread.pageContext.label;
     const history = serializeHistory(messages);
 
