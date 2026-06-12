@@ -179,8 +179,6 @@ export function Grammar({ pollIntervalMs = 1000 }: GrammarProps) {
 
   return (
     <main className="grammar">
-      <h1 className="grammar__title">Grammar</h1>
-
       {loadError ? (
         <EmptyState
           message={`${loadError} Reload, or check System for details.`}

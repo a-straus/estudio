@@ -5,7 +5,7 @@
 .lesson {
   max-width: var(--measure-app);
   margin-inline: auto;
-  padding: var(--space-4) var(--space-4) var(--space-8);
+  padding: var(--space-6) var(--space-4) var(--space-8);
 }
 
 .lesson__back {

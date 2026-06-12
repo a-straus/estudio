@@ -5,17 +5,13 @@
 .library {
   max-width: var(--measure-app);
   margin-inline: auto;
-  padding: var(--space-4) var(--space-4) var(--space-8);
+  /* The sticky masthead carries the screen title; the spine opens with a calm
+     top gap and the dictionary toolbar, not a duplicate heading. */
+  padding: var(--space-6) var(--space-4) var(--space-8);
 }
 
 .library__layout {
   display: block;
-}
-
-.library__title {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-bold);
-  margin-bottom: var(--space-3);
 }
 
 .library__toolbar {
