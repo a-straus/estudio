@@ -115,8 +115,16 @@ AUTOINCREMENT), `created_at`, `updated_at` (TEXT, ISO-8601 UTC) unless noted.
   flagged (bool — flagged questions are excluded from serving, never
   deleted).
 - `quiz_attempt` — quiz metadata (deck_id/topic_id, style, direction) +
-  answers (JSON per question: question_id, given, correct). Misses also
+  answers (JSON per question: question_id, given, correct). `style` allows
+  `mixed` in addition to the per-question styles — an attempt records what
+  was actually run; code never writes a fabricated single style for a
+  mixed session (lesson quizzes are `mixed`). Misses also
   write `review_log` rows and pull the word's `card_state.due_at` to now.
+- `note` — quiz_question_id → quiz_question, body (TEXT NOT NULL). Owner
+  self-note attached to an answered question (correct or incorrect);
+  browsable per word/topic by joining through the question's word_id /
+  topic_id links (no duplicate links to drift); fed as context into future
+  quiz and lesson generation.
 - `lesson_insight` — source_id → source, type
   (`flagged_word`|`correction`|`struggle_sentence`|`topic_covered`),
   payload (JSON), word_id / topic_id nullable links. (Phase 2.)
@@ -217,4 +225,5 @@ AUTOINCREMENT), `created_at`, `updated_at` (TEXT, ISO-8601 UTC) unless noted.
 <!-- One line per gated model change: date — change — requested by — outcome. -->
 
 - 2026-06-10 — Initial draft from GOAL.md §8 (orchestrator, iteration 1).
+- 2026-06-12 — Schema gate (orchestrator-approved batch, iteration 88; nothing else in flight): new `note` entity (per-answer self-notes feeding future generation — FEEDBACK 2026-06-11); `quiz_attempt.style` gains `mixed` (review-03 S5 — stop falsifying mixed/lesson attempts); migration 003 also materializes the already-specified Phase-2 tables `transcription_call`, `chat_thread`, `chat_message`, `suggestion` so Phase-2 build tasks need no schema grants and can run in parallel.
 - 2026-06-10 — Critique reconciliation (arch-critique, all 13 findings adopted): no UNIQUE on normalized lemma — UNIQUE(term, language) exact + indexed normalized columns + triage-surfaced dedupe; new `extraction_item` (triage state), `source_page` (page classification, per-page retry, page→curriculum link), `error_log`; llm/transcription calls get status/error + prompt_version; word gets definition_origin/owner_edited_at/prompt_version; word↔card_state lifecycle + maturity (interval ≥ 21d) specified; lesson quiz questions live only in quiz_question (nullable lesson_id); review_log direction gains `cloze` + nullable quiz_question_id; suggestion.normalized_key defined; grammar_topic.seen_in_lessons dropped (derived).

@@ -21,6 +21,26 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
 
+### [PENDING] Transcription provider: firewall host + API key (Phase 2 live use)
+
+Phase 2's transcription layer (lesson recordings, voice questions) uses the
+pre-approved second paid dependency (GOAL §6.7b — Whisper-class API, default
+OpenAI Whisper). Two things only you can do, both needed before **live**
+transcription works; nothing blocks construction (the adapter + chunking +
+mocked-provider tests proceed now):
+
+1. **Firewall:** `api.openai.com` is not on the container allowlist — please
+   add it to `.devcontainer/init-firewall.sh` and rebuild (I never edit the
+   firewall). If you'd rather use a different Whisper-class provider, name it
+   and I'll target that host/adapter instead.
+2. **Key:** add `OPENAI_API_KEY=...` (or the chosen provider's key) to
+   `/workspace/.env` alongside the existing `ANTHROPIC_API_KEY`.
+
+Estimated cost stays well inside the §13 ceiling (~$0.40 per hour-long
+lesson, ~4 lessons/month).
+
+**Your answer:**
+
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
 You asked for "a list of everything that's been implemented and what I need to
