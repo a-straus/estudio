@@ -56,7 +56,10 @@ export interface AudioChunk {
  * service's chunk → transcribe → stitch orchestration is unit-testable with a
  * mock splitter.
  */
-export type SplitAudio = (input: AudioInput, maxBytes: number) => AudioChunk[];
+export type SplitAudio = (
+  input: AudioInput,
+  maxBytes: number,
+) => AudioChunk[] | Promise<AudioChunk[]>;
 
 /** Normalized provider error; `retryable` drives the service's backoff loop. */
 export class TranscriptionError extends Error {

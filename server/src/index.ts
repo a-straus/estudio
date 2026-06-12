@@ -16,6 +16,7 @@ import {
 import { registerPdfIngestionHandler } from "./jobs/pdfIngestion.js";
 import { TranscriptionService } from "./transcription/service.js";
 import { createOpenAiProvider } from "./transcription/openai.js";
+import { createFfmpegSplitAudio } from "./transcription/ffmpegSplit.js";
 import {
   BACKUP_INTERVAL_MS,
   enqueueBackupIfDue,
@@ -33,9 +34,11 @@ const llm = new LlmService(db, {
   anthropic: createAnthropicProvider(config.anthropicApiKey),
 });
 
-const transcription = new TranscriptionService(db, {
-  openai: createOpenAiProvider(config.openaiApiKey),
-});
+const transcription = new TranscriptionService(
+  db,
+  { openai: createOpenAiProvider(config.openaiApiKey) },
+  { splitAudio: createFfmpegSplitAudio() },
+);
 
 const queue = new JobQueue(db);
 registerTextIngestionHandler(queue, db, llm);
