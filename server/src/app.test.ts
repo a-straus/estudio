@@ -99,3 +99,33 @@ describe("unknown /api routes", () => {
     });
   });
 });
+
+describe("serveWeb", () => {
+  it("serves index.html when the build is present", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "estudio-web-"));
+    try {
+      fs.writeFileSync(
+        path.join(tmp, "index.html"),
+        "<html>estudio-app</html>",
+      );
+      const app = createApp(db, { serveWeb: true, webDistDir: tmp });
+      const res = await request(app).get("/");
+      expect(res.status).toBe(200);
+      expect(res.text).toContain("estudio-app");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("returns 503 with npm run build message when the build is missing", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "estudio-web-"));
+    try {
+      const app = createApp(db, { serveWeb: true, webDistDir: tmp });
+      const res = await request(app).get("/some/spa/route");
+      expect(res.status).toBe(503);
+      expect(res.text).toContain("npm run build");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});
