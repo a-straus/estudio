@@ -1,0 +1,78 @@
+/* ChatTurn (D4, components.md) — no bubbles, hairlines only. */
+
+.chat-turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.chat-turn__label {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+}
+
+.chat-turn__body {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--color-ink);
+}
+
+/* User turns are indented per the entry indent rule. */
+.chat-turn--user .chat-turn__body {
+  padding-left: var(--indent-entry);
+}
+
+/* Spanish inline content follows bilingual rules: serif italic, hanging indent. */
+.chat-turn__spanish {
+  display: block;
+  font-family: var(--font-study);
+  font-style: italic;
+  padding-left: var(--indent-entry);
+  margin-block: var(--space-2);
+}
+
+/* Failed state */
+.chat-turn__failed {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  color: var(--color-incorrect);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+/* Pending transcription */
+.chat-turn__pending {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-faint);
+}
+
+/* Day separator hairline */
+.chat-day-sep {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block: var(--space-3);
+  color: var(--color-ink-faint);
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+}
+
+.chat-day-sep::before,
+.chat-day-sep::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-rule);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-turn {
+    transition: none;
+  }
+}

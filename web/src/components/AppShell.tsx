@@ -94,9 +94,14 @@ export function AppShell({ title, activeHref, children }: AppShellProps) {
 
   const nav: NavItem[] = NAV.map((n) => ({ ...n, active: n.href === activeHref }));
 
+  const handleAsk = useCallback(() => {
+    const label = encodeURIComponent(title);
+    window.location.href = `/ask?new=1&kind=other&label=${label}`;
+  }, [title]);
+
   return (
     <div className="app-layout">
-      <SiteHeader title={title} nav={nav} />
+      <SiteHeader title={title} nav={nav} onAsk={handleAsk} />
       <main className="app-layout__main">{children(overview)}</main>
       <SiteFooter links={FOOTER_LINKS} theme={theme} onToggleTheme={toggleTheme}>
         {footerStatus(overview)}
