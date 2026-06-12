@@ -64,6 +64,7 @@ const app = createApp(db, {
   queue,
   dataDir: config.dataDir,
   llm,
+  transcription,
 });
 app.listen(config.port, () => {
   logger.info("server listening", {

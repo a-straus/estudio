@@ -15,6 +15,7 @@ import {
   updateMessageToolCalls,
 } from "../db/chat-queries.js";
 import type { LlmService } from "../llm/service.js";
+import type { TranscriptionService } from "../transcription/service.js";
 import { logger } from "../logger.js";
 
 function error(res: Response, status: number, message: string, code: string) {
@@ -98,6 +99,10 @@ export function registerChatRoutes(
   app: Express,
   db: DB,
   llm?: LlmService,
+  // Boot TranscriptionService, threaded through createApp opts. Used by the
+  // voice-question route (POST /api/chat/threads/:id/voice): transcribe a short
+  // recorded clip into the user turn, then reuse the normal assistant reply.
+  transcription?: TranscriptionService,
 ): void {
   // POST /api/chat/threads — create a new thread
   app.post(

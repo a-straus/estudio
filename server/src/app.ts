@@ -12,6 +12,7 @@ import { listJobs } from "./db/queries.js";
 import type { DB } from "./db/db.js";
 import type { JobQueue } from "./jobs/queue.js";
 import type { LlmService } from "./llm/service.js";
+import type { TranscriptionService } from "./transcription/service.js";
 import { logger } from "./logger.js";
 import { registerGrammarRoutes } from "./routes/grammar.js";
 import { registerOverviewRoutes } from "./routes/overview.js";
@@ -37,6 +38,7 @@ export function createApp(
     queue?: JobQueue;
     dataDir?: string;
     llm?: LlmService;
+    transcription?: TranscriptionService;
   } = {},
 ): Express {
   const app = express();
@@ -79,7 +81,7 @@ export function createApp(
   // Phase-2 stub routes — pre-partitioned (empty until ask-chatbot /
   // suggestions / lesson-recording-ui fill them in). Each owns only its own
   // routes file; this registration block is the orchestrator's.
-  registerChatRoutes(app, db, opts.llm);
+  registerChatRoutes(app, db, opts.llm, opts.transcription);
   registerSuggestionRoutes(app, db, opts.llm);
   registerLessonReadRoutes(app, db);
   registerNotesRoutes(app, db);
