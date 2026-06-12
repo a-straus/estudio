@@ -99,6 +99,10 @@ export function listNotes(
   return rows.map(toNote);
 }
 
+export function quizQuestionExists(db: DB, id: number): boolean {
+  return db.prepare("SELECT 1 FROM quiz_question WHERE id = ?").get(id) !== undefined;
+}
+
 /** Body text of the most recent notes for a word's quiz questions. */
 export function getNotesForWord(db: DB, wordId: number, limit = 5): string[] {
   const rows = db
