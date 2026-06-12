@@ -15,13 +15,14 @@ Done levels (from GOAL.md §15):
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
 - **design-polish-foundation**: materialize the new additive tokens + restyle the base component library to the elevated bar + build the new chrome/home components (SiteHeader, SiteFooter, HomeHero, OverviewCard). Runs ALONE — touches the token stylesheet + every base component + shell. (spawned: 2026-06-12 00:25, `--model "$ORCH_MODEL" --effort high --include design/INDEX.md --include design/tokens.md --include design/components.md --include design/interaction.md --include design/screens/shell.md --include design/screens/home.md`)
+- **shared-api-refold**: refold `web/src/screens/grammarApi.ts` and `systemApi.ts` onto the shared `web/src/api.ts` client (review-03 S11). File-disjoint from design-polish-foundation (api-client modules, not tokens/components/shell). (spawned: 2026-06-12 01:10, `--model sonnet`)
 
 
 ## Backlog
 
 ### Phase 1 fixes — remaining (human stepped away 2026-06-11; finish these, then design polish, then Phase 2)
 
-- **shared-api-refold** — `web/src/screens/systemApi.ts` and `grammarApi.ts` re-implement the shared `web/src/api.ts` client; refold both onto it (review-03 S11). Sequence AFTER lesson-grading-fixes (touches grammarApi consumers) and system-preferences [Nit, `--model sonnet`]
+<!-- shared-api-refold moved to In Progress (spawned iteration 72) -->
 - **notes-on-answers** — NEW FEATURE (FEEDBACK): per-answer self-note on any lesson/quiz question, browsable, fed back as context into future quiz/lesson generation. Needs a `note` entity → SCHEMA GATE cycle before build [Should]
 - **quiz-attempt-style-mixed** — review-03 S5: `quiz_attempt.style` is falsified ('mixed' written as 'def_match'; lesson attempts record the first question's style). Add `'mixed'` to the CHECK (or make the column nullable) → SCHEMA GATE; then stop writing fabricated values [Should — schema-gated]
 
