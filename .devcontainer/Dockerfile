@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   nano \
   vim \
   chromium \
+  ffmpeg \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # System Chromium for verifying web apps headlessly. Playwright's own browser

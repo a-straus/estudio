@@ -24,7 +24,7 @@ Altitude guide:
 ## Inbox
 
 <!-- - one item per dash; date them if you like -->
-
+- something has happened to where i cannot view the website to review it. I run npm run build && NODE_ENV=production npm start which used to open the server and prompt me to open localhost:3000 but now when i open 3000 I get nothing. why is that?
 ## Processed
 
 <!-- Moved here by the orchestrator with what it did about each. -->

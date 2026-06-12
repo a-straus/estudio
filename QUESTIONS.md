@@ -63,7 +63,7 @@ when the loop reports no workers mid-build; otherwise the loop just re-spawns th
 affected tasks.
 
 **Your answer:**
-
+- I have added ffmpeg and the audio into lesson audio.  Plug away sir
 
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
