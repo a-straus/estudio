@@ -7,7 +7,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: var(--hit-target);
+  height: var(--nav-height);
   background: var(--color-paper);
   border-top: 1px solid var(--color-rule);
   z-index: 20;
@@ -48,6 +48,12 @@
   bottom: 4px;
   left: 50%;
   transform: translateX(-50%);
+}
+
+/* Inter-cell dividers — hairline between every adjacent cell */
+.app-nav__item:not(:first-child),
+.app-nav__add {
+  border-left: 1px solid var(--color-rule);
 }
 
 /* Add button — same cell metrics as a nav item; no active state, no indicator */
