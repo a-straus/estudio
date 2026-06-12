@@ -246,6 +246,15 @@ describe("POST /api/notes", () => {
     expect(res.body.error.code).toBe("bad_request");
   });
 
+  it("400s when quizQuestionId references a non-existent quiz_question", async () => {
+    const res = await request(app)
+      .post("/api/notes")
+      .send({ quizQuestionId: 99999, body: "some note" })
+      .expect(400);
+    expect(res.body.error.code).toBe("bad_request");
+    expect(res.body.error.message).toMatch(/not found/i);
+  });
+
   it("trims whitespace from body before saving", async () => {
     const wordId = seedWord(db);
     const qid = seedWordQuestion(db, wordId);

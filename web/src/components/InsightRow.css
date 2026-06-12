@@ -26,7 +26,7 @@
   text-transform: lowercase;
   min-width: 3.5em;
   flex-shrink: 0;
-  padding-top: 2px;
+  padding-top: var(--space-1); /* N8: was 2px */
 }
 
 .insight-row__text {
@@ -37,20 +37,26 @@
   color: var(--color-ink-soft);
 }
 
-/* The learner's incorrect version — underlined in error color. */
+/* The learner's incorrect version — only the changed word span is underlined. */
 .insight-row__text--said {
-  text-decoration: underline;
-  text-decoration-color: var(--color-incorrect);
-  text-underline-offset: 2px;
   color: var(--color-ink-soft);
 }
 
-/* The tutor's corrected version — underlined in correct color. */
+.insight-row__text--said .insight-row__changed {
+  text-decoration: underline;
+  text-decoration-color: var(--color-incorrect);
+  text-underline-offset: var(--space-1); /* N8: was 2px */
+}
+
+/* The tutor's corrected version — only the changed word span is underlined. */
 .insight-row__text--corrected {
+  color: var(--color-ink);
+}
+
+.insight-row__text--corrected .insight-row__changed {
   text-decoration: underline;
   text-decoration-color: var(--color-correct);
-  text-underline-offset: 2px;
-  color: var(--color-ink);
+  text-underline-offset: var(--space-1); /* N8: was 2px */
 }
 
 .insight-row__note {
@@ -59,5 +65,9 @@
   letter-spacing: var(--tracking-meta);
   color: var(--color-ink-faint);
   margin: 0;
+  padding-left: var(--indent-entry, var(--space-5));
+}
+
+.insight-row__footer {
   padding-left: var(--indent-entry, var(--space-5));
 }

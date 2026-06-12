@@ -6,6 +6,7 @@ import {
   updateNote,
   deleteNote,
   listNotes,
+  quizQuestionExists,
 } from "../db/notes-queries.js";
 
 function error(res: Response, status: number, message: string, code: string) {
@@ -39,6 +40,10 @@ export function registerNotesRoutes(app: Express, db: DB): void {
     }
     if (!body.body || body.body.trim() === "") {
       error(res, 400, "body is required", "bad_request");
+      return;
+    }
+    if (!quizQuestionExists(db, body.quizQuestionId)) {
+      error(res, 400, "Quiz question not found", "bad_request");
       return;
     }
     const note = insertNote(db, {
