@@ -228,20 +228,20 @@ export function registerSuggestionRoutes(
           return error(res, 400, "action must be 'add' or 'skip'", "invalid_action");
         }
 
-        const newStatus = body.action === "add" ? "added" : "skipped";
-        updateSuggestionStatus(db, id, newStatus);
-
         if (body.action === "add" && row.item_type === "word") {
           const payload = JSON.parse(row.payload) as WordPayload;
-          // Word might already be in deck (rare edge case): ignore.
           try {
             addWordToDeck(db, payload);
           } catch (err) {
             logger.error("request", "add word from suggestion failed", { id, err });
+            return error(res, 500, "Failed to add word to deck", "add_failed");
           }
         }
         // For grammar_topic: topic already exists in grammar_topic table;
         // the practice queue is derived from mastery — no extra action needed.
+
+        const newStatus = body.action === "add" ? "added" : "skipped";
+        updateSuggestionStatus(db, id, newStatus);
 
         res.json({ ok: true });
       } catch (err) {

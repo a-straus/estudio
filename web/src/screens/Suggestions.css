@@ -48,8 +48,12 @@
   font-size: var(--text-xs);
   color: var(--color-ink-faint);
   letter-spacing: var(--tracking-meta);
-  text-transform: uppercase;
   margin-top: var(--space-3);
+}
+
+/* "SUGGESTED ·" lead-in — uppercase; reason text following is left as-is */
+.suggestion-card__reason-label {
+  text-transform: uppercase;
 }
 
 /* Topic variant */
