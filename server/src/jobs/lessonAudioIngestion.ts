@@ -33,8 +33,14 @@ export interface LessonAudioIngestionPayload {
 /** Coarse phase written to job.progress while the recording is processed. */
 type Phase = "transcribing" | "analyzing" | "done";
 
+/** Extends FlaggedWordPayload with extraction_item fields the prompt now returns. */
+interface ParsedFlaggedWord extends FlaggedWordPayload {
+  level: string | null;
+  example: string | null;
+}
+
 interface LessonAnalysis {
-  flaggedWords: FlaggedWordPayload[];
+  flaggedWords: ParsedFlaggedWord[];
   corrections: CorrectionPayload[];
   struggleSentences: StruggleSentencePayload[];
   topics: TopicCoveredPayload[];
@@ -104,8 +110,10 @@ export async function runLessonAudioIngestion(
   }
 
   // a. Transcribe (skip when a prior attempt already stored the transcript).
-  let transcript = source.transcript ?? "";
-  if (transcript.trim() === "") {
+  // Distinguish null (never transcribed) from "" (transcribed to empty — silent recording).
+  // Only transcribe when null; "" means we already spent Whisper and the result was empty.
+  let transcript = source.transcript;
+  if (transcript === null) {
     if (!source.stored_path) {
       throw new Error(`source ${source.id} has no stored audio file`);
     }
@@ -144,7 +152,7 @@ export async function runLessonAudioIngestion(
   // b. Analyze the transcript.
   writePhase(db, payload.jobId, "analyzing");
   const analysis = parseAnalysis(
-    await llm.complete("lesson_analysis", { transcript }),
+    await llm.complete("lesson_analysis", { transcript: transcript ?? "" }),
   );
 
   // c. Write results (idempotent delete-and-rewrite for this source).
@@ -186,7 +194,7 @@ function parseAnalysis(text: string): LessonAnalysis {
   const arr = (v: unknown): Record<string, unknown>[] =>
     Array.isArray(v) ? (v as Record<string, unknown>[]) : [];
 
-  const flaggedWords: FlaggedWordPayload[] = arr(parsed.flaggedWords)
+  const flaggedWords: ParsedFlaggedWord[] = arr(parsed.flaggedWords)
     .filter((w) => str(w.term) !== null)
     .map((w) => ({
       term: w.term as string,
@@ -194,6 +202,8 @@ function parseAnalysis(text: string): LessonAnalysis {
       partOfSpeech: str(w.partOfSpeech),
       definitionEs: str(w.definitionEs),
       definitionEn: str(w.definitionEn),
+      level: str(w.level),
+      example: str(w.example),
     }));
 
   const corrections: CorrectionPayload[] = arr(parsed.corrections)
@@ -249,6 +259,20 @@ function writeAnalysis(
   sourceId: number,
   analysis: LessonAnalysis,
 ): void {
+  // S1 guard: never clobber triage decisions. If any extraction_item for this
+  // source is already decided (non-pending), skip the destructive rewrite entirely.
+  const decided = db
+    .prepare(
+      "SELECT 1 FROM extraction_item WHERE source_id = ? AND decision != 'pending' LIMIT 1",
+    )
+    .get(sourceId);
+  if (decided) {
+    logger.info(
+      `skipping re-analysis write: source ${sourceId} already has triaged items`,
+    );
+    return;
+  }
+
   const topics = listGrammarTopicsForMatching(db);
   const now = nowIso();
 
@@ -257,7 +281,7 @@ function writeAnalysis(
        (source_id, term, lemma, part_of_speech, definition_es, definition_en,
         example, level, likely_known, batch_no, decision, word_id,
         created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, 'pending', NULL, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?, ?)`,
   );
 
   db.transaction(() => {
@@ -273,6 +297,9 @@ function writeAnalysis(
         w.partOfSpeech,
         w.definitionEs,
         w.definitionEn,
+        w.example,
+        w.level,
+        0, // likely_known = 0: flagged words are by definition unknown to the learner
         batchNo,
         now,
         now,
@@ -280,7 +307,13 @@ function writeAnalysis(
       insertLessonInsight(db, {
         sourceId,
         type: "flagged_word",
-        payload: w,
+        payload: {
+          term: w.term,
+          lemma: w.lemma,
+          partOfSpeech: w.partOfSpeech,
+          definitionEs: w.definitionEs,
+          definitionEn: w.definitionEn,
+        },
       });
     });
 

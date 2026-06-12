@@ -379,6 +379,114 @@ describe("runLessonAudioIngestion", () => {
     expect(insightRows(sourceId)).toHaveLength(4);
   });
 
+  it("S2: populates level, example, and likely_known = 0 on extraction_item", async () => {
+    const sourceId = makeAudioSource();
+    const analysis = {
+      flaggedWords: [
+        {
+          term: "madrugar",
+          lemma: "madrugar",
+          partOfSpeech: "verbo",
+          definitionEs: "Levantarse muy temprano.",
+          definitionEn: "to get up early",
+          level: "B2",
+          example: "Me gusta madrugar los domingos.",
+        },
+      ],
+      corrections: [],
+      struggleSentences: [],
+      topics: [],
+    };
+    const llm = makeLlm(() => JSON.stringify(analysis));
+    const { svc } = makeTranscription(transcript("texto"));
+
+    await runLessonAudioIngestion(db, llm, svc, { sourceId }, stubDuration(10));
+
+    const items = db
+      .prepare(
+        "SELECT level, example, likely_known FROM extraction_item WHERE source_id = ?",
+      )
+      .all(sourceId) as {
+      level: string | null;
+      example: string | null;
+      likely_known: number | null;
+    }[];
+    expect(items).toHaveLength(1);
+    expect(items[0]!.level).toBe("B2");
+    expect(items[0]!.example).toBe("Me gusta madrugar los domingos.");
+    expect(items[0]!.likely_known).toBe(0);
+  });
+
+  it("S2: falls back to null level/example when the model omits them", async () => {
+    const sourceId = makeAudioSource();
+    // ANALYSIS has no level/example fields — parser must tolerate this gracefully.
+    const llm = makeLlm(() => JSON.stringify(ANALYSIS));
+    const { svc } = makeTranscription(transcript("texto"));
+
+    await runLessonAudioIngestion(db, llm, svc, { sourceId }, stubDuration(10));
+
+    const items = db
+      .prepare(
+        "SELECT level, example, likely_known FROM extraction_item WHERE source_id = ?",
+      )
+      .all(sourceId) as {
+      level: string | null;
+      example: string | null;
+      likely_known: number | null;
+    }[];
+    expect(items).toHaveLength(1);
+    expect(items[0]!.level).toBeNull();
+    expect(items[0]!.example).toBeNull();
+    expect(items[0]!.likely_known).toBe(0); // still 0 regardless of level/example
+  });
+
+  it("S1: skips destructive rewrite when the source already has triaged extraction_items", async () => {
+    const sourceId = makeAudioSource();
+    const llm = makeLlm(() => JSON.stringify(ANALYSIS));
+    const { svc } = makeTranscription(transcript("texto"));
+
+    await runLessonAudioIngestion(db, llm, svc, { sourceId }, stubDuration(10));
+
+    // Simulate a triage decision on the extraction_item.
+    db.prepare(
+      "UPDATE extraction_item SET decision = 'learn' WHERE source_id = ?",
+    ).run(sourceId);
+
+    // Second run with different analysis — should NOT overwrite the decided row.
+    const llm2 = makeLlmRetry(() =>
+      JSON.stringify({ flaggedWords: [], corrections: [], struggleSentences: [], topics: [] }),
+    );
+    await runLessonAudioIngestion(db, llm2, svc, { sourceId }, stubDuration(10));
+
+    const items = itemRows(sourceId);
+    expect(items).toHaveLength(1); // original decided item preserved
+    expect(items[0]!.decision).toBe("learn");
+  });
+
+  it("N3: does not re-transcribe when stored transcript is empty string", async () => {
+    const sourceId = makeAudioSource();
+    // Simulate a prior run that transcribed to empty (e.g. silent recording).
+    db.prepare("UPDATE source SET transcript = '' WHERE id = ?").run(sourceId);
+
+    const llm = makeLlm(() =>
+      JSON.stringify({
+        flaggedWords: [],
+        corrections: [],
+        struggleSentences: [],
+        topics: [],
+      }),
+    );
+    const { svc, calls } = makeTranscription(transcript("should not be called"));
+
+    await runLessonAudioIngestion(db, llm, svc, { sourceId }, stubDuration(10));
+
+    expect(calls).toHaveLength(0); // Whisper not re-invoked for a stored ""
+    const src = db
+      .prepare("SELECT transcript FROM source WHERE id = ?")
+      .get(sourceId) as { transcript: string };
+    expect(src.transcript).toBe("");
+  });
+
   it("patches the jobId into the payload and streams phase progress", async () => {
     const sourceId = makeAudioSource();
     const queue = new JobQueue(db, { backoffBaseMs: 0 });
