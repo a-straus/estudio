@@ -11,7 +11,7 @@ export const WHISPER_USD_PER_MINUTE = 0.006;
 
 /**
  * Upfront USD estimate for transcribing `minutes` of audio at the Whisper rate.
- * Pure function — the System/UI surfaces "~$0.40/hr" (= 60 * $0.006).
+ * Pure function — the System/UI surfaces "~$0.36/hr" (= 60 * $0.006 ~= GOAL's ~$0.40 estimate).
  */
 export function estimateWhisperCostUsd(minutes: number): number {
   return minutes * WHISPER_USD_PER_MINUTE;
