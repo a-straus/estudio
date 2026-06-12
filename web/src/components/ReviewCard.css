@@ -38,6 +38,33 @@
   pointer-events: none;
 }
 
+/* Yesno mode: question + hairline + revealed answer (both sides at once). */
+.review-card__yesno {
+  display: flex;
+  flex-direction: column;
+}
+
+.review-card__yesno-reveal {
+  animation: yesno-reveal var(--motion-base) var(--motion-ease);
+}
+
+.review-card__rule {
+  border: none;
+  border-top: 1px solid var(--color-rule);
+  margin-block: var(--space-4);
+}
+
+@keyframes yesno-reveal {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-card__yesno-reveal {
+    animation-duration: 0ms;
+  }
+}
+
 /* Cloze stem: studied language, italic; the blank roman in accent. */
 .cloze-stem {
   font-family: var(--font-study);

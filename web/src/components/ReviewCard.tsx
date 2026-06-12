@@ -1,7 +1,7 @@
 import type { KeyboardEvent, ReactNode } from "react";
 import "./ReviewCard.css";
 
-export type ReviewCardMode = "choice" | "flip";
+export type ReviewCardMode = "choice" | "flip" | "yesno";
 export type ReviewCardDirection = "wordToDef" | "defToWord" | "cloze";
 
 interface ReviewCardProps {
@@ -11,12 +11,16 @@ interface ReviewCardProps {
   prompt: string;
   /** Front content: a `WordEntry size=hero` or a `ClozeStem`. */
   children: ReactNode;
-  /** Flip mode: back face content (definition line(s) + example). */
+  /** Flip/yesno mode: back face content (definition line(s) + example). */
   back?: ReactNode;
   /** Flip mode: which face shows. */
   flipped?: boolean;
   /** Flip mode: tap card or Space/Enter to flip. */
   onFlip?: () => void;
+  /** Yesno mode: whether the answer side is revealed. */
+  yesnoRevealed?: boolean;
+  /** Yesno mode: tap card to reveal. */
+  onReveal?: () => void;
 }
 
 /**
@@ -32,18 +36,32 @@ export function ReviewCard({
   back,
   flipped = false,
   onFlip,
+  yesnoRevealed = false,
+  onReveal,
 }: ReviewCardProps) {
   const flippable = mode === "flip" && onFlip !== undefined;
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === " " || e.key === "Enter") {
       e.preventDefault();
-      onFlip?.();
+      if (mode === "flip") onFlip?.();
+      else if (mode === "yesno") onReveal?.();
     }
   };
 
+  // Yesno: the whole card section is the tap target (before reveal).
+  const yesnoCardProps =
+    mode === "yesno" && !yesnoRevealed && onReveal !== undefined
+      ? {
+          role: "button" as const,
+          tabIndex: 0,
+          onClick: onReveal,
+          onKeyDown: handleKeyDown,
+        }
+      : {};
+
   return (
-    <section className="review-card" data-direction={direction}>
+    <section className="review-card" data-direction={direction} {...yesnoCardProps}>
       <p className="review-card__prompt">{prompt}</p>
       <div
         className="review-card__body"
@@ -76,6 +94,16 @@ export function ReviewCard({
             >
               {back}
             </div>
+          </div>
+        ) : mode === "yesno" ? (
+          <div className="review-card__yesno">
+            {children}
+            {yesnoRevealed && (
+              <div className="review-card__yesno-reveal">
+                <hr className="review-card__rule" />
+                {back}
+              </div>
+            )}
           </div>
         ) : (
           children

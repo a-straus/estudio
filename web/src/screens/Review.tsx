@@ -5,6 +5,7 @@ import type {
   DistractorCandidate,
   DueQueueItem,
   ReviewDirection,
+  ReviewFormat,
   ReviewGrade,
 } from "@estudio/shared";
 import { normalize } from "@estudio/shared";
@@ -14,12 +15,13 @@ import {
   EmptyState,
   QuizOption,
   ReviewCard,
+  SegmentedControl,
   Toast,
   WordEntry,
   type QuizOptionState,
 } from "../components";
 import { fetchDueQueue, submitReview } from "./reviewApi";
-import { getSettings } from "./systemApi";
+import { getSettings, putSettings } from "./systemApi";
 import "./Review.css";
 
 interface ReviewProps {
@@ -319,6 +321,80 @@ function Card({
   );
 }
 
+interface YesNoCardProps {
+  card: DueQueueItem;
+  reveal: DefinitionDisplay;
+  onGrade: (card: DueQueueItem, grade: ReviewGrade) => void;
+  onNext: () => void;
+}
+
+/**
+ * Yes/No (binary) review card (§3.2b). Shows the question side only; tap to
+ * reveal both sides split by a hairline; two self-grade Buttons map to SM-2
+ * fail / good. No distractor pool needed — renders for every due word.
+ */
+function YesNoCard({ card, reveal, onGrade, onNext }: YesNoCardProps) {
+  const [revealed, setRevealed] = useState(false);
+
+  const selfGrade = useCallback(
+    (grade: ReviewGrade) => {
+      onGrade(card, grade);
+      onNext();
+    },
+    [card, onGrade, onNext],
+  );
+
+  // Keyboard (§3.2b): Space/Enter reveals; once revealed 1/N = fail, 2/Y = knew.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (!revealed) {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          setRevealed(true);
+        }
+      } else {
+        if (e.key === "1" || e.key === "n" || e.key === "N") selfGrade("fail");
+        else if (e.key === "2" || e.key === "y" || e.key === "Y")
+          selfGrade("good");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [revealed, selfGrade]);
+
+  return (
+    <div className="review__card-region">
+      <ReviewCard
+        mode="yesno"
+        direction={card.direction === "w2d" ? "wordToDef" : "defToWord"}
+        prompt="Do you know it?"
+        yesnoRevealed={revealed}
+        onReveal={() => setRevealed(true)}
+        back={<CardReveal card={card} reveal={reveal} />}
+      >
+        <CardFront card={card} />
+      </ReviewCard>
+      {!revealed && (
+        <p className="review__tap-hint">Tap to reveal</p>
+      )}
+      <div className="review__actions">
+        {revealed ? (
+          <div className="review__grades">
+            <Button variant="secondary" onClick={() => selfGrade("fail")}>
+              Didn&rsquo;t know
+            </Button>
+            <Button variant="primary" onClick={() => selfGrade("good")}>
+              Knew it
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 interface ClozeCardProps {
   card: DueQueueItem;
   cloze: ClozeReviewItem;
@@ -463,12 +539,17 @@ export function Review({ deckId }: ReviewProps) {
   const [toast, setToast] = useState<ToastState | null>(null);
   // "Definitions on reveal" preference; defaults to "both" until/if it loads.
   const [reveal, setReveal] = useState<DefinitionDisplay>("both");
+  // Review format preference; defaults to "mc" until/if it loads.
+  const [reviewFormat, setReviewFormat] = useState<ReviewFormat>("mc");
 
   useEffect(() => {
     getSettings().then(
-      (r) => setReveal(r.settings.definitionDisplay),
+      (r) => {
+        setReveal(r.settings.definitionDisplay);
+        setReviewFormat(r.settings.reviewFormat);
+      },
       () => {
-        /* fall back to the default reveal — a missing preference isn't fatal */
+        /* fall back to the defaults — a missing preference isn't fatal */
       },
     );
   }, []);
@@ -618,6 +699,21 @@ export function Review({ deckId }: ReviewProps) {
         <p className="review__due-count">
           {total} {total === 1 ? "card" : "cards"} due today
         </p>
+        <SegmentedControl
+          label="Review format"
+          options={[
+            { value: "mc", label: "Multiple choice" },
+            { value: "yesno", label: "Yes-No" },
+          ]}
+          value={reviewFormat}
+          onChange={(v) => {
+            const fmt = v as ReviewFormat;
+            setReviewFormat(fmt);
+            putSettings({ reviewFormat: fmt }).catch(() => {
+              /* optimistic — silently fall back on failure */
+            });
+          }}
+        />
         <Button variant="primary" onClick={() => setPhase("active")}>
           Start review
         </Button>
@@ -695,6 +791,14 @@ export function Review({ deckId }: ReviewProps) {
             cloze={clozeByWord.get(current.wordId)!}
             reveal={reveal}
             onGrade={handleClozeGrade}
+            onNext={advance}
+          />
+        ) : reviewFormat === "yesno" ? (
+          <YesNoCard
+            key={`yesno-${current.wordId}-${index}`}
+            card={current}
+            reveal={reveal}
+            onGrade={handleGrade}
             onNext={advance}
           />
         ) : (

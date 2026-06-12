@@ -41,7 +41,7 @@ const mockApi = api as unknown as {
 };
 
 const SETTINGS: GetSettingsResponse = {
-  settings: { definitionDisplay: "both", newCardsPerDay: 20 },
+  settings: { definitionDisplay: "both", newCardsPerDay: 20, reviewFormat: "mc" },
 };
 
 const SPEND: SystemSpendResponse = {
@@ -188,7 +188,7 @@ describe("System screen", () => {
 
   it("PUTs the new value when a preference changes", async () => {
     mockApi.putSettings.mockResolvedValue({
-      settings: { definitionDisplay: "es", newCardsPerDay: 20 },
+      settings: { definitionDisplay: "es", newCardsPerDay: 20, reviewFormat: "mc" },
     });
 
     render(<System />);
