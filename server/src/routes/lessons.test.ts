@@ -13,13 +13,16 @@ let dataDir: string;
 let db: DB;
 let app: Express;
 
-function insertLessonSource(title = "Lesson Jun 9"): number {
+function insertLessonSource(
+  title = "Lesson Jun 9",
+  durationMinutes: number | null = null,
+): number {
   const now = nowIso();
   const r = db
     .prepare(
-      "INSERT INTO source (type, title, ref, stored_path, created_at, updated_at) VALUES ('lesson_audio', ?, ?, ?, ?, ?)",
+      "INSERT INTO source (type, title, ref, stored_path, duration_minutes, created_at, updated_at) VALUES ('lesson_audio', ?, ?, ?, ?, ?, ?)",
     )
-    .run(title, "lesson.m4a", "/uploads/lesson.m4a", now, now);
+    .run(title, "lesson.m4a", "/uploads/lesson.m4a", durationMinutes, now, now);
   return Number(r.lastInsertRowid);
 }
 
@@ -91,6 +94,16 @@ describe("GET /api/lessons", () => {
     expect(row.struggleSentenceCount).toBe(0);
     expect(row.topicCount).toBe(0);
     expect(row.durationMinutes).toBeNull();
+  });
+
+  it("surfaces a persisted duration_minutes as durationMinutes", async () => {
+    const sourceId = insertLessonSource("A 58-minute lesson", 58.4);
+    insertJob(sourceId);
+
+    const res = await request(app).get("/api/lessons").expect(200);
+    const body = res.body as LessonListItem[];
+    const row = body.find((r) => r.sourceId === sourceId)!;
+    expect(row.durationMinutes).toBe(58.4);
   });
 
   it("returns summary counts from lesson_insight rows", async () => {

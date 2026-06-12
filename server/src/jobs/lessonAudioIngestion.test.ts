@@ -173,9 +173,10 @@ describe("runLessonAudioIngestion", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.minutes).toBe(60);
     const stored = db
-      .prepare("SELECT transcript FROM source WHERE id = ?")
-      .get(sourceId) as { transcript: string };
+      .prepare("SELECT transcript, duration_minutes FROM source WHERE id = ?")
+      .get(sourceId) as { transcript: string; duration_minutes: number };
     expect(stored.transcript).toBe("hola, hoy practicamos");
+    expect(stored.duration_minutes).toBe(60);
 
     // c. one lesson_insight per type.
     const insights = insightRows(sourceId);
