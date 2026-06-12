@@ -25,9 +25,11 @@ Altitude guide:
 
 <!-- - one item per dash; date them if you like -->
 
-<!-- (empty — the 11-item batch of 2026-06-12 was processed in iteration 142; see ## Processed) -->
+<!-- (empty — iter-143 "mochi UI screens landed" note processed in iteration 143; the 11-item batch of 2026-06-12 processed in iteration 142; see ## Processed) -->
 
 ## Processed
+
+- 2026-06-12 (iteration 143) — owner: *"I put the UI screens in the /docs/mochi-ui-screens"* → **acknowledged; reference material for the already-queued `mochi-yesno-review` task, not a new ask.** Verified: 5 Mochi screenshots (`IMG_5762`–`IMG_5766.PNG`, ~1 MB) are now present in `docs/mochi-ui-screens/` — filling the gap iter-142 flagged (the dir was empty when the task was queued, so v1 was to be built from text + identity). **mochi-yesno-review stays queued and still blocked on `review-flow-polish`** (both write `Review.tsx`; can't run two writers on one file) — capacity is full and the collision stands, so nothing to spawn this pass. When review-flow-polish lands and a slot frees, I'll study these 5 screens, amend `review.md` + `components.md` from them (the binary "Do you know it?" card + Yes/No controls), commit, then spawn mochi-yesno-review pointed at the amended design files (workers build from design/*.md, not raw PNGs — I translate the screens into the contract). Also **fixed the `.gitignore` path** the owner added — `docs/fixtures/mochi-ui-screens` → `docs/mochi-ui-screens` — so the screenshots are ignored at their actual location (matching the `docs/fixtures/lesson-audio` precedent for binary reference assets; I can still read them directly to inform the design amendment). [reference material → mochi-yesno-review, still blocked on review-flow-polish]
 
 - 2026-06-12 (iteration 142) — **owner dropped an 11-item batch.** Checked every item against GOAL §3 non-goals and §13 triggers: **10 are in scope → queued as Backlog tasks** (3 spawned this iteration); **1 (mobile /ingest guard) contradicts a GOAL §15 done-criterion → escalated**, not silently built. Dispositions:
   - **[UX - Review Flow] remove "Check Answer" on MC** → folded with the next item into **review-flow-polish** (SPAWNED this iter). Confirmed by reading the code that /review still has the "Check answer" button on both MC and cloze cards (the earlier fix only touched /quiz, which already grades on click). [Should — daily-touch]
