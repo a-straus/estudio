@@ -15,6 +15,8 @@ Done levels (from GOAL.md §15):
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
 - **lesson-recording-backend**: BACKEND slice of lesson-recording-ingestion (server + shared types only; NO web/). `POST /api/sources/audio` (multer, mirror /sources/pdf) → source(type='lesson_audio') → resumable ingestion job: transcribe via the landed `TranscriptionService.transcribe('lesson_audio', {data,filename,minutes})` → store on `source.transcript` → new `lesson_analysis` LLM task mines flagged-unknown words (→ `extraction_item` triage queue + `lesson_insight` 'flagged_word'), tutor corrections ('correction'), struggle sentences ('struggle_sentence'), topics covered (match `grammar_topic` + 'topic_covered'). Duration via pure-JS `music-metadata` npm (NO ffmpeg — absent; oversized >24 MB splitting deferred to the ffmpeg follow-up, surfaces a clean job failure). Upfront cost estimate via openai.ts `estimateWhisperCostUsd`. Boot-wire `TranscriptionService` in index.ts. Files: routes/sources.ts, jobs/lessonAudioIngestion.ts(NEW)+handlers.ts, llm/service.ts, prompts/lesson_analysis.md(NEW), db/queries.ts, index.ts, shared/src/lesson-audio-api.ts(NEW)+index.ts. Schema changes allowed: none (lesson_audio source + lesson_insight already in 001). File-disjoint from mobile-nav (web-only). (spawned: 2026-06-12, `--model "$ORCH_MODEL" --effort high`) [Must — Phase 2, build-first backend]
+  <!-- iter 93: verified genuinely RUNNING — live opus worker PID, log fresh, at its final `bash check.sh` gate after "git stays clean"; 0 commits, no .worker-done yet. Likely lands next iteration; then pre-partition shared/index + llm/service seams and batch-spawn ask-chatbot + suggestions + notes-on-answers file-disjoint. -->
+
 
 
 ## Backlog
