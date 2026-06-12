@@ -58,9 +58,11 @@
   margin-top: var(--space-2);
 }
 
-/* hero — review/quiz cards; gloss hidden (it's the question) */
+/* hero — review/quiz cards; gloss hidden (it's the question).
+   Headword sets at >= --text-2xl, so it gets the display tracking (D2). */
 .word-entry--hero .word-entry__headword {
   font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-display);
 }
 
 @media (min-width: 640px) {

@@ -1,0 +1,82 @@
+/* SiteHeader — slim sticky masthead (D3, shell.md). No shadow: the hairline
+   does the separating. */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-paper);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  min-height: var(--header-height);
+  max-width: var(--measure-app);
+  margin: 0 auto;
+  padding: 0 var(--space-4);
+}
+
+.site-header__title {
+  font-family: var(--font-app);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-ink);
+  margin-right: auto;
+}
+
+/* Nav links live in the bottom AppNav on phone; here only at bp-tablet+. */
+.site-header__nav {
+  display: none;
+}
+
+.site-header__ask {
+  flex-shrink: 0;
+}
+
+/* bp-tablet: the header becomes the navigation. */
+@media (min-width: 640px) {
+  .site-header__nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .site-header__link {
+    font-family: var(--font-app);
+    font-size: var(--text-sm);
+    color: var(--color-ink-soft);
+    text-decoration: none;
+    line-height: var(--leading-snug);
+    padding-bottom: 2px;
+    border-bottom: 2px solid transparent;
+    transition: color var(--motion-fast) var(--motion-ease);
+  }
+
+  .site-header__link:hover {
+    color: var(--color-ink);
+  }
+
+  .site-header__link--active {
+    color: var(--color-accent);
+    border-bottom-color: var(--color-accent);
+  }
+
+  .site-header__link:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* The Ask button is visually separated from the nav links. */
+  .site-header__ask {
+    margin-left: var(--space-1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header__link {
+    transition: none;
+  }
+}

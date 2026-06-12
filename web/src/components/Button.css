@@ -34,12 +34,9 @@
   color: var(--color-accent-ink);
 }
 
-.btn--primary:hover:not(:disabled) {
-  background: oklch(from var(--color-accent) calc(l + 0.04) c h);
-}
-
+.btn--primary:hover:not(:disabled),
 .btn--primary:active:not(:disabled) {
-  background: oklch(from var(--color-accent) calc(l - 0.04) c h);
+  background: var(--color-accent-strong);
 }
 
 .btn--secondary {

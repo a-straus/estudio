@@ -1,0 +1,65 @@
+/* HomeHero — the one lifted object on the home page (D4, home.md).
+   The only use of --shadow-3 and --motion-slow in the app. */
+
+.home-hero {
+  background: var(--color-surface);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-3);
+  padding: var(--space-5); /* phone */
+  animation: home-hero-enter var(--motion-slow) var(--motion-ease);
+}
+
+@keyframes home-hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-2));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.home-hero__headword {
+  margin: 0;
+  font-family: var(--font-study);
+  font-weight: var(--weight-bold);
+  /* phone falls to --text-3xl; desktop is --text-display */
+  font-size: var(--text-3xl);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-display);
+  color: var(--color-ink);
+}
+
+.home-hero__subhead {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--color-ink-soft);
+}
+
+.home-hero__action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+/* bp-tablet+: more room, display-scale headword. */
+@media (min-width: 640px) {
+  .home-hero {
+    padding: var(--space-6);
+  }
+
+  .home-hero__headword {
+    font-size: var(--text-display);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero {
+    animation: none;
+  }
+}
