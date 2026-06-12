@@ -213,3 +213,19 @@ export function getMessage(db: DB, messageId: number): ChatMessageView | null {
     .get(messageId) as MessageRow | undefined;
   return row ? toMessageView(row) : null;
 }
+
+/**
+ * Delete a thread and all its messages atomically.
+ * chat_message has no ON DELETE CASCADE, so messages are removed first.
+ * Returns true if the thread existed (was deleted).
+ */
+export function deleteThread(db: DB, threadId: number): boolean {
+  const run = db.transaction(() => {
+    db.prepare(`DELETE FROM chat_message WHERE thread_id = ?`).run(threadId);
+    const result = db
+      .prepare(`DELETE FROM chat_thread WHERE id = ?`)
+      .run(threadId);
+    return result.changes > 0;
+  });
+  return run() as boolean;
+}

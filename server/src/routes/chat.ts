@@ -10,6 +10,7 @@ import { normalize } from "@estudio/shared";
 import type { DB } from "../db/db.js";
 import {
   createThread,
+  deleteThread,
   getMessage,
   getThread,
   insertMessage,
@@ -168,6 +169,21 @@ export function registerChatRoutes(
         isNaN(offset) ? 0 : offset,
       );
       res.json({ thread, messages, hasMore });
+    },
+  );
+
+  // DELETE /api/chat/threads/:id — delete thread and all its messages
+  app.delete(
+    "/api/chat/threads/:id",
+    (req: Request, res: Response): void => {
+      const id = Number(req.params.id);
+      const thread = getThread(db, id);
+      if (!thread) {
+        error(res, 404, "Thread not found", "not_found");
+        return;
+      }
+      deleteThread(db, id);
+      res.status(204).send();
     },
   );
 
