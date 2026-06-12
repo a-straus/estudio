@@ -63,8 +63,9 @@ beforeEach(() => {
 
 describe("Quiz — Setup", () => {
   it("renders the setup form with all controls and Start", () => {
+    // The screen title now lives in the masthead (AppShell), not a duplicate
+    // in-screen heading — Setup opens straight into the form controls.
     render(<Quiz pollIntervalMs={10} />);
-    expect(screen.getByText("Quiz")).toBeTruthy();
     expect(screen.getByRole("radiogroup", { name: "Deck" })).toBeTruthy();
     expect(screen.getByRole("radiogroup", { name: "Length" })).toBeTruthy();
     expect(screen.getByRole("radiogroup", { name: "Style" })).toBeTruthy();

@@ -373,7 +373,11 @@ function ClozeCard({ card, cloze, reveal, onGrade, onNext }: ClozeCardProps) {
 
   return (
     <div className="review__card-region">
-      <ReviewCard mode="choice" direction="cloze" prompt="Fill in the blank.">
+      <ReviewCard
+        mode="choice"
+        direction="cloze"
+        prompt="Complete the sentence."
+      >
         <ClozeStem before={cloze.stemBefore} after={cloze.stemAfter} />
       </ReviewCard>
 
@@ -396,13 +400,9 @@ function ClozeCard({ card, cloze, reveal, onGrade, onNext }: ClozeCardProps) {
       {answered && (
         <div className="review__reveal">
           <CardReveal card={card} reveal={reveal} />
-          <button
-            type="button"
-            className="review__explain-toggle"
-            onClick={() => setExplain((v) => !v)}
-          >
+          <Button variant="quiet" onClick={() => setExplain((v) => !v)}>
             Explain why
-          </button>
+          </Button>
           {explain && (
             <p className="review__explanation">{cloze.explanation}</p>
           )}
