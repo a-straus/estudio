@@ -1,12 +1,17 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./RecordButton.css";
 
 export type RecordButtonState = "idle" | "recording" | "denied" | "transcribing";
 
 interface RecordButtonProps {
+  /** External state override — used by tests and the parent's transcribing state. */
   state?: RecordButtonState;
-  /** Elapsed seconds (only shown in recording state). */
+  /** External elapsed seconds override — used by tests. */
   elapsedSeconds?: number;
+  /** Legacy click handler (presentational use). */
   onClick?: () => void;
+  /** When provided, RecordButton manages its own MediaRecorder and calls this with the Blob. */
+  onRecorded?: (audio: Blob) => void;
 }
 
 const MAX_SECONDS = 120;
@@ -20,14 +25,105 @@ function formatTime(seconds: number): string {
 
 /**
  * RecordButton — mic affordance beside the composer (components.md).
- * MediaRecorder wiring is a separate task (voice-questions); this renders
- * the states per the design but does not capture audio.
+ * When onRecorded is provided, manages its own MediaRecorder + timer internally.
+ * The state/elapsedSeconds props override the internal state (used by tests).
  */
 export function RecordButton({
-  state = "idle",
-  elapsedSeconds = 0,
+  state: stateProp,
+  elapsedSeconds: elapsedProp,
   onClick,
+  onRecorded,
 }: RecordButtonProps) {
+  const [internalState, setInternalState] = useState<"idle" | "recording" | "denied">("idle");
+  const [internalElapsed, setInternalElapsed] = useState(0);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<BlobEvent["data"][]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopRecording = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
+
+  const handleClick = useCallback(async () => {
+    if (onClick) { onClick(); return; }
+    if (!onRecorded) return;
+
+    if (internalState === "recording") {
+      stopRecording();
+      return;
+    }
+
+    if (internalState === "denied") return;
+
+    // Guard: MediaRecorder/getUserMedia are browser-only
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === "undefined"
+    ) {
+      return;
+    }
+
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setInternalState("denied");
+      return;
+    }
+
+    chunksRef.current = [];
+    const recorder = new MediaRecorder(stream);
+    mediaRecorderRef.current = recorder;
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+
+    recorder.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop());
+      const mimeType = recorder.mimeType || "audio/webm";
+      const blob = new Blob(chunksRef.current, { type: mimeType });
+      chunksRef.current = [];
+      setInternalElapsed(0);
+      setInternalState("idle");
+      onRecorded(blob);
+    };
+
+    recorder.start();
+    setInternalState("recording");
+    setInternalElapsed(0);
+
+    let elapsed = 0;
+    timerRef.current = setInterval(() => {
+      elapsed += 1;
+      setInternalElapsed(elapsed);
+      if (elapsed >= MAX_SECONDS) {
+        stopRecording();
+      }
+    }, 1000);
+  }, [internalState, onClick, onRecorded, stopRecording]);
+
+  // External props override internal state (used by tests and parent-driven transcribing)
+  const state: RecordButtonState = stateProp ?? internalState;
+  const elapsedSeconds = elapsedProp ?? internalElapsed;
+
   const isRecording = state === "recording";
   const isDisabled = state === "transcribing";
   const remaining = MAX_SECONDS - elapsedSeconds;
@@ -45,7 +141,7 @@ export function RecordButton({
       type="button"
       className={btnClass}
       disabled={isDisabled}
-      onClick={onClick}
+      onClick={() => void handleClick()}
       aria-label={
         isRecording
           ? "Stop recording"

@@ -1,5 +1,7 @@
+import multer from "multer";
 import type { Express, Request, Response } from "express";
 import type {
+  ChatThreadView,
   ConfirmToolRequest,
   CreateThreadRequest,
   PostMessageRequest,
@@ -16,7 +18,20 @@ import {
 } from "../db/chat-queries.js";
 import type { LlmService } from "../llm/service.js";
 import type { TranscriptionService } from "../transcription/service.js";
+import {
+  readAudioDurationMinutes,
+  type ReadAudioDurationMinutes,
+} from "../transcription/duration.js";
 import { logger } from "../logger.js";
+
+const AUDIO_EXTENSIONS = new Set([
+  "m4a", "mp3", "mp4", "ogg", "oga", "webm", "aac", "flac", "opus", "wav",
+]);
+
+function extOf(filename: string): string {
+  const i = filename.lastIndexOf(".");
+  return i >= 0 ? filename.slice(i + 1).toLowerCase() : "";
+}
 
 function error(res: Response, status: number, message: string, code: string) {
   res.status(status).json({ error: { message, code } });
@@ -103,7 +118,13 @@ export function registerChatRoutes(
   // voice-question route (POST /api/chat/threads/:id/voice): transcribe a short
   // recorded clip into the user turn, then reuse the normal assistant reply.
   transcription?: TranscriptionService,
+  opts: { readAudioDuration?: ReadAudioDurationMinutes } = {},
 ): void {
+  const readAudioDuration = opts.readAudioDuration ?? readAudioDurationMinutes;
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 25 * 1024 * 1024 },
+  });
   // POST /api/chat/threads — create a new thread
   app.post(
     "/api/chat/threads",
@@ -148,6 +169,63 @@ export function registerChatRoutes(
     },
   );
 
+  async function generateAssistantReply(
+    thread: ChatThreadView,
+    threadId: number,
+  ) {
+    if (!llm) {
+      return insertMessage(db, threadId, "assistant", "LLM service unavailable.");
+    }
+
+    const { messages } = listMessages(db, threadId, 0, 50);
+    const pageContextLabel = thread.pageContext.label;
+    const history = serializeHistory(messages);
+
+    let rawText: string;
+    try {
+      rawText = await llm.complete("chat", {
+        page_context: pageContextLabel,
+        history,
+        tools: TOOLS_SPEC,
+      });
+    } catch (err) {
+      logger.error("llm", "chat LLM error", { err });
+      return insertMessage(db, threadId, "assistant", "The answer didn't arrive. Send again.");
+    }
+
+    const parsed = parseToolCall(rawText);
+    const displayText = parsed ? stripToolBlock(rawText) : rawText;
+
+    if (parsed) {
+      const isReadOnly = !MUTATION_TOOLS.has(parsed.toolName);
+      if (isReadOnly) {
+        const toolResult = executeReadTool(db, parsed.toolName, parsed.args);
+        const combinedContent = displayText
+          ? `${displayText}\n\n_[Tool result: ${toolResult}]_`
+          : `_[Tool result: ${toolResult}]_`;
+        return insertMessage(db, threadId, "assistant", combinedContent);
+      } else {
+        const toolCall = {
+          toolName: parsed.toolName as
+            | "add_word_to_deck"
+            | "lookup_word"
+            | "get_page_context",
+          args: parsed.args,
+          requiresConfirmation: true,
+        };
+        return insertMessage(
+          db,
+          threadId,
+          "assistant",
+          displayText || "I'd like to take an action:",
+          { toolCall },
+        );
+      }
+    } else {
+      return insertMessage(db, threadId, "assistant", rawText);
+    }
+  }
+
   // POST /api/chat/threads/:id/messages — user turn → assistant reply
   app.post(
     "/api/chat/threads/:id/messages",
@@ -165,91 +243,96 @@ export function registerChatRoutes(
         return;
       }
 
-      const userMessage = insertMessage(db, threadId, "user", body.content.trim());
-
-      if (!llm) {
-        const assistantMessage = insertMessage(
-          db,
-          threadId,
-          "assistant",
-          "LLM service unavailable.",
-        );
+      try {
+        const userMessage = insertMessage(db, threadId, "user", body.content.trim());
+        const assistantMessage = await generateAssistantReply(thread, threadId);
         res.status(201).json({ userMessage, assistantMessage });
+      } catch (err) {
+        logger.error("request", "chat route error", { err });
+        error(res, 500, "Internal error", "internal_error");
+      }
+    },
+  );
+
+  // POST /api/chat/threads/:id/voice — record clip → transcribe → assistant reply
+  app.post(
+    "/api/chat/threads/:id/voice",
+    upload.single("file"),
+    async (req: Request, res: Response): Promise<void> => {
+      const threadId = Number(req.params.id);
+      const thread = getThread(db, threadId);
+      if (!thread) {
+        error(res, 404, "Thread not found", "not_found");
+        return;
+      }
+
+      if (!req.file) {
+        res.status(400).json({
+          error: { message: 'multipart field "file" is required', code: "missing_file" },
+        });
+        return;
+      }
+
+      const filename = req.file.originalname || "voice.webm";
+      if (!AUDIO_EXTENSIONS.has(extOf(filename))) {
+        res.status(400).json({
+          error: { message: "unsupported audio format", code: "invalid_audio" },
+        });
+        return;
+      }
+
+      let minutes: number;
+      try {
+        minutes = await readAudioDuration(req.file.buffer, filename);
+      } catch {
+        res.status(400).json({
+          error: { message: "not a readable audio file", code: "invalid_audio" },
+        });
+        return;
+      }
+
+      if (!transcription) {
+        res.status(503).json({
+          error: {
+            message: "Voice transcription is unavailable.",
+            code: "transcription_unavailable",
+          },
+        });
+        return;
+      }
+
+      let transcribeText: string;
+      try {
+        const result = await transcription.transcribe("voice_question", {
+          data: req.file.buffer,
+          filename,
+          minutes,
+        });
+        transcribeText = result.text;
+      } catch {
+        res.status(502).json({
+          error: {
+            message: "Couldn't transcribe that. Try again.",
+            code: "transcription_failed",
+          },
+        });
+        return;
+      }
+
+      const transcript = transcribeText.trim();
+      if (transcript === "") {
+        res.status(422).json({
+          error: { message: "No speech detected. Try again.", code: "empty_transcript" },
+        });
         return;
       }
 
       try {
-        const { messages } = listMessages(db, threadId, 0, 50);
-        const pageContextLabel = thread.pageContext.label;
-        const history = serializeHistory(messages);
-
-        let rawText: string;
-        try {
-          rawText = await llm.complete("chat", {
-            page_context: pageContextLabel,
-            history,
-            tools: TOOLS_SPEC,
-          });
-        } catch (err) {
-          logger.error("llm", "chat LLM error", { err });
-          const failMsg = insertMessage(
-            db,
-            threadId,
-            "assistant",
-            "The answer didn't arrive. Send again.",
-          );
-          res.status(201).json({ userMessage, assistantMessage: failMsg });
-          return;
-        }
-
-        const parsed = parseToolCall(rawText);
-        const displayText = parsed ? stripToolBlock(rawText) : rawText;
-
-        if (parsed) {
-          const isReadOnly = !MUTATION_TOOLS.has(parsed.toolName);
-          if (isReadOnly) {
-            // Execute silently; append tool result to content
-            const toolResult = executeReadTool(db, parsed.toolName, parsed.args);
-            const combinedContent = displayText
-              ? `${displayText}\n\n_[Tool result: ${toolResult}]_`
-              : `_[Tool result: ${toolResult}]_`;
-            const assistantMessage = insertMessage(
-              db,
-              threadId,
-              "assistant",
-              combinedContent,
-            );
-            res.status(201).json({ userMessage, assistantMessage });
-          } else {
-            // Mutation — pause for confirmation
-            const toolCall = {
-              toolName: parsed.toolName as
-                | "add_word_to_deck"
-                | "lookup_word"
-                | "get_page_context",
-              args: parsed.args,
-              requiresConfirmation: true,
-            };
-            const assistantMessage = insertMessage(
-              db,
-              threadId,
-              "assistant",
-              displayText || "I'd like to take an action:",
-              { toolCall },
-            );
-            res.status(201).json({ userMessage, assistantMessage });
-          }
-        } else {
-          const assistantMessage = insertMessage(
-            db,
-            threadId,
-            "assistant",
-            rawText,
-          );
-          res.status(201).json({ userMessage, assistantMessage });
-        }
+        const userMessage = insertMessage(db, threadId, "user", transcript);
+        const assistantMessage = await generateAssistantReply(thread, threadId);
+        res.status(201).json({ transcript, userMessage, assistantMessage });
       } catch (err) {
-        logger.error("request", "chat route error", { err });
+        logger.error("request", "voice route error", { err });
         error(res, 500, "Internal error", "internal_error");
       }
     },

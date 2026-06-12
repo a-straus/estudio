@@ -86,3 +86,9 @@ export interface ConfirmToolRequest {
 export interface ConfirmToolResponse {
   assistantMessage: ChatMessageView;
 }
+
+export interface PostVoiceResponse {
+  transcript: string;
+  userMessage: ChatMessageView;
+  assistantMessage: ChatMessageView;
+}
