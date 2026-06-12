@@ -15,6 +15,7 @@ import type { LlmService } from "./llm/service.js";
 import { logger } from "./logger.js";
 import { registerGrammarRoutes } from "./routes/grammar.js";
 import { registerQuizRoutes } from "./routes/quiz.js";
+import { registerSettingsRoutes } from "./routes/settings.js";
 import { registerSourceRoutes } from "./routes/sources.js";
 import { registerSrsRoutes } from "./routes/srs.js";
 import { registerSystemRoutes } from "./routes/system.js";
@@ -64,6 +65,7 @@ export function createApp(
     registerSourceRoutes(app, db, opts.queue, opts.dataDir);
   }
   registerSrsRoutes(app, db);
+  registerSettingsRoutes(app, db);
   registerTriageRoutes(app, db);
   registerWordRoutes(app, db);
   registerGrammarRoutes(app, db, opts.queue, opts.llm);
