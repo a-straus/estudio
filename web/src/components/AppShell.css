@@ -11,4 +11,13 @@
 /* The content spine grows to push the footer to the bottom on short pages. */
 .app-layout__main {
   flex: 1 0 auto;
+  /* Phone: leave room above the fixed AppNav bottom bar. */
+  padding-bottom: calc(var(--hit-target) + var(--space-3));
+}
+
+/* bp-tablet+: AppNav is hidden, no extra bottom padding needed. */
+@media (min-width: 640px) {
+  .app-layout__main {
+    padding-bottom: 0;
+  }
 }

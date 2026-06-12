@@ -53,11 +53,16 @@ export function App() {
   }
 
   const deckId = readReviewDeckId();
-  if (deckId !== null) {
-    return <Review deckId={deckId} />;
-  }
 
   // --- Non-session screens: wrapped in the shared AppShell chrome. ---
+  if (deckId !== null) {
+    return (
+      <AppShell title="Review" activeHref="/review">
+        {() => <Review deckId={deckId} />}
+      </AppShell>
+    );
+  }
+
   if (window.location.pathname.startsWith("/library")) {
     return (
       <AppShell title="Library" activeHref="/library">

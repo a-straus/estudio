@@ -49,6 +49,7 @@ const SPEND: SystemSpendResponse = {
   totalTokensIn: 800,
   totalTokensOut: 350,
   callCount: 3,
+  transcription: { totalCostUsd: 0, totalMinutes: 0, callCount: 0 },
   byTask: [
     {
       task: "word_definition",

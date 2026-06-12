@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { OverviewSummary } from "@estudio/shared";
+import { AppNav } from "./AppNav";
 import { SiteHeader, type NavItem } from "./SiteHeader";
 import { SiteFooter, type FooterLink } from "./SiteFooter";
 import { fetchOverview } from "../screens/overviewApi";
@@ -100,6 +101,7 @@ export function AppShell({ title, activeHref, children }: AppShellProps) {
       <SiteFooter links={FOOTER_LINKS} theme={theme} onToggleTheme={toggleTheme}>
         {footerStatus(overview)}
       </SiteFooter>
+      <AppNav activeHref={activeHref} />
     </div>
   );
 }

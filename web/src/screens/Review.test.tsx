@@ -62,10 +62,63 @@ beforeEach(() => {
   mockApi.submitReview.mockResolvedValue(scheduled);
 });
 
+/** Helper: render Review, wait for landing, then start the active run. */
+async function startReview(deckId = 1) {
+  render(<Review deckId={deckId} />);
+  const startBtn = await screen.findByRole("button", { name: "Start review" });
+  fireEvent.click(startBtn);
+}
+
+describe("Review landing", () => {
+  it("shows the due count and a Start review button before entering the active run", async () => {
+    mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
+    render(<Review deckId={1} />);
+
+    expect(await screen.findByText("4 cards due today")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Start review" })).toBeTruthy();
+    // Card content is not yet visible
+    expect(screen.queryByText("arpón")).toBeNull();
+  });
+
+  it("shows empty state when nothing is due", async () => {
+    mockApi.fetchDueQueue.mockResolvedValue(queue([]));
+    render(<Review deckId={1} />);
+
+    expect(await screen.findByText(/Nothing due/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Start review" })).toBeNull();
+  });
+
+  it("entering Start review shows the first card", async () => {
+    mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
+    await startReview();
+
+    expect(await screen.findByText("arpón")).toBeTruthy();
+    expect(screen.getByText("1 of 4")).toBeTruthy();
+  });
+
+  it("End session (×) returns to the landing, not to /", async () => {
+    // fetchDueQueue called twice: initial load + reload after endSession
+    mockApi.fetchDueQueue
+      .mockResolvedValueOnce(fourCardQueue())
+      .mockResolvedValueOnce(fourCardQueue());
+    await startReview();
+
+    // Confirm we are in the active run
+    await screen.findByText("arpón");
+
+    // End session via the × button
+    fireEvent.click(screen.getByRole("button", { name: "End session" }));
+
+    // Landing should reappear
+    expect(await screen.findByText(/cards due today/)).toBeTruthy();
+    expect(screen.queryByText("arpón")).toBeNull();
+  });
+});
+
 describe("Review screen", () => {
   it("fetches the due queue and renders the first card", async () => {
     mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
-    render(<Review deckId={1} />);
+    await startReview();
 
     expect(await screen.findByText("arpón")).toBeTruthy();
     expect(screen.getByText("Choose the definition.")).toBeTruthy();
@@ -75,7 +128,7 @@ describe("Review screen", () => {
 
   it("submits a grade for the chosen multiple-choice answer", async () => {
     mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
-    render(<Review deckId={1} />);
+    await startReview();
 
     // The correct option for a w2d card is the card's own English meaning.
     fireEvent.click(await screen.findByText("meaning of arpón"));
@@ -93,7 +146,7 @@ describe("Review screen", () => {
 
   it("reveals both definitions after answering", async () => {
     mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
-    render(<Review deckId={1} />);
+    await startReview();
 
     fireEvent.click(await screen.findByText("meaning of arpón"));
     fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
@@ -110,7 +163,7 @@ describe("Review screen", () => {
         due({ wordId: 2, term: "barco" }),
       ]),
     );
-    render(<Review deckId={1} />);
+    await startReview();
 
     const flip = await screen.findByRole("button", { name: "Flip to check" });
     expect(screen.queryByRole("button", { name: "Check answer" })).toBeNull();
@@ -129,12 +182,12 @@ describe("Review screen", () => {
 
   it("offers no 'I forgot this' action — demotion lives in Library, not here", async () => {
     mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
-    render(<Review deckId={1} />);
+    await startReview();
 
     await screen.findByText("arpón");
     expect(screen.queryByRole("button", { name: "I forgot this" })).toBeNull();
-    // The single quiet pre-answer action is "Don't know".
-    expect(screen.getByRole("button", { name: "Don’t know" })).toBeTruthy();
+    // The single quiet pre-answer action is "Don't know" (apostrophe may be curly).
+    expect(screen.getByRole("button", { name: /don.t know/i })).toBeTruthy();
   });
 
   it("uses deck distractors to build options when the queue is small", async () => {
@@ -148,7 +201,7 @@ describe("Review screen", () => {
         { wordId: 12, term: "dato", definitionEn: "meaning of dato" },
       ],
     });
-    render(<Review deckId={1} />);
+    await startReview();
 
     // Multiple choice, not flip: 1 queue distractor + 2 deck distractors.
     fireEvent.click(await screen.findByText("meaning of arpón"));
@@ -165,18 +218,11 @@ describe("Review screen", () => {
     );
   });
 
-  it("shows the empty state when nothing is due", async () => {
-    mockApi.fetchDueQueue.mockResolvedValue(queue([]));
-    render(<Review deckId={1} />);
-
-    expect(await screen.findByText(/Nothing due/)).toBeTruthy();
-  });
-
   it("shows the end-of-session summary after the last card", async () => {
     mockApi.fetchDueQueue.mockResolvedValue(
       queue([due({ wordId: 1, term: "arpón" })]),
     );
-    render(<Review deckId={1} />);
+    await startReview();
 
     fireEvent.click(
       await screen.findByRole("button", { name: "Flip to check" }),

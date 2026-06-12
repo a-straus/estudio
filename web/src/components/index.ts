@@ -1,3 +1,5 @@
+export { AppNav } from "./AppNav";
+export type { AppNavItem } from "./AppNav";
 export { AppShell } from "./AppShell";
 export type { OverviewState } from "./AppShell";
 export { Button } from "./Button";
