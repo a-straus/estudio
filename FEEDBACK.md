@@ -24,7 +24,8 @@ Altitude guide:
 ## Inbox
 
 <!-- - one item per dash; date them if you like -->
-
+- logs/orchestrator/iter-XXX.json doesnt help me, Before terminating the orchestration run, can you just pass it to a really lightweight model like Sonnet with low thinking and just say summarize this run for the human. So there can just be a couple of paragraphs that describe it for me so I can read it. So we'll still have the JSON, but then in addition we'll have like a .txt or whatever that I can just read there, or a .md is helpful too, that I can just read. Uh so I don't have to keep copy and pasting it into like another chat window. 
+- let anything in flight Finish, don't start anything new because I have to rebuild the container to give you FFMPEG. So on the next run or two, just let everything finish and uh if you have extra runs just stop and let me uh rebuild the container for you so you can keep going on FFMPEG. 
 <!-- (empty — iter-143 "mochi UI screens landed" note processed in iteration 143; the 11-item batch of 2026-06-12 processed in iteration 142; see ## Processed) -->
 
 ## Processed
