@@ -173,6 +173,35 @@ describe("Triage advancement (no skipped candidates)", () => {
     expect(mockApi.patchDecision).toHaveBeenCalledTimes(3);
   });
 
+  it("advances in flow order without skipping when server order leads with a may-know word", async () => {
+    // Regression: the cursor was seeded from server order (may-know id 10) while
+    // advance walked grouped flow order off a stale closure — deciding once
+    // double-hit id 10 and skipped a probably-new word. The cursor must visit
+    // every pending word exactly once, in flow order (probably-new first).
+    const items = [
+      item({ id: 10, term: "diez", likelyKnown: 0.9 }), // may_know
+      item({ id: 20, term: "veinte", likelyKnown: 0.1 }), // probably_new
+      item({ id: 30, term: "treinta", likelyKnown: 0.1 }), // probably_new
+    ];
+    mockApi.fetchBatch.mockResolvedValue(batch(items));
+    patchEchoes(items);
+
+    render(<Triage sourceId={1} />);
+
+    // Seeded on the first probably-new word, not the leading may-know one.
+    await waitFor(() => expect(currentRow()?.textContent).toContain("veinte"));
+    fireEvent.keyDown(window, { key: "l" });
+    await waitFor(() => expect(currentRow()?.textContent).toContain("treinta"));
+    fireEvent.keyDown(window, { key: "l" });
+    await waitFor(() => expect(currentRow()?.textContent).toContain("diez"));
+    fireEvent.keyDown(window, { key: "l" });
+
+    await screen.findByText("Everything sorted");
+    const decided = mockApi.patchDecision.mock.calls.map((c) => c[0]);
+    expect([...decided].sort((a, b) => a - b)).toEqual([10, 20, 30]);
+    expect(mockApi.patchDecision).toHaveBeenCalledTimes(3);
+  });
+
   it("keeps the running tally after a decision", async () => {
     mockApi.fetchBatch.mockResolvedValue(
       batch([item({ id: 1, term: "arpón" }), item({ id: 2, term: "barco" })]),

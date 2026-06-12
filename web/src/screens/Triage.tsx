@@ -53,6 +53,38 @@ function groupOf(item: ExtractionItemView): TriageGroup {
     : "probably_new";
 }
 
+// Flow order: probably-new group first, then may-know — the order the raised
+// current row advances through (screen spec 3.5). The cursor, the display, and
+// the advance logic all walk this single order so they never disagree.
+export function flowOrder(
+  items: ExtractionItemView[],
+): ExtractionItemView[] {
+  const groups: TriageGroup[] = ["probably_new", "may_know"];
+  return groups.flatMap((g) => items.filter((it) => groupOf(it) === g));
+}
+
+// The next word the cursor should land on after `decidedId` is decided.
+// `items` MUST already reflect that decision — we walk forward to the next
+// still-pending word in flow order, then wrap to the earliest remaining one.
+// Pass decidedId = null to pick the first pending word (initial seed).
+// Returns null when nothing is left to decide.
+export function nextPendingId(
+  items: ExtractionItemView[],
+  decidedId: number | null,
+): number | null {
+  const flow = flowOrder(items);
+  const idx =
+    decidedId === null ? -1 : flow.findIndex((it) => it.id === decidedId);
+  for (let i = idx + 1; i < flow.length; i++) {
+    if (flow[i].decision === "pending") return flow[i].id;
+  }
+  // No later pending word — wrap to the earliest one still awaiting a decision.
+  for (const it of flow) {
+    if (it.id !== decidedId && it.decision === "pending") return it.id;
+  }
+  return null;
+}
+
 export function Triage({ sourceId }: TriageProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -72,6 +104,11 @@ export function Triage({ sourceId }: TriageProps) {
   const [confirming, setConfirming] = useState(false);
 
   const rowRefs = useRef(new Map<number, HTMLDivElement>());
+  // Always-current snapshot of `items`, updated synchronously by every decision
+  // path. The cursor advance reads this (not the render-time `flow` closure) so
+  // a just-applied decision is visible immediately — even when the user decides
+  // faster than React can re-render.
+  const itemsRef = useRef<ExtractionItemView[]>([]);
 
   const load = useCallback(
     async (which?: number) => {
@@ -83,12 +120,14 @@ export function Triage({ sourceId }: TriageProps) {
         setSource(data.source);
         setBatchNo(data.batchNo);
         setBatchCount(data.batchCount);
+        itemsRef.current = data.items;
         setItems(data.items);
         setUndoStack([]);
         setSummary(null);
         setDedupeHits([]);
-        const firstPending = data.items.find((i) => i.decision === "pending");
-        setCurrentId(firstPending?.id ?? null);
+        // Seed the cursor on the first pending word in flow order (not server
+        // order) so it matches what the user sees at the top of the list.
+        setCurrentId(nextPendingId(data.items, null));
       } catch (err) {
         setLoadError(
           err instanceof Error ? err.message : "Couldn't load this batch.",
@@ -105,12 +144,7 @@ export function Triage({ sourceId }: TriageProps) {
     void load();
   }, [load]);
 
-  // Flow order: probably-new group first, then may-know — the order the
-  // raised current row advances through (screen spec 3.5).
-  const flow = useMemo(() => {
-    const groups: TriageGroup[] = ["probably_new", "may_know"];
-    return groups.flatMap((g) => items.filter((it) => groupOf(it) === g));
-  }, [items]);
+  const flow = useMemo(() => flowOrder(items), [items]);
 
   const tally = useMemo(() => {
     const t = { know: 0, learn: 0, skip: 0, pending: 0 };
@@ -131,39 +165,32 @@ export function Triage({ sourceId }: TriageProps) {
   const goReview = useCallback(() => window.location.assign("/review"), []);
   const goLibrary = useCallback(() => window.location.assign("/library"), []);
 
+  // Fold server-returned items into the live list and the synchronous ref in
+  // one step, so the next cursor advance can read the fresh state immediately.
   const applyDecisions = useCallback((updated: ExtractionItemView[]) => {
-    setItems((prev) => {
-      const byId = new Map(updated.map((u) => [u.id, u]));
-      return prev.map((it) => byId.get(it.id) ?? it);
-    });
+    const byId = new Map(updated.map((u) => [u.id, u]));
+    const next = itemsRef.current.map((it) => byId.get(it.id) ?? it);
+    itemsRef.current = next;
+    setItems(next);
   }, []);
-
-  const advanceFrom = useCallback(
-    (decidedId: number) => {
-      const idx = flow.findIndex((it) => it.id === decidedId);
-      for (let i = idx + 1; i < flow.length; i++) {
-        if (flow[i].decision === "pending") {
-          setCurrentId(flow[i].id);
-          return;
-        }
-      }
-      // No later pending item — fall back to the first remaining pending one.
-      const next = flow.find(
-        (it) => it.id !== decidedId && it.decision === "pending",
-      );
-      setCurrentId(next?.id ?? null);
-    },
-    [flow],
-  );
 
   const decide = useCallback(
     async (item: ExtractionItemView, decision: TriageDecision) => {
+      // A stale handler (e.g. a fast second keypress before re-render) can fire
+      // on a word that already left the queue — just move the cursor on rather
+      // than re-deciding it.
+      const live = itemsRef.current.find((it) => it.id === item.id);
+      if (live && live.decision !== "pending") {
+        setCurrentId(nextPendingId(itemsRef.current, item.id));
+        return;
+      }
       const prior = { id: item.id, decision: item.decision };
       try {
         const updated = await patchDecision(item.id, decision);
         applyDecisions([updated]);
         setUndoStack((s) => [...s, { prior: [prior] }]);
-        advanceFrom(item.id);
+        // Advance off the freshly-updated snapshot — never the render closure.
+        setCurrentId(nextPendingId(itemsRef.current, item.id));
       } catch (err) {
         setToast({
           text:
@@ -172,7 +199,7 @@ export function Triage({ sourceId }: TriageProps) {
         });
       }
     },
-    [applyDecisions, advanceFrom],
+    [applyDecisions],
   );
 
   const bulk = useCallback(
@@ -190,12 +217,8 @@ export function Triage({ sourceId }: TriageProps) {
         const res = await bulkDecide(sourceId, batchNo, group, decision);
         applyDecisions(res.items);
         setUndoStack((s) => [...s, { prior }]);
-        // Advance to the next still-pending item anywhere in the flow.
-        const next = flow.find(
-          (it) =>
-            !prior.some((p) => p.id === it.id) && it.decision === "pending",
-        );
-        setCurrentId(next?.id ?? null);
+        // Advance to the first still-pending word off the fresh snapshot.
+        setCurrentId(nextPendingId(itemsRef.current, null));
       } catch (err) {
         setToast({
           text:
@@ -206,7 +229,7 @@ export function Triage({ sourceId }: TriageProps) {
         });
       }
     },
-    [items, sourceId, batchNo, applyDecisions, flow],
+    [items, sourceId, batchNo, applyDecisions],
   );
 
   const undo = useCallback(async () => {
