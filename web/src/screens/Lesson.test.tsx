@@ -19,8 +19,23 @@ vi.mock("./grammarApi", () => ({
   submitLessonAttempt: vi.fn(),
 }));
 
+vi.mock("./notesApi", () => ({
+  ApiError: class extends Error {
+    code: string;
+    constructor(message: string, code: string) {
+      super(message);
+      this.code = code;
+    }
+  },
+  listNotes: vi.fn(),
+  createNote: vi.fn(),
+  updateNote: vi.fn(),
+  deleteNote: vi.fn(),
+}));
+
 import { Lesson } from "./Lesson";
 import * as api from "./grammarApi";
+import * as notesApi from "./notesApi";
 
 const mockApi = api as unknown as {
   fetchLesson: ReturnType<typeof vi.fn>;
@@ -28,6 +43,11 @@ const mockApi = api as unknown as {
   fetchLessonJob: ReturnType<typeof vi.fn>;
   answerLesson: ReturnType<typeof vi.fn>;
   submitLessonAttempt: ReturnType<typeof vi.fn>;
+};
+
+const mockNotes = notesApi as unknown as {
+  listNotes: ReturnType<typeof vi.fn>;
+  createNote: ReturnType<typeof vi.fn>;
 };
 
 const LESSON: LessonView = {
@@ -52,6 +72,17 @@ beforeEach(() => {
   mockApi.fetchLessonJob.mockReset();
   mockApi.answerLesson.mockReset();
   mockApi.submitLessonAttempt.mockReset();
+  mockNotes.listNotes.mockResolvedValue({ notes: [] });
+  mockNotes.createNote.mockResolvedValue({
+    note: {
+      id: 42,
+      quizQuestionId: 100,
+      body: "lesson note",
+      label: "Subjuntivo",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    },
+  });
 });
 
 describe("Lesson screen", () => {
@@ -173,6 +204,30 @@ describe("Lesson screen", () => {
     // Once the job is done, the reading view appears.
     expect(await screen.findByText("Subjuntivo: emoción")).toBeTruthy();
     expect(mockApi.generateLesson).toHaveBeenCalledWith(10);
+  });
+
+  it("shows 'Add a note' affordance after grading a lesson question", async () => {
+    mockApi.fetchLesson.mockResolvedValue({ lesson: LESSON });
+    mockApi.answerLesson.mockResolvedValue({
+      verdict: "correct",
+      correctAnswer: "Espero que tengas razón.",
+      explanation: "Hope triggers the subjunctive.",
+      feedback: null,
+    });
+    mockApi.submitLessonAttempt.mockResolvedValue({
+      id: 5,
+      masteryBefore: 0.4,
+      mastery: 0.58,
+    });
+
+    render(<Lesson topicId={10} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Take the quiz" }));
+    fireEvent.click(await screen.findByText("Espero que tengas razón."));
+    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    await screen.findByText("Correct.");
+
+    // Note affordance appears after grading.
+    expect(screen.getByRole("button", { name: "Add a note" })).toBeTruthy();
   });
 
   it("shows a retry when generation fails", async () => {

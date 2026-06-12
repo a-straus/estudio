@@ -25,6 +25,7 @@ import {
   generateQuiz,
   submitAttempt,
 } from "./quizApi";
+import { NoteAffordance } from "./NoteAffordance";
 import "./Quiz.css";
 
 interface QuizProps {
@@ -235,6 +236,7 @@ function QuizCard({
             <Button variant="primary" onClick={onNext}>
               Next
             </Button>
+            <NoteAffordance questionId={question.id} />
           </>
         )}
         {gradeError && <span className="quiz__grade-error">{gradeError}</span>}

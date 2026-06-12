@@ -5,7 +5,7 @@ Grammar topic:
 - name: {{topicName}}
 - description: {{topicDescription}}
 
-Produce two things in one response: (1) a short reading that explains the topic, and (2) a quiz set that tests it.
+{{notes}}Produce two things in one response: (1) a short reading that explains the topic, and (2) a quiz set that tests it.
 
 The explanation:
 

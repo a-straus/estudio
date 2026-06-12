@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { openDb, type DB } from "../db/db.js";
+import { openDb, nowIso, type DB } from "../db/db.js";
 import { runMigrations } from "../db/migrate.js";
 import { logger } from "../logger.js";
 import { LlmService } from "../llm/service.js";
@@ -169,6 +169,72 @@ describe("runLessonGen", () => {
     await expect(runLessonGen(db, makeLlm(), { topicId: 999 })).rejects.toThrow(
       /not found/,
     );
+  });
+
+  describe("notes context injection", () => {
+    it("includes learner notes in the grammar_lesson LLM prompt when notes exist for the topic", async () => {
+      const topicId = seedTopic();
+      // Insert a topic quiz_question and attach a note to it.
+      const qid = db
+        .prepare(
+          `INSERT INTO quiz_question (topic_id, style, payload, explanation, prompt_version)
+           VALUES (?, 'fill_in', '{"style":"fill_in","prompt":"____","correct":"a"}', 'e', 'v1')`,
+        )
+        .run(topicId);
+      db.prepare(
+        `INSERT INTO note (quiz_question_id, body, created_at, updated_at)
+         VALUES (?, 'subjunctive trips me up every time', ?, ?)`,
+      ).run(Number(qid.lastInsertRowid), nowIso(), nowIso());
+
+      let capturedPrompt = "";
+      db.prepare("INSERT OR REPLACE INTO setting (key, value) VALUES (?, ?)").run(
+        "llm.grammar_lesson",
+        JSON.stringify({ provider: "capture", model: "mock" }),
+      );
+      const provider: LlmProvider = {
+        name: "capture",
+        complete: async ({ prompt }) => {
+          capturedPrompt = prompt;
+          return {
+            text: LESSON_JSON,
+            usage: { tokensIn: 1, tokensOut: 1, cacheHit: false, costEstimateUsd: 0 },
+          };
+        },
+        vision: async () => { throw new Error("vision not used"); },
+      };
+      const llm = new LlmService(db, { capture: provider }, { backoffBaseMs: 0 });
+
+      await runLessonGen(db, llm, { topicId });
+
+      expect(capturedPrompt).toContain("subjunctive trips me up every time");
+      expect(capturedPrompt).toContain("Learner's own notes");
+    });
+
+    it("does not add a notes section when the topic has no notes", async () => {
+      const topicId = seedTopic();
+
+      let capturedPrompt = "";
+      db.prepare("INSERT OR REPLACE INTO setting (key, value) VALUES (?, ?)").run(
+        "llm.grammar_lesson",
+        JSON.stringify({ provider: "capture", model: "mock" }),
+      );
+      const provider: LlmProvider = {
+        name: "capture",
+        complete: async ({ prompt }) => {
+          capturedPrompt = prompt;
+          return {
+            text: LESSON_JSON,
+            usage: { tokensIn: 1, tokensOut: 1, cacheHit: false, costEstimateUsd: 0 },
+          };
+        },
+        vision: async () => { throw new Error("vision not used"); },
+      };
+      const llm = new LlmService(db, { capture: provider }, { backoffBaseMs: 0 });
+
+      await runLessonGen(db, llm, { topicId });
+
+      expect(capturedPrompt).not.toContain("Learner's own notes");
+    });
   });
 
   it("runs through the queue handler and records the result", async () => {

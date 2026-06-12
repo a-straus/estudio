@@ -22,6 +22,6 @@ Guidelines:
 - Keep the sentence to one clause or two short clauses; calibrate vocabulary to B2.
 - Do not put the answer anywhere except the `correct` field.
 
-Reply with JSON only — no prose, no markdown fences — in exactly this shape:
+{{notes}}Reply with JSON only — no prose, no markdown fences — in exactly this shape:
 
 {"sentence": "Cuando llegó la tormenta, el ____ buscó refugio en el puerto.", "correct": "barco", "distractors": ["coche", "avión", "tren"], "explanation": "A barco (boat) seeks shelter in a harbour; the other options are land or air vehicles that would not be in a puerto."}

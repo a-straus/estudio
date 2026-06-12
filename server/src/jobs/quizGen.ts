@@ -7,6 +7,7 @@ import {
   type QuizCandidateWord,
 } from "../db/quiz-queries.js";
 import { getDistractorCandidates } from "../db/srs-queries.js";
+import { getNotesForWord } from "../db/notes-queries.js";
 import { normalize } from "@estudio/shared";
 import { loadPrompt } from "../llm/prompts.js";
 import { logger } from "../logger.js";
@@ -214,11 +215,22 @@ function parseCloze(text: string): ClozeLlmJson {
   };
 }
 
+function formatNotesBlock(notes: string[]): string {
+  if (notes.length === 0) return "";
+  return (
+    "Learner's own notes on past answers — weight these when choosing what to test:\n" +
+    notes.map((n) => `- ${n}`).join("\n") +
+    "\n\n"
+  );
+}
+
 async function buildCloze(
+  db: DB,
   llm: LlmService,
   word: QuizCandidateWord,
   promptVersion: string,
 ): Promise<{ payload: ClozePayload; explanation: string; promptVersion: string }> {
+  const notes = getNotesForWord(db, word.wordId);
   const raw = await llm.complete("quiz_cloze", {
     term: word.term,
     lemma: word.lemma ?? word.term,
@@ -226,6 +238,7 @@ async function buildCloze(
     definitionEs: word.definitionEs ?? "",
     definitionEn: word.definitionEn ?? "",
     example: word.example ?? "",
+    notes: formatNotesBlock(notes),
   });
   const parsed = parseCloze(raw);
   const blank = parsed.sentence.indexOf("____");
@@ -301,7 +314,7 @@ export async function runQuizGen(
       if (cached !== null) {
         questionIds.push(cached);
       } else {
-        const built = await buildCloze(llm, word, clozePromptVersion);
+        const built = await buildCloze(db, llm, word, clozePromptVersion);
         questionIds.push(
           insertQuizQuestion(db, {
             wordId: word.wordId,

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { openDb, type DB } from "../db/db.js";
+import { openDb, nowIso, type DB } from "../db/db.js";
 import { runMigrations } from "../db/migrate.js";
 import { logger } from "../logger.js";
 import { LlmService } from "../llm/service.js";
@@ -307,6 +307,83 @@ describe("runQuizGen", () => {
     // At least one distractor comes from the widened bank, not this word's deck.
     expect(distractors.some((d) => d === "a house" || d === "a dog")).toBe(true);
     expect(wordId).toBeGreaterThan(0);
+  });
+
+  describe("notes context injection", () => {
+    it("includes learner notes in the cloze LLM prompt when notes exist for the word", async () => {
+      const wordId = insertWord();
+      // Pre-existing def_match question so there's something to attach the note to.
+      const defMatchQid = insertQuizQuestionRow(wordId, {
+        style: "def_match",
+        direction: "w2d",
+        cue: "palabra1",
+        options: ["def en palabra1", "a house", "a dog", "water"],
+        correct: "def en palabra1",
+      });
+      db.prepare(
+        `INSERT INTO note (quiz_question_id, body, created_at, updated_at)
+         VALUES (?, 'I always forget this verb form', ?, ?)`,
+      ).run(defMatchQid, nowIso(), nowIso());
+
+      let capturedPrompt = "";
+      db.prepare("INSERT OR REPLACE INTO setting (key, value) VALUES (?, ?)").run(
+        "llm.quiz_cloze",
+        JSON.stringify({ provider: "capture", model: "mock" }),
+      );
+      const provider: LlmProvider = {
+        name: "capture",
+        complete: async ({ prompt }) => {
+          capturedPrompt = prompt;
+          return {
+            text: CLOZE_JSON,
+            usage: { tokensIn: 1, tokensOut: 1, cacheHit: false, costEstimateUsd: 0 },
+          };
+        },
+        vision: async () => { throw new Error("vision not used"); },
+      };
+      const llm = new LlmService(db, { capture: provider });
+
+      await runQuizGen(db, llm, {
+        deckId: SPANISH_DECK,
+        length: 1,
+        style: "cloze",
+        direction: "w2d",
+      });
+
+      expect(capturedPrompt).toContain("I always forget this verb form");
+      expect(capturedPrompt).toContain("Learner's own notes");
+    });
+
+    it("does not add a notes section when the word has no notes", async () => {
+      insertWord();
+
+      let capturedPrompt = "";
+      db.prepare("INSERT OR REPLACE INTO setting (key, value) VALUES (?, ?)").run(
+        "llm.quiz_cloze",
+        JSON.stringify({ provider: "capture", model: "mock" }),
+      );
+      const provider: LlmProvider = {
+        name: "capture",
+        complete: async ({ prompt }) => {
+          capturedPrompt = prompt;
+          return {
+            text: CLOZE_JSON,
+            usage: { tokensIn: 1, tokensOut: 1, cacheHit: false, costEstimateUsd: 0 },
+          };
+        },
+        vision: async () => { throw new Error("vision not used"); },
+      };
+      const llm = new LlmService(db, { capture: provider });
+
+      await runQuizGen(db, llm, {
+        deckId: SPANISH_DECK,
+        length: 1,
+        style: "cloze",
+        direction: "w2d",
+      });
+
+      expect(capturedPrompt).not.toContain("Learner's own notes");
+    });
   });
 
   it("runs through the queue handler and records final progress", async () => {
