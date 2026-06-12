@@ -52,7 +52,8 @@
 }
 
 .library__row {
-  position: relative;
+  display: flex;
+  align-items: center;
   border-bottom: 1px solid var(--color-rule);
 }
 
@@ -61,7 +62,8 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: var(--space-3) var(--space-2);
   background: none;
   border: none;
@@ -100,14 +102,13 @@
   color: var(--color-ink-faint);
 }
 
-/* "I forgot this" — hidden by default; revealed on hover/focus at desktop. */
+/* "I forgot this" — always visible beside the status, never overlapping. */
 .library__row-forgot {
-  display: none;
-  position: absolute;
-  top: 50%;
-  right: var(--space-5);
-  transform: translateY(-50%);
-  padding: var(--space-1) var(--space-2);
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit-target);
+  padding: var(--space-1) var(--space-3);
   background: var(--color-paper);
   border: 1px solid var(--color-rule);
   border-radius: var(--radius-1);
@@ -115,6 +116,8 @@
   font-size: var(--text-sm);
   color: var(--color-accent);
   cursor: pointer;
+  margin-right: var(--space-2);
+  white-space: nowrap;
 }
 
 /* ---- Detail / add pane ---- */
@@ -160,12 +163,6 @@
     grid-template-columns: 380px 1fr;
     gap: var(--space-6);
     align-items: start;
-  }
-
-  /* The row action only appears on devices with hover (desktop). */
-  .library__row:hover .library__row-forgot,
-  .library__row:focus-within .library__row-forgot {
-    display: inline-flex;
   }
 
   /* Back is a mobile affordance; the split keeps both panes visible. */
