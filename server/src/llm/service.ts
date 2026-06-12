@@ -17,7 +17,9 @@ export type LlmTask =
   | "grammar_lesson"
   | "quiz_cloze"
   | "quiz_grading"
-  | "lesson_analysis";
+  | "lesson_analysis"
+  | "chat"
+  | "suggestion_select";
 
 export interface TaskConfig {
   provider: string;
@@ -34,6 +36,8 @@ const TASK_DEFAULTS: Record<LlmTask, TaskConfig> = {
   quiz_cloze: { provider: "anthropic", model: "claude-fable-5" },
   quiz_grading: { provider: "anthropic", model: "claude-sonnet-4-6" },
   lesson_analysis: { provider: "anthropic", model: "claude-fable-5" },
+  chat: { provider: "anthropic", model: "claude-sonnet-4-6" },
+  suggestion_select: { provider: "anthropic", model: "claude-fable-5" },
 };
 
 const DEFAULT_MAX_ATTEMPTS = 3;

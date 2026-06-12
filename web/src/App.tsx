@@ -8,6 +8,9 @@ import { Quiz } from "./screens/Quiz";
 import { Review } from "./screens/Review";
 import { System } from "./screens/System";
 import { Triage } from "./screens/Triage";
+import { Ask } from "./screens/Ask";
+import { Suggestions } from "./screens/Suggestions";
+import { Lessons } from "./screens/Lessons";
 import { applyTheme, readTheme } from "./theme";
 
 // Apply the persisted theme before first paint, for every screen (including the
@@ -111,6 +114,33 @@ export function App() {
     return (
       <AppShell title="System" activeHref="/system">
         {() => <System />}
+      </AppShell>
+    );
+  }
+
+  // --- Phase-2 stub routes (pre-partitioned). Each screen is a stub the
+  // owning task fills in; the route wiring here is the orchestrator's, so the
+  // three workers stay file-disjoint from App.tsx. ---
+  if (window.location.pathname.startsWith("/ask")) {
+    return (
+      <AppShell title="Ask" activeHref="/ask">
+        {() => <Ask />}
+      </AppShell>
+    );
+  }
+
+  if (window.location.pathname.startsWith("/suggestions")) {
+    return (
+      <AppShell title="Suggestions" activeHref="/suggestions">
+        {() => <Suggestions />}
+      </AppShell>
+    );
+  }
+
+  if (window.location.pathname.startsWith("/lessons")) {
+    return (
+      <AppShell title="Lessons" activeHref="/lessons">
+        {() => <Lessons />}
       </AppShell>
     );
   }
