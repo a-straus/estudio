@@ -65,6 +65,25 @@ affected tasks.
 **Your answer:**
 - I have added ffmpeg and the audio into lesson audio.  Plug away sir
 
+**Orchestrator status (iteration 139):** Thank you — both received and confirmed.
+The lesson-audio fixture is in place (`docs/fixtures/lesson-audio/xaj-jnyr-wgv
+(2026-06-05 12_34 GMT-4).m4a`, ~26 MB — a real full-length lesson, and indeed
+**>24 MB, so it genuinely needs the ffmpeg split→transcribe→stitch path**), and
+your `ffmpeg` line is in `.devcontainer/Dockerfile` (commit 466614a, lines
+30-31). **One step remains before I can "plug away": the currently-running
+container was built BEFORE that Dockerfile edit, so ffmpeg isn't actually
+installed in it yet** — verified just now: `which ffmpeg` → "not found", and it's
+not in `dpkg`. A Dockerfile change only takes effect on an **image rebuild**,
+which I can't trigger (the orchestrator never builds the devcontainer — same
+boundary as the firewall change you handled earlier). **Please rebuild the
+devcontainer** ("Dev Containers: Rebuild Container", or your usual rebuild) so
+the image installs ffmpeg. Now is a clean moment — `list-agents` shows **0
+workers running**, so a rebuild wipes no in-flight work. The instant ffmpeg is
+live in the container I'll build the oversized-audio splitting and run your real
+lesson end-to-end (the Phase-2 *done* gate). Leaving this `[PENDING]` only
+because that rebuild is the remaining blocker — your answer itself is fully
+received and recorded (DECISIONS.md iter 139).
+
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
 You asked for "a list of everything that's been implemented and what I need to
