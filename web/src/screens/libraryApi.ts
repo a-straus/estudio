@@ -53,3 +53,9 @@ export function deleteWord(id: number): Promise<void> {
 export function demoteWord(id: number): Promise<unknown> {
   return api<unknown>(`/api/words/${id}/demote`, { method: "POST" });
 }
+
+export function transcribeAudio(audio: Blob): Promise<{ text: string }> {
+  const form = new FormData();
+  form.append("file", audio, "voice.webm");
+  return api<{ text: string }>("/api/transcribe", { method: "POST", body: form });
+}
