@@ -16,8 +16,9 @@ Done levels (from GOAL.md §15):
 
 <!-- iter 148: BOTH Phase-2 workers landed (list-agents-lag — splitting FINISHED, mochi committed 71bb49b during the pass then died before its .worker-done marker). Integrated both → trunk green 608. Hit + fixed a shared/dist cross-worktree contamination (the symlinked node_modules resolves @estudio/shared→/workspace/shared/dist, so a stale mochi-built dist broke splitting's typecheck, and vice-versa — rebuild /workspace/shared/dist to match the branch under test before each integrate; post-merge it self-heals from main). See DECISIONS iter 148. -->
 
-<!-- quick-add-dictation → DONE (spawned + FINISHED + integrated all within iter 148 — fast sonnet worker, full entry in Done; merge cafd6d5, 613 green). NOTHING in flight at pass end (0 running / 5 max). -->
-<!-- (In Progress is empty — capacity free; next-pass work is the Phase-3 decomposition gate + the deferred feature tail; see Backlog + DECISIONS iter 148.) -->
+<!-- quick-add-dictation → DONE (spawned + FINISHED + integrated all within iter 148 — fast sonnet worker, full entry in Done; merge cafd6d5, 613 green). -->
+
+- **review-08**: strong-model audit (`--model $ORCH_MODEL --effort medium --include GOAL.md --include design`) of the 4 net-new product surfaces since review-07 (range a806ca7..HEAD: ask-mobile-composer, lesson-audio-oversized-splitting [the correctness-critical ffmpeg SplitAudio — scrutinize chunk-size guarantees/error-handling/cleanup], mochi-yesno-review [reviewFormat KV cross-layer + yesno card], quick-add-dictation [generic transcribe endpoint + dictation wiring]) + the lesson_analysis prompt seed. Writes findings + clean-bill to REVIEW.md. At cadence (review-07 itself audited 4 surfaces; upcoming merge pipeline is thin → audit the Phase-2 done-gate code now, not deferred). Schema: none. (spawned: 2026-06-12 19:55 UTC, iter 148)
 
 
 ## Backlog
