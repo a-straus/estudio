@@ -7,7 +7,7 @@
 **Regions.**
 
 1. _Thread view_ (the default when opened from a page) — reading column, max `--measure-reading`. A new thread is seeded with the page context, shown as one `--font-meta` `--text-xs` context line at the top ("ASKING ABOUT · _vergüenza_ · review card"), not as a fake first message. Below it, `ChatTurn`s separated by `--space-5` — no bubbles, hairlines only between days. Tool actions render as `ToolConfirm` blocks inline (anatomy in components.md).
-2. _Composer_ — fixed in the thumb zone on mobile: multiline TextInput (1 line, auto-grow to 6), primary Button "Send", and the `RecordButton` for voice questions. While a recording is transcribing, the composer shows it as a pending turn ("Transcribing your question…" `--font-meta`) — the thread answers it like any typed turn once the text arrives.
+2. _Composer_ — pinned to the screen bottom in the thumb zone. **On mobile** the multiline TextInput (1 line, auto-grow to 6) is **full-width**, with the `RecordButton` (mic, for voice questions) anchored at the **top-right of the input** and the primary "Send" Button anchored at the **bottom-right**; the field reserves right- and bottom-padding so typed text never runs under either control, and both controls keep a ≥`--hit-target` tap target. **At `bp-tablet`+** the composer stays the inline reading-column row (input, then mic, then Send). While a recording is transcribing, the composer shows it as a pending turn ("Transcribing your question…" `--font-meta`) — the thread answers it like any typed turn once the text arrives.
 3. _Thread list_ — reached by "Threads" (quiet Button in the session bar): hairline rows, each with the thread's seeded context or first question (`--font-app` `--text-base`, ellipsized), last-activity date in `--font-meta`, and a trailing quiet delete affordance (a `×` in `--color-ink-faint`). Opening Ask from a page starts a new thread seeded with that page; opening from the thread list resumes.
 
 ```
@@ -29,6 +29,8 @@ Mobile — thread                     Desktop (680px column)
 │ [input…]      ● 🎙 Send  │       │ [input…]                  🎙  Send   │
 └──────────────────────────┘       └──────────────────────────────────────┘
 ```
+
+_(Mobile composer sketch above predates the iteration-144 redesign — region 2 is authoritative: on mobile the input is full-width and bottom-pinned, the 🎙 mic sits top-right of the input and Send sits bottom-right. Desktop is unchanged.)_
 
 **Responsive.** Full-screen takeover with the session bar pattern on mobile (back `×` left, "Threads" right); at `bp-tablet`+ a normal page at `--measure-reading`.
 
