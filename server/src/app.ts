@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express, {
@@ -35,6 +36,7 @@ export function createApp(
   db: DB,
   opts: {
     serveWeb?: boolean;
+    webDistDir?: string;
     queue?: JobQueue;
     dataDir?: string;
     llm?: LlmService;
@@ -96,9 +98,20 @@ export function createApp(
   });
 
   if (opts.serveWeb) {
-    app.use(express.static(webDistDir));
+    const dir = opts.webDistDir ?? webDistDir;
+    app.use(express.static(dir));
     app.get(/.*/, (_req: Request, res: Response) => {
-      res.sendFile(path.join(webDistDir, "index.html"));
+      const indexHtml = path.join(dir, "index.html");
+      if (fs.existsSync(indexHtml)) {
+        res.sendFile(indexHtml);
+      } else {
+        res
+          .status(503)
+          .type("text/plain")
+          .send(
+            "Estudio: web build not found at web/dist. Run `npm run build` before starting the server in production.",
+          );
+      }
     });
   }
 

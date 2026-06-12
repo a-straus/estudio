@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
 import { openDb } from "./db/db.js";
 import { runMigrations } from "./db/migrate.js";
@@ -59,6 +61,18 @@ const backupTimer = setInterval(() => {
 }, BACKUP_INTERVAL_MS);
 backupTimer.unref();
 
+if (config.nodeEnv === "production") {
+  const webDistIndex = fileURLToPath(
+    new URL("../../web/dist/index.html", import.meta.url),
+  );
+  if (!fs.existsSync(webDistIndex)) {
+    logger.warn(
+      "web build not found — run `npm run build` before starting the server in production",
+      {},
+    );
+  }
+}
+
 const app = createApp(db, {
   serveWeb: config.nodeEnv === "production",
   queue,
@@ -72,4 +86,7 @@ app.listen(config.port, () => {
     dataDir: config.dataDir,
     env: config.nodeEnv,
   });
+  if (config.nodeEnv === "production") {
+    logger.info("open the app at", { url: `http://localhost:${config.port}` });
+  }
 });
