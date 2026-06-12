@@ -403,20 +403,24 @@ export function Ask() {
             disabled={sending}
           />
         </div>
-        <RecordButton
-          onRecorded={(blob) => void handleRecorded(blob)}
-          state={transcribing ? "transcribing" : undefined}
-        />
-        <Button
-          variant="primary"
-          onClick={() => void handleSend()}
-          busy={sending}
-          busyLabel="Sending…"
-          disabled={!inputText.trim()}
-          style={{ minHeight: "var(--hit-target)" }}
-        >
-          Send
-        </Button>
+        <span className="ask__composer-mic">
+          <RecordButton
+            onRecorded={(blob) => void handleRecorded(blob)}
+            state={transcribing ? "transcribing" : undefined}
+          />
+        </span>
+        <span className="ask__composer-send">
+          <Button
+            variant="primary"
+            onClick={() => void handleSend()}
+            busy={sending}
+            busyLabel="Sending…"
+            disabled={!inputText.trim()}
+            style={{ minHeight: "var(--hit-target)" }}
+          >
+            Send
+          </Button>
+        </span>
       </div>
     </div>
   );
