@@ -313,8 +313,8 @@ describe("TranscriptionService chunk → transcribe → stitch", () => {
 });
 
 describe("defaultSplitAudio", () => {
-  it("passes audio that fits the limit through as a single chunk", () => {
-    const chunks = defaultSplitAudio(input(Buffer.from("small"), 3), 1024);
+  it("passes audio that fits the limit through as a single chunk", async () => {
+    const chunks = await defaultSplitAudio(input(Buffer.from("small"), 3), 1024);
     expect(chunks).toHaveLength(1);
     expect(chunks[0]!.minutes).toBe(3);
     expect(chunks[0]!.data.toString()).toBe("small");

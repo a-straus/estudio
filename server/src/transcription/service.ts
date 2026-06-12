@@ -146,7 +146,7 @@ export class TranscriptionService {
     task: string,
     input: AudioInput,
   ): Promise<TranscriptionResult> {
-    const chunks = this.splitAudio(input, this.maxChunkBytes);
+    const chunks = await this.splitAudio(input, this.maxChunkBytes);
 
     const texts: string[] = [];
     let minutes = 0;
