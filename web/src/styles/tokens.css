@@ -34,8 +34,10 @@
   --text-xl: 28px; /* screen titles, triage headwords */
   --text-2xl: 34px; /* review-card headword (mobile) */
   --text-3xl: 42px; /* review-card headword (desktop) */
+  --text-display: 56px; /* home hero headword (desktop); mobile falls to --text-3xl */
 
   --leading-tight: 1.15; /* headwords, titles */
+  --leading-display: 1.05; /* display headword on the home hero only */
   --leading-snug: 1.35; /* options, table rows, meta */
   --leading-base: 1.5; /* UI body, glosses */
   --leading-loose: 1.65; /* lesson long-form reading */
@@ -45,9 +47,11 @@
   --weight-bold: 700;
 
   --tracking-meta: 0.04em; /* mono tag lines and small-cap labels */
+  --tracking-display: -0.02em; /* large serif display/title headwords only (>= --text-2xl) — optical tightening */
 
   /* ---- Color · light (default) ---- */
   --color-paper: oklch(0.975 0.004 95); /* page background */
+  --color-paper-sunken: oklch(0.955 0.005 95); /* recessed bands: footer, home section wells, page edges */
   --color-surface: oklch(0.995 0.002 95); /* active card / raised row */
   --color-ink: oklch(0.24 0.012 95); /* primary text */
   --color-ink-soft: oklch(0.45 0.012 95); /* secondary text, glosses in lists */
@@ -66,6 +70,9 @@
   --color-accent-wash: oklch(
     0.945 0.018 265
   ); /* selected-option fill, active nav */
+  --color-accent-strong: oklch(
+    0.36 0.1 265
+  ); /* accent hover/active — name the darker step instead of runtime lightness math */
 
   --color-correct: oklch(0.45 0.09 155); /* verdict green */
   --color-correct-wash: oklch(0.95 0.018 155);
@@ -83,6 +90,8 @@
   --space-6: 32px;
   --space-7: 48px;
   --space-8: 64px;
+  --space-9: 96px; /* home section rhythm */
+  --space-10: 128px; /* home hero band, large landing gaps (desktop) */
 
   /* ---- Radii ---- */
   --radius-1: 3px; /* buttons, inputs, options */
@@ -92,9 +101,11 @@
   /* ---- Shadows ---- */
   --shadow-1: 0 1px 2px oklch(0.24 0.012 95 / 0.08); /* active card */
   --shadow-2: 0 4px 16px oklch(0.24 0.012 95 / 0.14); /* toast, dialog */
+  --shadow-3: 0 12px 40px oklch(0.24 0.012 95 / 0.16); /* home hero lift, overlay dialogs — the one large elevation */
 
   /* ---- Hit targets & layout ---- */
   --hit-target: 44px; /* min height of every mobile control */
+  --header-height: 56px; /* sticky SiteHeader bar height (bp-tablet+) */
   --measure-reading: 680px; /* lesson / long-form column max width */
   --measure-app: 1120px; /* general desktop content max width */
   --indent-entry: 20px; /* the signature hanging indent */
@@ -102,12 +113,14 @@
   /* ---- Motion ---- */
   --motion-fast: 120ms; /* state fills, selection */
   --motion-base: 200ms; /* view transitions, card advance */
+  --motion-slow: 320ms; /* home hero + section entrance only */
   --motion-ease: cubic-bezier(0.2, 0, 0, 1);
 }
 
 [data-theme="dark"] {
   /* Lamplit-desk dark: warm near-black paper, same hue logic, color tokens only */
   --color-paper: oklch(0.205 0.008 95);
+  --color-paper-sunken: oklch(0.185 0.008 95);
   --color-surface: oklch(0.245 0.009 95);
   --color-ink: oklch(0.93 0.006 95);
   --color-ink-soft: oklch(0.74 0.008 95);
@@ -118,6 +131,7 @@
   --color-accent: oklch(0.74 0.08 265);
   --color-accent-ink: oklch(0.205 0.008 95);
   --color-accent-wash: oklch(0.3 0.035 265);
+  --color-accent-strong: oklch(0.82 0.08 265); /* lighter step is "stronger" on dark paper */
 
   --color-correct: oklch(0.72 0.09 155);
   --color-correct-wash: oklch(0.29 0.03 155);
@@ -126,4 +140,5 @@
 
   --shadow-1: 0 1px 2px oklch(0 0 0 / 0.4);
   --shadow-2: 0 4px 16px oklch(0 0 0 / 0.5);
+  --shadow-3: 0 12px 40px oklch(0 0 0 / 0.55);
 }

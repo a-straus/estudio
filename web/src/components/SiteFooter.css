@@ -1,0 +1,61 @@
+/* SiteFooter — recessed utility strip (D3, shell.md). Separated from the page
+   by a hairline, never a shadow. */
+
+.site-footer {
+  background: var(--color-paper-sunken);
+  border-top: 1px solid var(--color-rule);
+}
+
+.site-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: var(--measure-app);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+.site-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.site-footer__link {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  text-decoration: none;
+  transition: color var(--motion-fast) var(--motion-ease);
+}
+
+.site-footer__link:hover {
+  color: var(--color-ink);
+}
+
+.site-footer__link:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.site-footer__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.site-footer__status {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  line-height: var(--leading-snug);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-footer__link {
+    transition: none;
+  }
+}
