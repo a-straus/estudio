@@ -31,6 +31,16 @@ export interface SystemSpendTask {
   callCount: number;
 }
 
+/**
+ * Cumulative transcription spend over transcription_call. A second paid
+ * provider, reported separately from LLM spend. Counts include status='error'.
+ */
+export interface SystemTranscriptionSpend {
+  totalCostUsd: number;
+  totalMinutes: number;
+  callCount: number;
+}
+
 /** GET /api/system/spend — cumulative LLM spend plus a per-task breakdown. */
 export interface SystemSpendResponse {
   totalCostUsd: number;
@@ -38,6 +48,8 @@ export interface SystemSpendResponse {
   totalTokensOut: number;
   callCount: number;
   byTask: SystemSpendTask[];
+  /** Transcription spend, reported as its own line in the same SPEND section. */
+  transcription: SystemTranscriptionSpend;
 }
 
 /** GET /api/system/status — DB file + backup status. */

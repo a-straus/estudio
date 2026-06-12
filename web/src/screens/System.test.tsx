@@ -65,6 +65,7 @@ const SPEND: SystemSpendResponse = {
       callCount: 1,
     },
   ],
+  transcription: { totalCostUsd: 1.2, totalMinutes: 60, callCount: 3 },
 };
 
 const JOBS: SystemJobsResponse = {
@@ -123,6 +124,12 @@ describe("System screen", () => {
     ).toBeTruthy();
     // Internal task keys read back as the spec's plain feature words.
     expect(screen.getByText("Definitions")).toBeTruthy();
+
+    // Transcription spend is its own line in the same SPEND section.
+    expect(
+      screen.getByText(/Transcription · \$1\.20 · 3 calls/),
+    ).toBeTruthy();
+    expect(screen.getByText(/60 minutes transcribed/)).toBeTruthy();
 
     // Jobs section shows the failed ingestion, type humanized from its key.
     expect(screen.getByText("Text ingestion")).toBeTruthy();

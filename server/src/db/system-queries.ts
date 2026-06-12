@@ -5,6 +5,7 @@ import type {
   SystemSpendResponse,
   SystemSpendTask,
   SystemStatusResponse,
+  SystemTranscriptionSpend,
 } from "@estudio/shared";
 import { type DB } from "./db.js";
 
@@ -101,6 +102,35 @@ export function getSpend(db: DB): SystemSpendResponse {
     totalTokensOut: byTask.reduce((s, t) => s + t.tokensOut, 0),
     callCount: byTask.reduce((s, t) => s + t.callCount, 0),
     byTask,
+    transcription: getTranscriptionSpend(db),
+  };
+}
+
+interface TranscriptionSpendRowDb {
+  cost: number | null;
+  minutes: number | null;
+  calls: number;
+}
+
+/**
+ * Cumulative transcription spend from transcription_call: total cost + minutes
+ * and a call count. Error calls are included in the count (a failed call can
+ * still have burned provider time), and null cost/minutes coalesce to 0.
+ */
+export function getTranscriptionSpend(db: DB): SystemTranscriptionSpend {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(cost_estimate_usd), 0) AS cost,
+              COALESCE(SUM(minutes), 0) AS minutes,
+              COUNT(*) AS calls
+         FROM transcription_call`,
+    )
+    .get() as TranscriptionSpendRowDb;
+
+  return {
+    totalCostUsd: row.cost ?? 0,
+    totalMinutes: row.minutes ?? 0,
+    callCount: row.calls,
   };
 }
 

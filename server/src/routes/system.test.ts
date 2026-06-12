@@ -34,6 +34,15 @@ function seed(db: DB): void {
   insertLlm.run("word_definition", "anthropic", "m", 200, 0, 10, 0.02, "error", "boom", now, now);
   insertLlm.run("pdf_extraction", "anthropic", "m", 500, 300, 10, 0.1, "ok", null, now, now);
 
+  // Two transcription calls (one ok, one error) — error still counts.
+  const insertTr = db.prepare(
+    `INSERT INTO transcription_call
+       (task, provider, model, minutes, latency_ms, cost_estimate_usd, status, error, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  insertTr.run("lesson_audio", "openai", "whisper-1", 60, 100, 0.36, "ok", null, now, now);
+  insertTr.run("lesson_audio", "openai", "whisper-1", null, 100, null, "error", "boom", now, now);
+
   // A couple of jobs.
   db.prepare(
     "INSERT INTO job (type, payload, status, attempts, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -100,6 +109,11 @@ describe("system routes", () => {
     // Both the ok and error call count toward word_definition.
     expect(wd.callCount).toBe(2);
     expect(wd.costUsd).toBeCloseTo(0.03, 5);
+
+    // Transcription spend is reported separately; the error call still counts.
+    expect(body.transcription.callCount).toBe(2);
+    expect(body.transcription.totalCostUsd).toBeCloseTo(0.36, 5);
+    expect(body.transcription.totalMinutes).toBe(60);
   });
 
   it("GET /api/system/status reports DB + backup status", async () => {

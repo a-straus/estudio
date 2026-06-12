@@ -9,6 +9,7 @@ export interface Config {
   port: number;
   nodeEnv: "development" | "test" | "production";
   anthropicApiKey: string | undefined;
+  openaiApiKey: string | undefined;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv): Config {
@@ -27,6 +28,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     port,
     nodeEnv,
     anthropicApiKey: env.ANTHROPIC_API_KEY || undefined,
+    openaiApiKey: env.OPENAI_API_KEY || undefined,
   };
 }
 

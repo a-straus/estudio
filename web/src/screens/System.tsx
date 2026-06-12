@@ -79,6 +79,11 @@ function usd(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+function minutes(n: number): string {
+  const m = Math.round(n);
+  return `${m} ${m === 1 ? "minute" : "minutes"}`;
+}
+
 function bytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
@@ -125,6 +130,7 @@ function SpendSection({ spend }: { spend: Section<SystemSpendResponse> }) {
         Spend log unreadable. {spend.message}
       </p>
     );
+  const tr = spend.transcription;
   return (
     <>
       <p className="system__line">
@@ -144,6 +150,17 @@ function SpendSection({ spend }: { spend: Section<SystemSpendResponse> }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* A second paid provider, reported on its own line (system.md §3.9). */}
+      <p className="system__line">
+        Transcription · {usd(tr.totalCostUsd)} · {tr.callCount}{" "}
+        {tr.callCount === 1 ? "call" : "calls"}
+      </p>
+      {tr.callCount === 0 ? (
+        <p className="system__muted">No transcription calls yet.</p>
+      ) : (
+        <p className="system__muted">{minutes(tr.totalMinutes)} transcribed</p>
       )}
     </>
   );
