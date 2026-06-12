@@ -54,4 +54,10 @@
   .segmented__segment {
     flex: 1 1 40%;
   }
+
+  /* Row separator: items on the second row get a top border matching the
+     vertical inter-segment dividers. */
+  .segmented__segment:nth-child(n + 3) {
+    border-top: 1px solid var(--color-rule-strong);
+  }
 }
