@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ClozeReviewItem,
+  DefinitionDisplay,
   DistractorCandidate,
   DueQueueItem,
   ReviewDirection,
@@ -18,6 +19,7 @@ import {
   type QuizOptionState,
 } from "../components";
 import { fetchDueQueue, submitReview } from "./reviewApi";
+import { getSettings } from "./systemApi";
 import "./Review.css";
 
 interface ReviewProps {
@@ -112,11 +114,20 @@ function CardFront({ card }: { card: DueQueueItem }) {
   );
 }
 
-function CardReveal({ card }: { card: DueQueueItem }) {
+// `reveal` honors the owner's "Definitions on reveal" preference (System →
+// Preferences). Quiz's results reveal renders English-only (compact WordEntry),
+// so the preference has no effect there; only Review's full reveal is gated.
+function CardReveal({
+  card,
+  reveal,
+}: {
+  card: DueQueueItem;
+  reveal: DefinitionDisplay;
+}) {
   return (
     <WordEntry
       size="full"
-      reveal="both"
+      reveal={reveal}
       headword={card.term}
       lemma={card.lemma ?? undefined}
       language="ES"
@@ -132,11 +143,19 @@ interface CardProps {
   card: DueQueueItem;
   queue: DueQueueItem[];
   distractors: DistractorCandidate[];
+  reveal: DefinitionDisplay;
   onGrade: (card: DueQueueItem, grade: ReviewGrade) => void;
   onNext: () => void;
 }
 
-function Card({ card, queue, distractors, onGrade, onNext }: CardProps) {
+function Card({
+  card,
+  queue,
+  distractors,
+  reveal,
+  onGrade,
+  onNext,
+}: CardProps) {
   const optionSet = useMemo(
     () => buildChoiceOptions(card, queue, card.direction, distractors),
     [card, queue, distractors],
@@ -217,7 +236,7 @@ function Card({ card, queue, distractors, onGrade, onNext }: CardProps) {
           prompt={FLIP_PROMPT[card.direction]}
           flipped={flipped}
           onFlip={() => setFlipped(true)}
-          back={<CardReveal card={card} />}
+          back={<CardReveal card={card} reveal={reveal} />}
         >
           <CardFront card={card} />
         </ReviewCard>
@@ -272,7 +291,7 @@ function Card({ card, queue, distractors, onGrade, onNext }: CardProps) {
 
       {answered && (
         <div className="review__reveal">
-          <CardReveal card={card} />
+          <CardReveal card={card} reveal={reveal} />
         </div>
       )}
 
@@ -311,6 +330,7 @@ function Card({ card, queue, distractors, onGrade, onNext }: CardProps) {
 interface ClozeCardProps {
   card: DueQueueItem;
   cloze: ClozeReviewItem;
+  reveal: DefinitionDisplay;
   onGrade: (card: DueQueueItem, grade: ReviewGrade, questionId: number) => void;
   onNext: () => void;
 }
@@ -320,7 +340,7 @@ interface ClozeCardProps {
  * Grades client-side like the MC cards; the reveal offers "Explain why" backed
  * by the cached explanation. Submitting logs direction 'cloze' + the question id.
  */
-function ClozeCard({ card, cloze, onGrade, onNext }: ClozeCardProps) {
+function ClozeCard({ card, cloze, reveal, onGrade, onNext }: ClozeCardProps) {
   const [selected, setSelected] = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
   const [wasCorrect, setWasCorrect] = useState(false);
@@ -375,7 +395,7 @@ function ClozeCard({ card, cloze, onGrade, onNext }: ClozeCardProps) {
 
       {answered && (
         <div className="review__reveal">
-          <CardReveal card={card} />
+          <CardReveal card={card} reveal={reveal} />
           <button
             type="button"
             className="review__explain-toggle"
@@ -434,6 +454,17 @@ export function Review({ deckId }: ReviewProps) {
   const [missed, setMissed] = useState<DueQueueItem[]>([]);
   const [finished, setFinished] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
+  // "Definitions on reveal" preference; defaults to "both" until/if it loads.
+  const [reveal, setReveal] = useState<DefinitionDisplay>("both");
+
+  useEffect(() => {
+    getSettings().then(
+      (r) => setReveal(r.settings.definitionDisplay),
+      () => {
+        /* fall back to the default reveal — a missing preference isn't fatal */
+      },
+    );
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -633,6 +664,7 @@ export function Review({ deckId }: ReviewProps) {
             key={`cloze-${current.wordId}-${index}`}
             card={current}
             cloze={clozeByWord.get(current.wordId)!}
+            reveal={reveal}
             onGrade={handleClozeGrade}
             onNext={advance}
           />
@@ -642,6 +674,7 @@ export function Review({ deckId }: ReviewProps) {
             card={current}
             queue={queue}
             distractors={distractors}
+            reveal={reveal}
             onGrade={handleGrade}
             onNext={advance}
           />

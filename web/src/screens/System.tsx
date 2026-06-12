@@ -1,19 +1,40 @@
 import { useCallback, useEffect, useState } from "react";
 import type {
+  AppSettings,
+  DefinitionDisplay,
   JobView,
+  NewCardsPerDay,
+  PutSettingsRequest,
   SystemErrorView,
   SystemSpendResponse,
   SystemStatusResponse,
 } from "@estudio/shared";
-import { Button } from "../components";
+import { Button, SegmentedControl, Toast } from "../components";
 import {
   fetchErrors,
   fetchJobs,
   fetchSpend,
   fetchStatus,
+  getSettings,
+  putSettings,
   triggerBackup,
 } from "./systemApi";
 import "./System.css";
+
+/** Last 20 errors render at once; older ones reveal behind "Older →" (§3.9). */
+const ERRORS_PAGE = 20;
+
+const DEFINITION_OPTIONS = [
+  { value: "es", label: "Spanish" },
+  { value: "en", label: "English" },
+  { value: "both", label: "Both" },
+];
+
+const CARDS_OPTIONS = [
+  { value: "10", label: "10" },
+  { value: "20", label: "20" },
+  { value: "40", label: "40" },
+];
 
 /** Per-section async state: undefined = loading, Error = the "irony case". */
 type Section<T> = T | Error | undefined;
@@ -65,11 +86,12 @@ function SectionShell({
 }
 
 function SpendSection({ spend }: { spend: Section<SystemSpendResponse> }) {
-  if (spend === undefined)
-    return <p className="system__loading">— · —</p>;
+  if (spend === undefined) return <p className="system__loading">— · —</p>;
   if (isError(spend))
     return (
-      <p className="system__unreadable">Spend log unreadable. {spend.message}</p>
+      <p className="system__unreadable">
+        Spend log unreadable. {spend.message}
+      </p>
     );
   return (
     <>
@@ -103,8 +125,7 @@ function JobsSection({ jobs }: { jobs: Section<JobView[]> }) {
         Job log unreadable. The log may be corrupt — export a backup first.
       </p>
     );
-  if (jobs.length === 0)
-    return <p className="system__muted">No jobs yet.</p>;
+  if (jobs.length === 0) return <p className="system__muted">No jobs yet.</p>;
   return (
     <ul className="system__rows">
       {jobs.map((j) => (
@@ -127,6 +148,7 @@ function JobsSection({ jobs }: { jobs: Section<JobView[]> }) {
 }
 
 function ErrorsSection({ errors }: { errors: Section<SystemErrorView[]> }) {
+  const [showAll, setShowAll] = useState(false);
   if (errors === undefined) return <p className="system__loading">—</p>;
   if (isError(errors))
     return (
@@ -135,19 +157,67 @@ function ErrorsSection({ errors }: { errors: Section<SystemErrorView[]> }) {
         first.
       </p>
     );
-  if (errors.length === 0)
-    return <p className="system__muted">No errors.</p>;
+  if (errors.length === 0) return <p className="system__muted">No errors.</p>;
+  const shown = showAll ? errors : errors.slice(0, ERRORS_PAGE);
+  const hidden = errors.length - shown.length;
   return (
-    <ul className="system__rows">
-      {errors.map((e, i) => (
-        <li key={i} className="system__row system__row--stacked">
-          <span className="system__row-meta">
-            {shortTs(e.ts)} · {e.scope}
-          </span>
-          <span className="system__row-name">{e.message}</span>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="system__rows">
+        {shown.map((e, i) => (
+          <li key={i} className="system__row system__row--stacked">
+            <span className="system__row-meta">
+              {shortTs(e.ts)} · {e.scope}
+            </span>
+            <span className="system__row-name">{e.message}</span>
+          </li>
+        ))}
+      </ul>
+      {hidden > 0 && (
+        <Button variant="quiet" onClick={() => setShowAll(true)}>
+          Older → ({hidden} more)
+        </Button>
+      )}
+    </>
+  );
+}
+
+function PreferencesSection({
+  settings,
+  onDefinitionDisplay,
+  onNewCardsPerDay,
+}: {
+  settings: Section<AppSettings>;
+  onDefinitionDisplay: (v: DefinitionDisplay) => void;
+  onNewCardsPerDay: (v: NewCardsPerDay) => void;
+}) {
+  if (settings === undefined) return <p className="system__loading">—</p>;
+  if (isError(settings))
+    return (
+      <p className="system__unreadable">
+        Preferences unreadable. {settings.message}
+      </p>
+    );
+  return (
+    <div className="system__prefs">
+      <div className="system__pref">
+        <span className="system__pref-label">Definitions on reveal</span>
+        <SegmentedControl
+          label="Definitions on reveal"
+          options={DEFINITION_OPTIONS}
+          value={settings.definitionDisplay}
+          onChange={(v) => onDefinitionDisplay(v as DefinitionDisplay)}
+        />
+      </div>
+      <div className="system__pref">
+        <span className="system__pref-label">New cards per day</span>
+        <SegmentedControl
+          label="New cards per day"
+          options={CARDS_OPTIONS}
+          value={String(settings.newCardsPerDay)}
+          onChange={(v) => onNewCardsPerDay(Number(v) as NewCardsPerDay)}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -205,9 +275,11 @@ export function System() {
   const [errors, setErrors] = useState<Section<SystemErrorView[]>>(undefined);
   const [status, setStatus] =
     useState<Section<SystemStatusResponse>>(undefined);
+  const [settings, setSettings] = useState<Section<AppSettings>>(undefined);
 
   const [backingUp, setBackingUp] = useState(false);
   const [backupError, setBackupError] = useState<string | null>(null);
+  const [prefError, setPrefError] = useState<string | null>(null);
 
   const asError = (err: unknown): Error =>
     err instanceof Error ? err : new Error("Couldn't read this section.");
@@ -226,6 +298,10 @@ export function System() {
       (r) => setErrors(r.errors),
       (err) => setErrors(asError(err)),
     );
+    getSettings().then(
+      (r) => setSettings(r.settings),
+      (err) => setSettings(asError(err)),
+    );
     loadStatus();
   }, [loadStatus]);
 
@@ -240,18 +316,41 @@ export function System() {
       .then(() => loadStatus())
       .catch((err: unknown) =>
         setBackupError(
-          err instanceof Error
-            ? err.message
-            : "Backup failed. Try again.",
+          err instanceof Error ? err.message : "Backup failed. Try again.",
         ),
       )
       .finally(() => setBackingUp(false));
   }, [loadStatus]);
 
+  // Optimistically reflect the new value; on failure, surface it and re-read
+  // the server's truth so the control snaps back.
+  const saveSettings = useCallback((patch: PutSettingsRequest) => {
+    setPrefError(null);
+    setSettings((prev) =>
+      prev && !isError(prev) ? { ...prev, ...patch } : prev,
+    );
+    putSettings(patch)
+      .then((r) => setSettings(r.settings))
+      .catch((err: unknown) => {
+        setPrefError(
+          err instanceof Error ? err.message : "Couldn't save that preference.",
+        );
+        getSettings().then(
+          (r) => setSettings(r.settings),
+          () => {
+            /* leave the optimistic value; the error toast already shows */
+          },
+        );
+      });
+  }, []);
+
   return (
     <main className="system">
       <h1 className="system__title">System</h1>
 
+      {/* Nit #5: no spend time-window toggle here — /api/system/spend returns
+          all-time totals only and exposes no per-call timestamps. Windowing
+          would require changing the spend SQL/schema, which is out of scope. */}
       <SectionShell label="SPEND">
         <SpendSection spend={spend} />
       </SectionShell>
@@ -272,6 +371,20 @@ export function System() {
           backupError={backupError}
         />
       </SectionShell>
+
+      <SectionShell label="PREFERENCES">
+        <PreferencesSection
+          settings={settings}
+          onDefinitionDisplay={(v) => saveSettings({ definitionDisplay: v })}
+          onNewCardsPerDay={(v) => saveSettings({ newCardsPerDay: v })}
+        />
+      </SectionShell>
+
+      {prefError && (
+        <Toast variant="error" onDismiss={() => setPrefError(null)}>
+          {prefError}
+        </Toast>
+      )}
     </main>
   );
 }

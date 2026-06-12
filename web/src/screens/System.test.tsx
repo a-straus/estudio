@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type {
+  GetSettingsResponse,
   SystemErrorsResponse,
   SystemJobsResponse,
   SystemSpendResponse,
@@ -22,6 +23,8 @@ vi.mock("./systemApi", () => ({
   fetchSpend: vi.fn(),
   fetchStatus: vi.fn(),
   triggerBackup: vi.fn(),
+  getSettings: vi.fn(),
+  putSettings: vi.fn(),
 }));
 
 import { System } from "./System";
@@ -33,6 +36,12 @@ const mockApi = api as unknown as {
   fetchSpend: ReturnType<typeof vi.fn>;
   fetchStatus: ReturnType<typeof vi.fn>;
   triggerBackup: ReturnType<typeof vi.fn>;
+  getSettings: ReturnType<typeof vi.fn>;
+  putSettings: ReturnType<typeof vi.fn>;
+};
+
+const SETTINGS: GetSettingsResponse = {
+  settings: { definitionDisplay: "both", newCardsPerDay: 20 },
 };
 
 const SPEND: SystemSpendResponse = {
@@ -100,6 +109,8 @@ beforeEach(() => {
   mockApi.fetchErrors.mockReset().mockResolvedValue(ERRORS);
   mockApi.fetchStatus.mockReset().mockResolvedValue(STATUS);
   mockApi.triggerBackup.mockReset();
+  mockApi.getSettings.mockReset().mockResolvedValue(SETTINGS);
+  mockApi.putSettings.mockReset().mockResolvedValue(SETTINGS);
 });
 
 describe("System screen", () => {
@@ -107,7 +118,9 @@ describe("System screen", () => {
     render(<System />);
 
     // Spend total + a per-task row.
-    expect(await screen.findByText(/LLM spend · \$4\.12 · 3 calls/)).toBeTruthy();
+    expect(
+      await screen.findByText(/LLM spend · \$4\.12 · 3 calls/),
+    ).toBeTruthy();
     expect(screen.getByText("word_definition")).toBeTruthy();
 
     // Jobs section shows the failed ingestion.
@@ -134,12 +147,54 @@ describe("System screen", () => {
     });
     fireEvent.click(btn);
 
-    await waitFor(() =>
-      expect(mockApi.triggerBackup).toHaveBeenCalledTimes(1),
-    );
+    await waitFor(() => expect(mockApi.triggerBackup).toHaveBeenCalledTimes(1));
     // Status is re-fetched after the backup (initial load + reload).
     await waitFor(() =>
       expect(mockApi.fetchStatus.mock.calls.length).toBeGreaterThanOrEqual(2),
+    );
+  });
+
+  it("renders the Preferences controls with current values loaded", async () => {
+    render(<System />);
+
+    // Both segmented controls render.
+    expect(
+      await screen.findByRole("radiogroup", { name: "Definitions on reveal" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("radiogroup", { name: "New cards per day" }),
+    ).toBeTruthy();
+
+    // Loaded values are reflected as the checked segments.
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("radio", { name: "Both" })
+          .getAttribute("aria-checked"),
+      ).toBe("true"),
+    );
+    expect(
+      screen.getByRole("radio", { name: "20" }).getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  it("PUTs the new value when a preference changes", async () => {
+    mockApi.putSettings.mockResolvedValue({
+      settings: { definitionDisplay: "es", newCardsPerDay: 20 },
+    });
+
+    render(<System />);
+    const spanish = await screen.findByRole("radio", { name: "Spanish" });
+    fireEvent.click(spanish);
+
+    await waitFor(() =>
+      expect(mockApi.putSettings).toHaveBeenCalledWith({
+        definitionDisplay: "es",
+      }),
+    );
+    // Optimistically reflected.
+    await waitFor(() =>
+      expect(spanish.getAttribute("aria-checked")).toBe("true"),
     );
   });
 
