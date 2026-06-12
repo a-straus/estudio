@@ -12,6 +12,7 @@ interface SourceRowDb {
   id: number;
   title: string | null;
   created_at: string;
+  duration_minutes: number | null;
 }
 
 interface InsightRowDb {
@@ -55,7 +56,7 @@ function parseInsight(r: InsightRowDb): LessonInsightView {
 export function listLessons(db: DB): LessonListItem[] {
   const sources = db
     .prepare(
-      `SELECT id, title, created_at
+      `SELECT id, title, created_at, duration_minutes
          FROM source
         WHERE type = 'lesson_audio'
         ORDER BY id DESC`,
@@ -94,7 +95,7 @@ export function listLessons(db: DB): LessonListItem[] {
       sourceId: s.id,
       title: s.title,
       createdAt: s.created_at,
-      durationMinutes: null,
+      durationMinutes: s.duration_minutes ?? null,
       jobStatus: jobInfo?.job_status ?? null,
       jobPhase: jobInfo?.job_phase ?? null,
       jobError: jobInfo?.job_error ?? null,

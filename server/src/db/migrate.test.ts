@@ -37,6 +37,7 @@ describe("runMigrations with the real migrations", () => {
       "001_init.sql",
       "002_quiz_question_check.sql",
       "003_note_mixed_phase2.sql",
+      "004_source_duration.sql",
     ]);
     const tables = (
       db

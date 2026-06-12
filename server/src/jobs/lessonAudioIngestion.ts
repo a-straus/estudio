@@ -145,8 +145,8 @@ export async function runLessonAudioIngestion(
       );
     }
     db.prepare(
-      "UPDATE source SET transcript = ?, updated_at = ? WHERE id = ?",
-    ).run(transcript, nowIso(), source.id);
+      "UPDATE source SET transcript = ?, duration_minutes = ?, updated_at = ? WHERE id = ?",
+    ).run(transcript, minutes, nowIso(), source.id);
   }
 
   // b. Analyze the transcript.
