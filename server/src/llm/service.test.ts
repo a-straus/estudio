@@ -90,6 +90,18 @@ describe("LlmService.resolveTaskConfig", () => {
     });
   });
 
+  it("defaults chat to anthropic / claude-haiku-4-5", () => {
+    const llm = new LlmService(db, {}, { env: {} });
+    expect(llm.resolveTaskConfig("chat").model).toBe("claude-haiku-4-5");
+  });
+
+  it("defaults suggestion_select to anthropic / claude-sonnet-4-6", () => {
+    const llm = new LlmService(db, {}, { env: {} });
+    expect(llm.resolveTaskConfig("suggestion_select").model).toBe(
+      "claude-sonnet-4-6",
+    );
+  });
+
   it("env vars override the default", () => {
     const llm = new LlmService(
       db,
