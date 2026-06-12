@@ -7,6 +7,16 @@ Classify the page as exactly one of:
 
 If a page mixes both, choose the dominant purpose.
 
-Reply with JSON only — no prose, no markdown fences — in exactly this shape:
+When `kind` is `grammar`, also identify which curriculum topic the page teaches, choosing from this list of known topics:
+
+{{grammar_topics}}
+
+Set `topic` to the matching topic's name, copied **exactly** as written in the list above. If the page is grammar but none of these topics clearly matches — or you are not confident which one it is — set `topic` to `null`. Never invent a topic that is not in the list. When `kind` is `vocab`, omit `topic` entirely.
+
+Reply with JSON only — no prose, no markdown fences — in exactly one of these shapes:
 
 {"kind": "vocab"}
+
+{"kind": "grammar", "topic": "<exact topic name from the list>"}
+
+{"kind": "grammar", "topic": null}

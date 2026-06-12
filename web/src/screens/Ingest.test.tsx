@@ -165,6 +165,64 @@ describe("Ingest — job progress", () => {
     );
   });
 
+  it("takes the 'N of M' total from the progress JSON, not the submit count", async () => {
+    // pageCount 0 on upload: the denominator must come from the streamed total.
+    mockApi.uploadPdf.mockResolvedValue({
+      source: { id: 9 },
+      jobId: 4,
+      pageCount: 0,
+    });
+    mockApi.fetchJobs.mockResolvedValue([
+      job({
+        id: 4,
+        type: "pdf_ingestion",
+        status: "running",
+        progress: { pages: { 1: "done", 2: "done" }, total: 5 },
+      }),
+    ]);
+    render(<Ingest pollIntervalMs={10_000} />);
+    const input = screen.getByLabelText(
+      "Choose a PDF scan",
+    ) as HTMLInputElement;
+    const file = new File(["%PDF-1.4"], "scan.pdf", {
+      type: "application/pdf",
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() =>
+      expect(screen.getByText("Reading page 3 of 5")).toBeDefined(),
+    );
+  });
+
+  it("on PDF completion reads 'N of M pages' from the progress total", async () => {
+    mockApi.uploadPdf.mockResolvedValue({
+      source: { id: 9 },
+      jobId: 4,
+      pageCount: 0,
+    });
+    mockApi.fetchJobs.mockResolvedValue([
+      job({
+        id: 4,
+        type: "pdf_ingestion",
+        status: "done",
+        progress: { pages: { 1: "done", 2: "done", 3: "done" }, total: 3 },
+      }),
+    ]);
+    render(<Ingest pollIntervalMs={10_000} />);
+    const input = screen.getByLabelText(
+      "Choose a PDF scan",
+    ) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: {
+        files: [new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" })],
+      },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText("Read 3 of 3 pages.")).toBeDefined(),
+    );
+  });
+
   it("on completion links to triage for the new source", async () => {
     mockApi.submitText.mockResolvedValue({
       sourceId: 7,

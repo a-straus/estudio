@@ -75,7 +75,7 @@ export async function runPdfIngestion(
   db: DB,
   llm: LlmService,
   payload: PdfIngestionPayload,
-): Promise<{ pages: Record<string, "done" | "failed"> }> {
+): Promise<{ pages: Record<string, "done" | "failed">; total: number }> {
   const source = db
     .prepare("SELECT id, title, ref, stored_path FROM source WHERE id = ?")
     .get(payload.sourceId) as
@@ -90,10 +90,14 @@ export async function runPdfIngestion(
     throw new Error(`source ${payload.sourceId} not found or has no file`);
   }
   const pdf = fs.readFileSync(source.stored_path);
-  // Cheap, deterministic page→curriculum link: match grammar pages against the
-  // seeded topic list using the source's title/ref text. No extra LLM call.
+  // Deterministic page→curriculum link: the seeded topic names are handed to the
+  // page-classification LLM, which names the one each grammar page teaches; we
+  // then match THAT name back to a topic id. No extra LLM call beyond the
+  // classification itself.
   const topics = listGrammarTopicsForMatching(db);
-  const sourceLabel = `${source.title ?? ""} ${source.ref ?? ""}`;
+  const topicNames = topics.length
+    ? topics.map((t) => `- ${t.name}`).join("\n")
+    : "(no grammar curriculum has been seeded yet — always reply with topic null)";
 
   let pages = db
     .prepare(
@@ -111,7 +115,7 @@ export async function runPdfIngestion(
       continue;
     }
     try {
-      await processPage(db, llm, source.id, page, pdf, topics, sourceLabel);
+      await processPage(db, llm, source.id, page, pdf, topics);
       progress[page.page_no] = "done";
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -128,7 +132,11 @@ export async function runPdfIngestion(
     if (payload.jobId !== undefined) {
       db.prepare(
         "UPDATE job SET progress = ?, updated_at = ? WHERE id = ?",
-      ).run(JSON.stringify({ pages: progress }), nowIso(), payload.jobId);
+      ).run(
+        JSON.stringify({ pages: progress, total: pages.length }),
+        nowIso(),
+        payload.jobId,
+      );
     }
   }
 
@@ -136,7 +144,7 @@ export async function runPdfIngestion(
   if (failed > 0) {
     throw new Error(`${failed} of ${pages.length} pages failed`);
   }
-  return { pages: progress };
+  return { pages: progress, total: pages.length };
 }
 
 async function processPage(
@@ -146,12 +154,11 @@ async function processPage(
   page: PageRow,
   pdf: Buffer,
   topics: { id: number; name: string }[],
-  sourceLabel: string,
 ): Promise<void> {
   const pagePdf = await extractPagePdf(pdf, page.page_no);
   const attachments = [{ kind: "pdf" as const, data: pagePdf }];
 
-  const kind = parseClassification(
+  const { kind, topic } = parseClassification(
     await llm.vision("page_classification", attachments),
   );
   db.prepare(
@@ -168,9 +175,10 @@ async function processPage(
     );
     insertExtractionItems(db, sourceId, words);
   } else {
-    // Grammar page: link it to a seeded curriculum topic when one matches the
-    // source label. Left NULL when no confident match — never a new LLM call.
-    const topicId = matchGrammarTopic(topics, sourceLabel);
+    // Grammar page: link it to a seeded curriculum topic when the concept the
+    // LLM named on the page matches one. Left NULL when the model named no
+    // concept or none matches confidently — never a guess, never a new LLM call.
+    const topicId = topic ? matchGrammarTopic(topics, topic) : null;
     if (topicId !== null) {
       db.prepare(
         "UPDATE source_page SET grammar_topic_id = ?, updated_at = ? WHERE id = ?",
@@ -245,9 +253,24 @@ function buildCalibrationSample(db: DB, language: string): string {
   return rows.map((r) => r.lemma ?? r.term).join(", ");
 }
 
-function parseClassification(text: string): "vocab" | "grammar" {
-  const parsed = extractJson(text) as { kind?: unknown };
-  if (parsed.kind === "vocab" || parsed.kind === "grammar") return parsed.kind;
+/**
+ * Parse the page classification. `topic` is the grammar concept the model saw
+ * on a grammar page (Spanish free text), used for the deterministic page→topic
+ * link. It is optional: vocab pages omit it, and older cached grammar responses
+ * predate the field — both yield topic: null.
+ */
+function parseClassification(text: string): {
+  kind: "vocab" | "grammar";
+  topic: string | null;
+} {
+  const parsed = extractJson(text) as { kind?: unknown; topic?: unknown };
+  if (parsed.kind === "vocab" || parsed.kind === "grammar") {
+    const topic =
+      typeof parsed.topic === "string" && parsed.topic.trim() !== ""
+        ? parsed.topic
+        : null;
+    return { kind: parsed.kind, topic };
+  }
   throw new Error(`invalid page classification: ${text.slice(0, 200)}`);
 }
 

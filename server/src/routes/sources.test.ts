@@ -443,6 +443,6 @@ describe("end-to-end: upload → job → triage candidates", () => {
       .prepare("SELECT status, progress FROM job WHERE id = ?")
       .get(upload.body.jobId) as { status: string; progress: string };
     expect(job.status).toBe("done");
-    expect(JSON.parse(job.progress)).toEqual({ pages: { 1: "done" } });
+    expect(JSON.parse(job.progress)).toEqual({ pages: { 1: "done" }, total: 1 });
   });
 });

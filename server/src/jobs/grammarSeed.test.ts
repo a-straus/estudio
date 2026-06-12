@@ -175,4 +175,57 @@ describe("runGrammarSeed", () => {
     });
     expect(categories()).toHaveLength(2);
   });
+
+  it("streams generating→writing progress onto the job row mid-run", async () => {
+    const queue = new JobQueue(db, { backoffBaseMs: 0 });
+    const jobId = enqueueGrammarSeed(queue);
+    // The handler finds its own row by its `running` status; simulate the claim
+    // the queue does before invoking the handler.
+    db.prepare("UPDATE job SET status = 'running' WHERE id = ?").run(jobId);
+
+    const jobProgress = () => {
+      const row = db
+        .prepare("SELECT progress FROM job WHERE id = ?")
+        .get(jobId) as { progress: string | null };
+      return row.progress === null ? null : JSON.parse(row.progress);
+    };
+
+    // A provider that captures the progress visible while it "generates".
+    let duringGenerate: unknown = "unset";
+    db.prepare("INSERT OR REPLACE INTO setting (key, value) VALUES (?, ?)").run(
+      "llm.grammar_curriculum",
+      JSON.stringify({ provider: "mock", model: "mock-grammar" }),
+    );
+    const provider: LlmProvider = {
+      name: "mock",
+      complete: async () => {
+        duringGenerate = jobProgress();
+        return {
+          text: JSON.stringify(CURRICULUM),
+          usage: {
+            tokensIn: 100,
+            tokensOut: 200,
+            cacheHit: false,
+            costEstimateUsd: 0.01,
+          },
+        };
+      },
+      vision: () => Promise.reject(new Error("vision not used")),
+    };
+    const llm = new LlmService(db, { mock: provider }, { backoffBaseMs: 0 });
+
+    await runGrammarSeed(db, llm);
+
+    expect(duringGenerate).toEqual({
+      phase: "generating",
+      categories: 0,
+      topics: 0,
+    });
+    // After the rows are written the last streamed progress carries the counts.
+    expect(jobProgress()).toEqual({
+      phase: "writing",
+      categories: 2,
+      topics: 3,
+    });
+  });
 });
