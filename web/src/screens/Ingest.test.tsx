@@ -214,7 +214,9 @@ describe("Ingest — job progress", () => {
     ) as HTMLInputElement;
     fireEvent.change(input, {
       target: {
-        files: [new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" })],
+        files: [
+          new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" }),
+        ],
       },
     });
 

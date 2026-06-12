@@ -220,7 +220,7 @@ describe("runPdfIngestion", () => {
       }
     ).id;
     // Source label is generic ("Lectura"): the link comes from the topic the
-    // classifier names on the page, not the filename/title.
+    // classifier picks from the seeded list, not the filename/title.
     const sourceId = insertSource(db, {
       type: "pdf",
       title: "Lectura general",
@@ -228,15 +228,18 @@ describe("runPdfIngestion", () => {
       storedPath: PARAGRAPH_PDF,
     });
     insertSourcePages(db, sourceId, 1);
-    const { llm } = makeLlm({
-      classify: () =>
-        '{"kind": "grammar", "topic": "El subjuntivo de emoción"}',
+    const { llm, calls } = makeLlm({
+      classify: () => '{"kind": "grammar", "topic": "Subjuntivo"}',
     });
 
     await runPdfIngestion(db, llm, { sourceId });
 
     const [page] = pageRows(sourceId);
     expect(page).toMatchObject({ kind: "grammar", grammar_topic_id: topicId });
+    // The classifier was handed the seeded topic list to choose from.
+    const classifyPrompt = calls.find((c) => c.task === "classify")!.params
+      .prompt;
+    expect(classifyPrompt).toContain("- Subjuntivo");
   });
 
   it("leaves grammar_topic_id null when the page topic matches no seeded topic", async () => {
