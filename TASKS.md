@@ -14,7 +14,9 @@ Done levels (from GOAL.md §15):
 
 <!-- Format: - **branch-name**: description (spawned: YYYY-MM-DD HH:MM) -->
 
-- **home-nav-footer**: build the `/` Home overview (HomeHero centerpiece + OverviewCard grid + activity band) + wire SiteHeader/SiteFooter into the global shell across all non-session screens + read-only `/api/overview` summary endpoint (counts shared by home + footer). Touches the shell + App.tsx routing — runs ALONE. (spawned: 2026-06-12 00:35, `--include design/INDEX.md --include design/tokens.md --include design/components.md --include design/interaction.md --include design/screens/shell.md --include design/screens/home.md`)
+- **polish-sweep-review-quiz**: restyle `/review` + `/quiz` to the elevated bar — adopt the upgraded Button/SegmentedControl/QuizOption/ReviewCard/WordEntry components + new tokens; no raw values where a token exists. Owns Review.* + Quiz.* only; never edits shared components, tokens.css, the shell, or App.tsx. (spawned: 2026-06-12 01:00, `--include design/INDEX.md --include design/tokens.md --include design/components.md --include design/interaction.md --include design/screens/review.md --include design/screens/quiz.md`)
+- **polish-sweep-library-grammar-lesson**: restyle `/library` + `/grammar` + lesson screens to the elevated bar. Owns Library.* + Grammar.* + Lesson.* only; never edits shared components, tokens.css, the shell, or App.tsx. (spawned: 2026-06-12 01:00, `--include design/INDEX.md --include design/tokens.md --include design/components.md --include design/interaction.md --include design/screens/library.md --include design/screens/grammar.md --include design/screens/lessons.md`)
+- **polish-sweep-ingest-triage-system**: restyle `/ingest` + `/triage` + `/system` screens to the elevated bar. Owns Ingest.* + Triage.* + System.* only; never edits shared components, tokens.css, the shell, or App.tsx. (spawned: 2026-06-12 01:00, `--include design/INDEX.md --include design/tokens.md --include design/components.md --include design/interaction.md --include design/screens/ingest.md --include design/screens/triage.md --include design/screens/system.md`)
 
 
 ## Backlog
@@ -27,8 +29,9 @@ Done levels (from GOAL.md §15):
 
 ### Design polish — AUTHORIZED iteration 55 (Apple-handoff bar; identity D0/D1 unchanged; runs after the Phase-1 fixes above because it rewrites shell/components/all screens)
 
-<!-- design-polish-foundation integrated iteration 74→75 (commit efc0b98); home-nav-footer moved to In Progress (spawned iteration 75) -->
-- **per-screen polish sweeps** — after the foundation lands, quick per-screen passes (one task per 2–3 screens) to adopt the upgraded components/tokens; file-disjoint by screen [Should]
+<!-- design-polish-foundation integrated iter 75; home-nav-footer integrated iter 81 (commit e5e05b5). Per-screen sweeps decomposed into 3 file-disjoint tasks, all In Progress (spawned iter 81). -->
+<!-- per-screen polish sweeps → split into polish-sweep-review-quiz / -library-grammar-lesson / -ingest-triage-system (In Progress). Home screen was built directly on the elevated bar by home-nav-footer; no sweep needed. -->
+
 
 ### Phase 2 (gate LIFTED per human master directive; GOAL §5 phase order; §11: lesson recordings → Ask → suggestions → voice). Resume here once Phase-1 fixes are in flight and capacity frees.
 
@@ -48,6 +51,7 @@ Note: `no-design` and `codex-worker-engine` branches = human-owned (sandbox / sp
 
 <!-- Format: - **branch-name**: description (merged: YYYY-MM-DD HH:MM) [task/feature/release done] -->
 
+- **home-nav-footer**: built the `/` Home overview (HomeHero centerpiece + OverviewCard grid + activity band), wired SiteHeader/SiteFooter into the global shell across all non-session screens, and added the read-only `GET /api/overview` summary endpoint (counts shared by home + footer) (merged: 2026-06-12 iter 81, commit e5e05b5, check.sh green on main — 408 tests) [task done]
 - **design-polish-foundation**: materialized the new additive tokens + restyled the base component library to the elevated bar + built the new chrome/home components (SiteHeader, SiteFooter, HomeHero, OverviewCard), each with co-located css + tests; not yet mounted into any screen (home-nav-footer does that) (merged: 2026-06-12 iter 75, commit efc0b98, check.sh green on main — 399 tests) [task done]
 - **shared-api-refold**: refold web/src/screens/grammarApi.ts + systemApi.ts onto the shared web/src/api.ts client (review-03 S11) (merged: 2026-06-12 iter 74, commit 2403f77, check.sh green on main — 383 tests) [task done]
 - **ingestion-progress-and-topic-link**: real per-page (N of M) progress on PDF reading + per-topic curriculum-building progress reported by the jobs (existing `job.progress` TEXT) and rendered on `/ingest` + `/grammar`; review-03 S12 deterministic page→topic linking from the page-classification LLM (seeded topic list wired into the prompt), NULL when unconfident (merged: 2026-06-12 iter 70, commits 16ef8b9 + c7715f1, check.sh green on main — 383 tests) [task done]
