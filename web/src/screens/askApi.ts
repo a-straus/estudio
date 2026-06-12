@@ -7,6 +7,7 @@ import type {
   ListThreadsResponse,
   PostMessageRequest,
   PostMessageResponse,
+  PostVoiceResponse,
 } from "@estudio/shared";
 import { api } from "../api";
 export { ApiError } from "../api";
@@ -51,5 +52,17 @@ export function confirmTool(
   return api<ConfirmToolResponse>(`/api/chat/threads/${threadId}/tool`, {
     method: "POST",
     body: JSON.stringify({ action, messageId }),
+  });
+}
+
+export function postVoiceMessage(
+  threadId: number,
+  audio: Blob,
+): Promise<PostVoiceResponse> {
+  const form = new FormData();
+  form.append("file", audio, "voice.webm");
+  return api<PostVoiceResponse>(`/api/chat/threads/${threadId}/voice`, {
+    method: "POST",
+    body: form,
   });
 }

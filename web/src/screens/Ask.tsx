@@ -8,11 +8,13 @@ import { ChatTurn } from "../components/ChatTurn";
 import { ToolConfirm } from "../components/ToolConfirm";
 import { RecordButton } from "../components/RecordButton";
 import {
+  ApiError,
   confirmTool,
   createThread,
   getThread,
   listThreads,
   postMessage,
+  postVoiceMessage,
 } from "./askApi";
 import "./Ask.css";
 
@@ -66,6 +68,8 @@ export function Ask() {
   const [loadingThread, setLoadingThread] = useState(false);
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [pendingTranscript, setPendingTranscript] = useState(false);
   const [toolBusy, setToolBusy] = useState<number | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const turnsEndRef = useRef<HTMLDivElement>(null);
@@ -170,6 +174,29 @@ export function Ask() {
       }
     },
     [handleSend],
+  );
+
+  const handleRecorded = useCallback(
+    async (audio: Blob) => {
+      if (!thread) return;
+      setTranscribing(true);
+      setPendingTranscript(true);
+      try {
+        const result = await postVoiceMessage(thread.id, audio);
+        setPendingTranscript(false);
+        setMessages((prev) => [...prev, result.userMessage, result.assistantMessage]);
+      } catch (err) {
+        setPendingTranscript(false);
+        const msg =
+          err instanceof ApiError
+            ? err.message
+            : "Voice message failed. Try again.";
+        setToast({ text: msg, variant: "error" });
+      } finally {
+        setTranscribing(false);
+      }
+    },
+    [thread],
   );
 
   const handleConfirmTool = useCallback(
@@ -282,7 +309,8 @@ export function Ask() {
           {loadingThread ? (
             <p className="ask__loading">Loading…</p>
           ) : (
-            messages.map((msg) => {
+            <>
+            {messages.map((msg) => {
               if (
                 msg.role === "assistant" &&
                 msg.toolCall?.requiresConfirmation &&
@@ -320,7 +348,11 @@ export function Ask() {
               return (
                 <ChatTurn key={msg.id} role={msg.role} content={msg.content} />
               );
-            })
+            })}
+            {pendingTranscript && (
+              <ChatTurn role="user" content="" state="pending-transcription" />
+            )}
+            </>
           )}
           <div ref={turnsEndRef} />
         </div>
@@ -337,7 +369,10 @@ export function Ask() {
             disabled={sending}
           />
         </div>
-        <RecordButton state="idle" />
+        <RecordButton
+          onRecorded={(blob) => void handleRecorded(blob)}
+          state={transcribing ? "transcribing" : undefined}
+        />
         <Button
           variant="primary"
           onClick={() => void handleSend()}

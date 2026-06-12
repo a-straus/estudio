@@ -9,6 +9,7 @@ import type {
   GetThreadResponse,
   ListThreadsResponse,
   PostMessageResponse,
+  PostVoiceResponse,
   ConfirmToolResponse,
 } from "@estudio/shared";
 import { errorHandler } from "../app.js";
@@ -16,6 +17,7 @@ import { openDb, type DB } from "../db/db.js";
 import { runMigrations } from "../db/migrate.js";
 import { LlmService } from "../llm/service.js";
 import type { LlmProvider } from "../llm/types.js";
+import type { TranscriptionService } from "../transcription/service.js";
 import { registerChatRoutes } from "./chat.js";
 
 let dataDir: string;
@@ -206,5 +208,102 @@ describe("POST /api/chat/threads/:id/tool", () => {
 
     const body = res.body as ConfirmToolResponse;
     expect(body.assistantMessage.toolReceipt?.status).toBe("skipped");
+  });
+});
+
+describe("POST /api/chat/threads/:id/voice", () => {
+  const VOICE_TRANSCRIPT = "como se dice vergüenza";
+
+  const fakeTranscription = {
+    transcribe: () =>
+      Promise.resolve({
+        text: VOICE_TRANSCRIPT,
+        usage: { minutes: 0.5, cacheHit: false, costEstimateUsd: 0 },
+      }),
+  } as unknown as TranscriptionService;
+
+  let voiceApp: Express;
+
+  beforeEach(() => {
+    voiceApp = express();
+    voiceApp.use(express.json());
+    const llm = new LlmService(db, { mock: provider }, process.env);
+    registerChatRoutes(voiceApp, db, llm, fakeTranscription, {
+      readAudioDuration: async () => 0.5,
+    });
+    voiceApp.use(errorHandler);
+  });
+
+  it("transcribes a clip and returns 201 with transcript + user + assistant turns", async () => {
+    const createRes = await request(voiceApp)
+      .post("/api/chat/threads")
+      .send({ pageContext: { kind: "review", label: "vergüenza" }, title: "Voice test" })
+      .expect(201);
+    const { thread } = createRes.body as CreateThreadResponse;
+
+    const res = await request(voiceApp)
+      .post(`/api/chat/threads/${thread.id}/voice`)
+      .attach("file", Buffer.from("fake-audio-bytes"), "voice.webm")
+      .expect(201);
+
+    const body = res.body as PostVoiceResponse;
+    expect(body.transcript).toBe(VOICE_TRANSCRIPT);
+    expect(body.userMessage.role).toBe("user");
+    expect(body.userMessage.content).toBe(VOICE_TRANSCRIPT);
+    expect(body.assistantMessage.role).toBe("assistant");
+    expect(body.assistantMessage.content).toBeTruthy();
+  });
+
+  it("returns 400 when no file is attached", async () => {
+    const createRes = await request(voiceApp)
+      .post("/api/chat/threads")
+      .send({ pageContext: { kind: "home", label: "Home" }, title: "Test" });
+    const { thread } = createRes.body as CreateThreadResponse;
+
+    const res = await request(voiceApp)
+      .post(`/api/chat/threads/${thread.id}/voice`)
+      .expect(400);
+    expect(res.body.error.code).toBe("missing_file");
+  });
+
+  it("returns 400 for an unsupported file extension", async () => {
+    const createRes = await request(voiceApp)
+      .post("/api/chat/threads")
+      .send({ pageContext: { kind: "home", label: "Home" }, title: "Test" });
+    const { thread } = createRes.body as CreateThreadResponse;
+
+    const res = await request(voiceApp)
+      .post(`/api/chat/threads/${thread.id}/voice`)
+      .attach("file", Buffer.from("x"), "recording.txt")
+      .expect(400);
+    expect(res.body.error.code).toBe("invalid_audio");
+  });
+
+  it("returns 404 for unknown thread", async () => {
+    await request(voiceApp)
+      .post("/api/chat/threads/9999/voice")
+      .attach("file", Buffer.from("x"), "voice.webm")
+      .expect(404);
+  });
+
+  it("returns 503 when transcription service is unavailable", async () => {
+    const noTranscriptionApp = express();
+    noTranscriptionApp.use(express.json());
+    const llm = new LlmService(db, { mock: provider }, process.env);
+    registerChatRoutes(noTranscriptionApp, db, llm, undefined, {
+      readAudioDuration: async () => 0.5,
+    });
+    noTranscriptionApp.use(errorHandler);
+
+    const createRes = await request(noTranscriptionApp)
+      .post("/api/chat/threads")
+      .send({ pageContext: { kind: "home", label: "Home" }, title: "Test" });
+    const { thread } = createRes.body as CreateThreadResponse;
+
+    const res = await request(noTranscriptionApp)
+      .post(`/api/chat/threads/${thread.id}/voice`)
+      .attach("file", Buffer.from("x"), "voice.webm")
+      .expect(503);
+    expect(res.body.error.code).toBe("transcription_unavailable");
   });
 });
