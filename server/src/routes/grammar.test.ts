@@ -354,15 +354,16 @@ describe("lesson routes", () => {
     expect(attempt.body.masteryBefore).toBe(0);
     expect(attempt.body.mastery).toBeCloseTo(0.15, 10);
 
-    // The topic column reflects the new mastery; an attempt row exists.
+    // The topic column reflects the new mastery; an attempt row exists and a
+    // lesson quiz (which mixes styles) always persists style 'mixed'.
     const topic = db
       .prepare("SELECT mastery FROM grammar_topic WHERE id = ?")
       .get(topicId) as { mastery: number };
     expect(topic.mastery).toBeCloseTo(0.15, 10);
-    const { c } = db
-      .prepare("SELECT COUNT(*) AS c FROM quiz_attempt WHERE topic_id = ?")
-      .get(topicId) as { c: number };
-    expect(c).toBe(1);
+    const rows = db
+      .prepare("SELECT style FROM quiz_attempt WHERE topic_id = ?")
+      .all(topicId) as { style: string }[];
+    expect(rows).toEqual([{ style: "mixed" }]);
   });
 
   it("weights a partial verdict as 0.5 in the mastery EMA", async () => {

@@ -302,11 +302,26 @@ describe("POST /api/quiz/attempt", () => {
       direction: string | null;
       answers: string;
     };
-    // mixed maps to a concrete style (def_match) and a null direction.
+    // A mixed quiz persists style 'mixed' and a null direction.
     expect(row.deck_id).toBe(SPANISH_DECK);
-    expect(row.style).toBe("def_match");
+    expect(row.style).toBe("mixed");
     expect(row.direction).toBeNull();
     expect(JSON.parse(row.answers)).toHaveLength(1);
+
+    // A single-style quiz still persists its concrete style and direction.
+    const single = await request(app)
+      .post("/api/quiz/attempt")
+      .send({
+        deckId: SPANISH_DECK,
+        style: "def_match",
+        direction: "w2d",
+        answers: [{ questionId: qid, given: "boat", correct: true }],
+      });
+    expect(single.status).toBe(201);
+    const singleRow = db
+      .prepare("SELECT style, direction FROM quiz_attempt WHERE id = ?")
+      .get(single.body.id) as { style: string; direction: string | null };
+    expect(singleRow).toEqual({ style: "def_match", direction: "w2d" });
   });
 });
 
