@@ -36,4 +36,21 @@ describe("SiteHeader", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ask" }));
     expect(onAsk).toHaveBeenCalledOnce();
   });
+
+  it("does not render the + Add button when onQuickAdd is not provided", () => {
+    render(<SiteHeader title="Home" nav={nav} />);
+    expect(screen.queryByRole("button", { name: "+ Add" })).toBeNull();
+  });
+
+  it("renders the + Add button when onQuickAdd is provided", () => {
+    render(<SiteHeader title="Home" nav={nav} onQuickAdd={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "+ Add" })).toBeTruthy();
+  });
+
+  it("fires onQuickAdd when the + Add button is clicked", () => {
+    const onQuickAdd = vi.fn();
+    render(<SiteHeader title="Home" nav={nav} onQuickAdd={onQuickAdd} />);
+    fireEvent.click(screen.getByRole("button", { name: "+ Add" }));
+    expect(onQuickAdd).toHaveBeenCalledOnce();
+  });
 });

@@ -15,6 +15,8 @@ interface SiteHeaderProps {
   nav: NavItem[];
   /** Ask button handler. The button is always present; routing/seeding is the caller's. */
   onAsk?: () => void;
+  /** Quick-add handler. When present, renders a quiet "+ Add" button left of Ask. */
+  onQuickAdd?: () => void;
 }
 
 /**
@@ -22,7 +24,7 @@ interface SiteHeaderProps {
  * Sticky, --header-height tall, flush with a bottom hairline (no shadow).
  * Router-free: nav items come from props; nothing here imports a router.
  */
-export function SiteHeader({ title, nav, onAsk }: SiteHeaderProps) {
+export function SiteHeader({ title, nav, onAsk, onQuickAdd }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <div className="site-header__inner">
@@ -42,6 +44,15 @@ export function SiteHeader({ title, nav, onAsk }: SiteHeaderProps) {
             </a>
           ))}
         </nav>
+        {onQuickAdd && (
+          <Button
+            variant="quiet"
+            className="site-header__quick-add"
+            onClick={onQuickAdd}
+          >
+            + Add
+          </Button>
+        )}
         {onAsk && (
           <Button variant="quiet" className="site-header__ask" onClick={onAsk}>
             Ask

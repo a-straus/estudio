@@ -8,6 +8,7 @@ export { EmptyState } from "./EmptyState";
 export { JobStatus } from "./JobStatus";
 export type { JobState } from "./JobStatus";
 export { ProgressStat } from "./ProgressStat";
+export { QuickAddModal } from "./QuickAddModal";
 export { QuizOption } from "./QuizOption";
 export type { QuizOptionState } from "./QuizOption";
 export { ClozeStem, ReviewCard } from "./ReviewCard";

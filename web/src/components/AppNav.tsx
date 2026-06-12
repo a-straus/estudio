@@ -7,6 +7,7 @@ export interface AppNavItem {
 
 interface AppNavProps {
   activeHref: string;
+  onQuickAdd?: () => void;
 }
 
 const NAV_ITEMS: AppNavItem[] = [
@@ -20,7 +21,7 @@ const NAV_ITEMS: AppNavItem[] = [
  * AppNav — phone bottom bar (shell.md D3 AppNav). Fixed to bottom, visible
  * only below bp-tablet (640px). SiteHeader owns navigation at bp-tablet+.
  */
-export function AppNav({ activeHref }: AppNavProps) {
+export function AppNav({ activeHref, onQuickAdd }: AppNavProps) {
   return (
     <nav className="app-nav" aria-label="Primary navigation">
       {NAV_ITEMS.map((item) => {
@@ -39,6 +40,17 @@ export function AppNav({ activeHref }: AppNavProps) {
           </a>
         );
       })}
+      {onQuickAdd && (
+        <button
+          type="button"
+          className="app-nav__add"
+          onClick={onQuickAdd}
+          aria-label="Add a word"
+        >
+          <span className="app-nav__add-glyph" aria-hidden="true">+</span>
+          <span className="app-nav__add-label">Add</span>
+        </button>
+      )}
     </nav>
   );
 }

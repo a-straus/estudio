@@ -4,6 +4,8 @@ import type { OverviewSummary } from "@estudio/shared";
 import { AppNav } from "./AppNav";
 import { SiteHeader, type NavItem } from "./SiteHeader";
 import { SiteFooter, type FooterLink } from "./SiteFooter";
+import { Toast } from "./Toast";
+import { QuickAddModal } from "./QuickAddModal";
 import { fetchOverview } from "../screens/overviewApi";
 import {
   applyTheme,
@@ -67,6 +69,8 @@ function footerStatus(state: OverviewState): string {
 export function AppShell({ title, activeHref, children }: AppShellProps) {
   const [overview, setOverview] = useState<OverviewState>({ loading: true });
   const [theme, setTheme] = useState<Theme>(() => readTheme());
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddToast, setQuickAddToast] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -102,14 +106,32 @@ export function AppShell({ title, activeHref, children }: AppShellProps) {
     window.location.href = `/ask?new=1&kind=other&label=${label}`;
   }, [title]);
 
+  const handleQuickAdd = useCallback(() => setQuickAddOpen(true), []);
+
   return (
     <div className="app-layout">
-      <SiteHeader title={title} nav={nav} onAsk={handleAsk} />
+      <SiteHeader title={title} nav={nav} onAsk={handleAsk} onQuickAdd={handleQuickAdd} />
       <main className="app-layout__main">{children(overview)}</main>
       <SiteFooter links={FOOTER_LINKS} theme={theme} onToggleTheme={toggleTheme}>
         {footerStatus(overview)}
       </SiteFooter>
-      <AppNav activeHref={activeHref} />
+      <AppNav activeHref={activeHref} onQuickAdd={handleQuickAdd} />
+      <QuickAddModal
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        onAdded={(w) => {
+          setQuickAddOpen(false);
+          setQuickAddToast(`Added ${w.term}.`);
+          fetchOverview()
+            .then((summary) => setOverview({ summary, loading: false }))
+            .catch(() => {});
+        }}
+      />
+      {quickAddToast && (
+        <Toast onDismiss={() => setQuickAddToast(null)}>
+          {quickAddToast}
+        </Toast>
+      )}
     </div>
   );
 }

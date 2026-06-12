@@ -50,6 +50,36 @@
   transform: translateX(-50%);
 }
 
+/* Add button — same cell metrics as a nav item; no active state, no indicator */
+.app-nav__add {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--hit-target);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-ink-soft);
+  font-family: var(--font-app);
+}
+
+.app-nav__add-glyph {
+  display: block;
+  font-size: var(--text-lg);
+  color: var(--color-accent);
+  line-height: 1;
+}
+
+.app-nav__add-label {
+  display: block;
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
 /* Hidden at bp-tablet+ — SiteHeader nav owns navigation there */
 @media (min-width: 640px) {
   .app-nav {
