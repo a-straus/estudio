@@ -42,11 +42,19 @@ devcontainer/Dockerfile and apt is firewalled, exactly the same class as the
 add `ffmpeg` (which provides both `ffmpeg` and `ffprobe`) to the container image
 and rebuild.
 
-This is **not blocking current construction** — the last Phase-2 build task
-(voice questions, which records short clips well under the cap) proceeds without
-it. It gates Phase-2 *done*, alongside the real lesson-audio fixtures you
-committed to providing (GOAL §17, `docs/fixtures/lesson-audio/` — still absent).
-If convenient, bundle both into one rebuild.
+**Status update (as of iteration 131):** when this was first written (iter 99)
+it was *"not blocking current construction"* because Phase-2 features were still
+being built. That's no longer true — **all Phase-2 construction is now complete**
+(voice-questions, the last build task, shipped iter 103; everything is merged and
+trunk is green at 571 tests). This ffmpeg rebuild + the real lesson-audio fixtures
+below are now the **only two things gating forward progress**: together they form
+the Phase-2 *done* gate, and per your force-ranked build order (GOAL §11) that
+gate sits before Phase 3 (English/Gutenberg) — so the loop is currently **fully
+idle, holding for these two human actions**. Both are yours to provide:
+(1) add `ffmpeg` to the container image and rebuild; (2) drop the real lesson
+recordings into `docs/fixtures/lesson-audio/` (GOAL §17 — still absent). If
+convenient, bundle both into one rebuild. Nothing else is lost by waiting — no
+work is stuck mid-flight — but nothing new can advance until at least one lands.
 
 Timing note: a container rebuild wipes in-flight worker worktrees (as the
 firewall rebuild did in iteration 89). Branches and their commits survive, but a
