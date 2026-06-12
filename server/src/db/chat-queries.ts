@@ -91,7 +91,7 @@ export function listThreads(
 ): { threads: ChatThreadView[]; hasMore: boolean } {
   const rows = db
     .prepare(
-      `SELECT * FROM chat_thread ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM chat_thread ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?`,
     )
     .all(limit + 1, offset) as ThreadRow[];
 
@@ -139,12 +139,27 @@ export function listMessages(
   const rows = db
     .prepare(
       `SELECT * FROM chat_message WHERE thread_id = ?
-       ORDER BY created_at ASC LIMIT ? OFFSET ?`,
+       ORDER BY created_at ASC, id ASC LIMIT ? OFFSET ?`,
     )
     .all(threadId, limit + 1, offset) as MessageRow[];
 
   const hasMore = rows.length > limit;
   return { messages: rows.slice(0, limit).map(toMessageView), hasMore };
+}
+
+/** Return the most recent N messages for a thread in chronological order (for LLM context window). */
+export function listRecentMessages(
+  db: DB,
+  threadId: number,
+  limit = 50,
+): ChatMessageView[] {
+  const rows = db
+    .prepare(
+      `SELECT * FROM chat_message WHERE thread_id = ?
+       ORDER BY created_at DESC, id DESC LIMIT ?`,
+    )
+    .all(threadId, limit) as MessageRow[];
+  return rows.reverse().map(toMessageView);
 }
 
 /** Insert a new message and return its view. */

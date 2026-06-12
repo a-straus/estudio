@@ -211,6 +211,126 @@ describe("POST /api/chat/threads/:id/tool", () => {
   });
 });
 
+describe("S4 — generateAssistantReply uses most-recent 50 turns", () => {
+  it("feeds the latest turn (not the oldest) when the thread has > 50 messages", async () => {
+    const capturedPrompts: string[] = [];
+    const captureProvider: LlmProvider = {
+      name: "capture",
+      complete: ({ prompt }) => {
+        capturedPrompts.push(prompt as string);
+        return Promise.resolve({ text: PLAIN_REPLY, usage: { tokensIn: 1, tokensOut: 1, cacheHit: false, costEstimateUsd: 0 } });
+      },
+      vision: () => Promise.reject(new Error("not used")),
+    };
+
+    db.prepare("UPDATE setting SET value = ? WHERE key = 'llm.chat'").run(
+      JSON.stringify({ provider: "capture", model: "capture-chat" }),
+    );
+
+    const captureApp = express();
+    captureApp.use(express.json());
+    const llm = new LlmService(db, { capture: captureProvider }, process.env);
+    registerChatRoutes(captureApp, db, llm);
+    captureApp.use(errorHandler);
+
+    const createRes = await request(captureApp)
+      .post("/api/chat/threads")
+      .send({ pageContext: { kind: "home", label: "Home" }, title: "Big thread" });
+    const { thread } = createRes.body as CreateThreadResponse;
+
+    // Insert 51 old messages directly (avoid hitting LLM 51 times).
+    // First message gets a unique sentinel name so it can't match later messages.
+    const oldTs = "2020-01-01T00:00:00Z";
+    db.prepare(
+      "INSERT INTO chat_message (thread_id, role, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    ).run(thread.id, "user", "OLDEST_SENTINEL_TURN", oldTs, oldTs);
+    for (let i = 2; i <= 51; i++) {
+      db.prepare(
+        "INSERT INTO chat_message (thread_id, role, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+      ).run(thread.id, "user", `Old message ${i}`, oldTs, oldTs);
+    }
+
+    // Send the latest message — this triggers generateAssistantReply
+    await request(captureApp)
+      .post(`/api/chat/threads/${thread.id}/messages`)
+      .send({ content: "Latest user question" })
+      .expect(201);
+
+    expect(capturedPrompts.length).toBe(1);
+    // Most recent 50 includes the latest turn
+    expect(capturedPrompts[0]).toContain("Latest user question");
+    // But NOT the oldest message (it falls outside the 50-turn window)
+    expect(capturedPrompts[0]).not.toContain("OLDEST_SENTINEL_TURN");
+  });
+});
+
+describe("S5 — message ordering tiebreak by id", () => {
+  it("returns messages with identical created_at in insertion order", async () => {
+    const createRes = await request(app)
+      .post("/api/chat/threads")
+      .send({ pageContext: { kind: "home", label: "Home" }, title: "Tiebreak test" });
+    const { thread } = createRes.body as CreateThreadResponse;
+
+    const sameTs = "2024-01-01T12:00:00Z";
+    db.prepare(
+      "INSERT INTO chat_message (thread_id, role, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    ).run(thread.id, "user", "First message", sameTs, sameTs);
+    db.prepare(
+      "INSERT INTO chat_message (thread_id, role, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    ).run(thread.id, "assistant", "Second message", sameTs, sameTs);
+
+    const res = await request(app).get(`/api/chat/threads/${thread.id}`).expect(200);
+    const body = res.body as GetThreadResponse;
+    expect(body.messages[0].content).toBe("First message");
+    expect(body.messages[1].content).toBe("Second message");
+  });
+});
+
+describe("N3 — lookup_word normalizes accented query", () => {
+  it("finds a word via term_normalized when the query term has accents", async () => {
+    const now = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+    db.prepare(
+      `INSERT INTO word (term, term_normalized, language, status, deck_id, created_at, updated_at)
+       VALUES (?, ?, 'es', 'new', 1, ?, ?)`,
+    ).run("Vergüenza", "verguenza", now, now);
+
+    const lookupProvider: LlmProvider = {
+      name: "lookup",
+      complete: () =>
+        Promise.resolve({
+          text: 'Let me look that up.\n```tool\n{"tool":"lookup_word","args":{"term":"vergüenza"}}\n```',
+          usage: { tokensIn: 1, tokensOut: 1, cacheHit: false, costEstimateUsd: 0 },
+        }),
+      vision: () => Promise.reject(new Error("not used")),
+    };
+
+    db.prepare("UPDATE setting SET value = ? WHERE key = 'llm.chat'").run(
+      JSON.stringify({ provider: "lookup", model: "lookup-chat" }),
+    );
+
+    const lookupApp = express();
+    lookupApp.use(express.json());
+    const llm = new LlmService(db, { lookup: lookupProvider }, process.env);
+    registerChatRoutes(lookupApp, db, llm);
+    lookupApp.use(errorHandler);
+
+    const createRes = await request(lookupApp)
+      .post("/api/chat/threads")
+      .send({ pageContext: { kind: "home", label: "Home" }, title: "Lookup test" });
+    const { thread } = createRes.body as CreateThreadResponse;
+
+    const res = await request(lookupApp)
+      .post(`/api/chat/threads/${thread.id}/messages`)
+      .send({ content: "What is vergüenza?" })
+      .expect(201);
+
+    const body = res.body as PostMessageResponse;
+    // The tool result should contain the word (found via normalized lookup)
+    expect(body.assistantMessage.content).toContain("Vergüenza");
+    expect(body.assistantMessage.content).not.toContain("not found");
+  });
+});
+
 describe("POST /api/chat/threads/:id/voice", () => {
   const VOICE_TRANSCRIPT = "como se dice vergüenza";
 

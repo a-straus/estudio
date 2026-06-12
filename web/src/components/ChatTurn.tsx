@@ -10,6 +10,26 @@ interface ChatTurnProps {
   onRetry?: () => void;
 }
 
+const SPANISH_CHARS = /[áéíóúüñÁÉÍÓÚÜÑ¿¡]/;
+
+function renderAssistantBody(content: string) {
+  const lines = content.split("\n");
+  if (!lines.some((l) => SPANISH_CHARS.test(l))) {
+    return <p className="chat-turn__body">{content}</p>;
+  }
+  return (
+    <div className="chat-turn__body">
+      {lines.map((line, i) =>
+        SPANISH_CHARS.test(line) ? (
+          <span key={i} className="chat-turn__spanish">{line}</span>
+        ) : (
+          <span key={i}>{line}{i < lines.length - 1 ? <br /> : null}</span>
+        ),
+      )}
+    </div>
+  );
+}
+
 /**
  * One turn in an Ask thread. No bubbles — hairlines only (components.md).
  * User turns are indented; assistant turns are flush left.
@@ -48,7 +68,9 @@ export function ChatTurn({
   return (
     <div className={`chat-turn chat-turn--${role}`}>
       {role === "user" && <span className="chat-turn__label">you</span>}
-      <p className="chat-turn__body">{content}</p>
+      {role === "assistant"
+        ? renderAssistantBody(content)
+        : <p className="chat-turn__body">{content}</p>}
     </div>
   );
 }

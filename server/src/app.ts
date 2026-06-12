@@ -117,7 +117,7 @@ export function errorHandler(
   if (err instanceof MulterError && err.code === "LIMIT_FILE_SIZE") {
     res.status(413).json({
       error: {
-        message: "uploaded file is too large (max 50 MB)",
+        message: "the uploaded file is too large",
         code: "file_too_large",
       },
     });

@@ -75,7 +75,7 @@ describe("errorHandler", () => {
     expect(res.status).toBe(413);
     expect(res.body).toEqual({
       error: {
-        message: "uploaded file is too large (max 50 MB)",
+        message: "the uploaded file is too large",
         code: "file_too_large",
       },
     });
