@@ -63,6 +63,8 @@ export interface LessonInsightView {
   topicId: number | null;
   createdAt: string;
   updatedAt: string;
+  /** Word status for flagged_word insights: 'new','learning','mature','known','suspended', or null when wordId is null. */
+  wordStatus?: string | null;
 }
 
 /**
@@ -87,4 +89,23 @@ export interface LessonRecordingView {
 export interface TopicLessonCount {
   topicId: number;
   seenInLessons: number;
+}
+
+/** Summary counts + job state for one lesson in the GET /api/lessons list. */
+export interface LessonListItem {
+  sourceId: number;
+  title: string | null;
+  createdAt: string;
+  /** Null — duration is not stored in the DB at write time. */
+  durationMinutes: number | null;
+  /** Latest job status: queued/running/done/failed/cancelled, or null if no job found. */
+  jobStatus: string | null;
+  /** Phase from job.progress JSON: transcribing/analyzing/done, or null. */
+  jobPhase: string | null;
+  /** Job error string if failed, null otherwise. */
+  jobError: string | null;
+  flaggedWordCount: number;
+  correctionCount: number;
+  struggleSentenceCount: number;
+  topicCount: number;
 }

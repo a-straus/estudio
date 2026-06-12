@@ -6,14 +6,21 @@ import {
   TextInput,
   type JobState,
 } from "../components";
-import { fetchJobs, submitText, uploadPdf, ApiError } from "./ingestApi";
+import {
+  fetchJobs,
+  submitAudio,
+  submitText,
+  uploadPdf,
+  ApiError,
+} from "./ingestApi";
 import "./Ingest.css";
 
-type Method = "pdf" | "paste" | "gutenberg" | "import";
+type Method = "pdf" | "paste" | "audio" | "gutenberg" | "import";
 
 const METHODS = [
   { value: "pdf", label: "Upload PDF" },
   { value: "paste", label: "Paste text" },
+  { value: "audio", label: "Lesson audio" },
   { value: "gutenberg", label: "Gutenberg" },
   { value: "import", label: "Import" },
 ];
@@ -22,9 +29,13 @@ const METHODS = [
 interface ActiveJob {
   sourceId: number;
   jobId: number;
-  /** "page" (PDF) or "chunk" (text) — the unit named in the stage line. */
-  unit: "page" | "chunk";
+  /** "page" (PDF) or "chunk" (text) or "minute" (audio) — the unit named in the stage line. */
+  unit: "page" | "chunk" | "minute";
   total: number;
+  /** Audio jobs link to /lessons on completion; other jobs link to /triage. */
+  isAudio?: boolean;
+  /** Upfront cost estimate shown during audio job progress. */
+  costEstimateUsd?: number;
 }
 
 interface ProgressView {
@@ -33,6 +44,8 @@ interface ProgressView {
   failed: number;
   /** Total units, from the job's progress JSON when present. */
   total: number | null;
+  /** Phase string for audio jobs: "transcribing" | "analyzing" | "done". */
+  phase?: string | null;
 }
 
 interface IngestProps {
@@ -44,29 +57,33 @@ function readProgress(progress: unknown): {
   done: number;
   failed: number;
   total: number | null;
+  phase: string | null;
 } {
   let done = 0;
   let failed = 0;
   let total: number | null = null;
-  if (
-    progress &&
-    typeof progress === "object" &&
-    "pages" in progress &&
-    progress.pages &&
-    typeof progress.pages === "object"
-  ) {
-    for (const outcome of Object.values(
-      progress.pages as Record<string, string>,
-    )) {
-      if (outcome === "done") done += 1;
-      else if (outcome === "failed") failed += 1;
+  let phase: string | null = null;
+  if (progress && typeof progress === "object") {
+    if (
+      "pages" in progress &&
+      progress.pages &&
+      typeof progress.pages === "object"
+    ) {
+      for (const outcome of Object.values(
+        progress.pages as Record<string, string>,
+      )) {
+        if (outcome === "done") done += 1;
+        else if (outcome === "failed") failed += 1;
+      }
+      if ("total" in progress && typeof progress.total === "number") {
+        total = progress.total;
+      }
     }
-    // total is optional: older progress JSON (and text ingestion) omits it.
-    if ("total" in progress && typeof progress.total === "number") {
-      total = progress.total;
+    if ("phase" in progress && typeof progress.phase === "string") {
+      phase = progress.phase;
     }
   }
-  return { done, failed, total };
+  return { done, failed, total, phase };
 }
 
 export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
@@ -78,6 +95,7 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
   const [progress, setProgress] = useState<ProgressView | null>(null);
   const [backgrounded, setBackgrounded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const wordCount =
     pasteText.trim() === "" ? 0 : pasteText.trim().split(/\s+/).length;
@@ -104,7 +122,7 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
         unit: "chunk",
         total: res.pageCount,
       });
-      setProgress({ state: "queued", done: 0, failed: 0, total: null });
+      setProgress({ state: "queued", done: 0, failed: 0, total: null, phase: null });
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Couldn't start extraction.",
@@ -125,10 +143,33 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
         unit: "page",
         total: res.pageCount,
       });
-      setProgress({ state: "queued", done: 0, failed: 0, total: null });
+      setProgress({ state: "queued", done: 0, failed: 0, total: null, phase: null });
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Couldn't read that file.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }, []);
+
+  const onPickAudio = useCallback(async (file: File) => {
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const res = await submitAudio(file);
+      setJob({
+        sourceId: res.source.id,
+        jobId: res.jobId,
+        unit: "minute",
+        total: 0,
+        isAudio: true,
+        costEstimateUsd: res.costEstimateUsd,
+      });
+      setProgress({ state: "queued", done: 0, failed: 0, total: null, phase: null });
+    } catch (err) {
+      setFormError(
+        err instanceof ApiError ? err.message : "Couldn't read that audio file.",
       );
     } finally {
       setSubmitting(false);
@@ -145,8 +186,8 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
         const jobs = await fetchJobs();
         const view = jobs.find((j) => j.id === job.jobId);
         if (!active || !view) return;
-        const { done, failed, total } = readProgress(view.progress);
-        setProgress({ state: view.status as JobState, done, failed, total });
+        const { done, failed, total, phase } = readProgress(view.progress);
+        setProgress({ state: view.status as JobState, done, failed, total, phase });
       } catch {
         // Transient poll failure: keep the last known progress and retry.
       }
@@ -225,6 +266,35 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
             </div>
           )}
 
+          {method === "audio" && (
+            <div className="ingest__dropzone">
+              <input
+                ref={audioInputRef}
+                type="file"
+                accept="audio/*,.m4a,.mp3,.wav,.ogg,.webm,.aac,.flac,.opus"
+                className="ingest__file-input"
+                aria-label="Choose a lesson recording"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void onPickAudio(file);
+                }}
+              />
+              <Button
+                variant="secondary"
+                busy={submitting}
+                busyLabel="Uploading…"
+                onClick={() => audioInputRef.current?.click()}
+              >
+                Drop a lesson recording, or browse
+              </Button>
+              {formError && (
+                <p className="ingest__error" role="alert">
+                  {formError}
+                </p>
+              )}
+            </div>
+          )}
+
           {(method === "gutenberg" || method === "import") && (
             <div className="ingest__coming-soon">
               <TextInput
@@ -256,6 +326,11 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
 
       {job && progress && (
         <section className="ingest__job">
+          {job.isAudio && job.costEstimateUsd !== undefined && (
+            <p className="ingest__note">
+              {`est. $${job.costEstimateUsd.toFixed(2)} transcription`}
+            </p>
+          )}
           {backgrounded ? (
             <p className="ingest__note">
               This keeps running. Progress is in System.
@@ -265,7 +340,7 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
               state={progress.state}
               stage={stageLine(job, progress)}
               progress={
-                progress.state === "running"
+                progress.state === "running" && !job.isAudio
                   ? (progress.done + progress.failed) /
                     Math.max(progress.total ?? job.total, 1)
                   : undefined
@@ -276,12 +351,18 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
 
           {terminal && (
             <div className="ingest__job-actions">
-              <a
-                className="btn btn--primary"
-                href={`/triage?source=${job.sourceId}`}
-              >
-                Continue to triage
-              </a>
+              {job.isAudio ? (
+                <a className="btn btn--primary" href="/lessons">
+                  View lesson
+                </a>
+              ) : (
+                <a
+                  className="btn btn--primary"
+                  href={`/triage?source=${job.sourceId}`}
+                >
+                  Continue to triage
+                </a>
+              )}
               <Button variant="quiet" onClick={reset}>
                 Ingest more
               </Button>
@@ -294,6 +375,15 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
 }
 
 function stageLine(job: ActiveJob, progress: ProgressView): string {
+  if (job.isAudio) {
+    if (progress.state === "queued") return "Queued…";
+    if (progress.state === "done") return "Done.";
+    if (progress.state === "failed") return "Processing failed.";
+    const phase = progress.phase;
+    if (phase === "transcribing") return "Transcribing…";
+    if (phase === "analyzing") return "Mining the transcript…";
+    return "Processing…";
+  }
   const noun = job.unit === "page" ? "pages" : "chunks";
   // The job's progress JSON is the authoritative total once it streams; fall
   // back to the count the submit response reported until the first poll lands.
