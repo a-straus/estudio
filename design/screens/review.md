@@ -9,7 +9,7 @@
 1. _Session bar_ — close ×, "7 of 23" (`--font-meta`), hairline progress fill.
 2. _Card region_ — one `ReviewCard` (see D4) on `--color-surface`, `--radius-2`, `--shadow-1`, `--space-5` padding. Contains the question `WordEntry` fragment (headword or cloze stem) and the prompt line.
 3. _Answer region_ — 4 `QuizOption`s stacked, `--space-2` gaps. In flip-card mode this region is the three self-grade Buttons ("Didn't know / Knew it / Easy").
-4. _Action region (thumb zone)_ — before answering: quiet Button "Don't know". After answering: verdict line + "Explain why" quiet Button + primary Button "Next".
+4. _Action region (thumb zone)_ — before answering: quiet Button "Don't know" (no "Check answer" button — selecting an option is the answer). After answering: verdict line + "Explain why" quiet Button + primary Button "Next".
 
 ```
 Mobile 390px — mid-question        Desktop ≥960px — centered column 560px
@@ -24,9 +24,9 @@ Mobile 390px — mid-question        Desktop ≥960px — centered column 560px
 │ ○ restlessness; unease…  │       │   ③ boredom…                         │
 │ ● carelessness… (selected│       │   ④ longing…                         │
 │ ○ boredom; tedium…       │       │                                      │
-│ ○ longing for home…      │       │   1–4 select · Enter check           │
+│ ○ longing for home…      │       │   1–4 answer · Enter next            │
 │                          │       └──────────────────────────────────────┘
-│ [    Check answer     ]  │
+│   Don't know  (quiet)    │
 └──────────────────────────┘
 ```
 
@@ -34,7 +34,7 @@ Mobile 390px — mid-question        Desktop ≥960px — centered column 560px
 
 **States.**
 
-- _Answer feedback:_ see D5 choreography. Correct option fills `--color-correct-wash` with `--color-correct` border; chosen-wrong fills incorrect equivalents; others dim to `--color-ink-faint`.
+- _Answer feedback:_ selection grades immediately — tapping an option (or pressing 1–4) reveals correct/incorrect at once; there is no separate "Check answer" step (mirrors the Quiz play screen). Then see D5 choreography: correct option fills `--color-correct-wash` with `--color-correct` border; chosen-wrong fills incorrect equivalents; others dim to `--color-ink-faint`.
 - _Explain why:_ expands below options as a hairline-topped panel, `--font-app` `--text-base` `--leading-base`; generated text streams in; while loading shows "Explaining…" in `--font-meta`.
 - _End of session:_ summary view — "20 cards · 17 correct" (`--text-xl`), missed words listed as compact `WordEntry` rows, primary Button "Done", quiet Button "Review the 3 missed again".
 - _Empty (opened with 0 due):_ EmptyState "Nothing due. Ingest something new?" + quiet Button to Ingest.

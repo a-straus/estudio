@@ -84,6 +84,43 @@ lesson end-to-end (the Phase-2 *done* gate). Leaving this `[PENDING]` only
 because that rebuild is the remaining blocker — your answer itself is fully
 received and recorded (DECISIONS.md iter 139).
 
+### [PENDING] Disable /ingest on mobile — confirm, it conflicts with a Phase-1 done-criterion
+
+You asked (FEEDBACK, 2026-06-12): *"Restrict and disable the /ingest route and its
+entry points entirely when the application is accessed from a mobile device."*
+
+I want to build it, but it directly contradicts a criterion you set in **GOAL §15
+(Phase-1 done)**: *"Every Phase 1 Must story in §5 passes its acceptance criteria
+on desktop Chrome **and one real phone browser**."* **Spanish PDF ingestion is a
+Phase-1 Must story** (§5, build-first), so §15 currently requires ingest to work on
+a phone — which is the opposite of disabling it there. GOAL.md is yours alone to
+change, so rather than silently override that criterion I'm confirming intent.
+
+My read of what you want: ingest (PDF upload, pasting long text) is a desktop task,
+so make **/ingest desktop-only** — on a phone, hide every entry point (the Home
+"Ingest" card + empty-state buttons, the Review empty-state "Ingest" button, the
+desktop masthead link) and guard the route itself (a phone visitor to /ingest gets
+a plain "Ingest is desktop-only — open this on your laptop" message, not the
+uploader). Detection by **viewport width** (the existing 640px responsive
+breakpoint), not user-agent sniffing. This effectively **waives the §15
+"ingestion works on a phone browser" sub-criterion** for the PDF/text-ingestion
+Must stories (everything else — review, triage, quiz, grammar, library — stays
+phone-primary and still must pass on a phone).
+
+**Options:**
+- **(A, recommended)** Make /ingest desktop-only as described; treat the §15
+  phone-ingest sub-criterion as waived. I build `ingest-mobile-guard` immediately.
+- **(B)** Keep ingest reachable on mobile but de-emphasize it (e.g., move it out of
+  the primary phone entry points only) — no route block, §15 unchanged.
+- **(C)** Leave it as-is for now.
+
+This is the only one of your 11 feedback items that needed a question — the other
+10 are within scope and I've queued them (3 already building this iteration). I'll
+proceed on /ingest the moment you pick.
+
+**Your answer:**
+
+
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
 You asked for "a list of everything that's been implemented and what I need to
