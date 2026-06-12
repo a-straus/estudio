@@ -8,10 +8,14 @@ export type DefinitionDisplay = "es" | "en" | "both";
 /** New cards introduced per day (the SRS promotion cap). */
 export type NewCardsPerDay = 10 | 20 | 40;
 
+/** Review render mode: multiple-choice (default) or binary yes/no self-grade. */
+export type ReviewFormat = "mc" | "yesno";
+
 /** The owner's preferences, always fully defaulted. */
 export interface AppSettings {
   definitionDisplay: DefinitionDisplay;
   newCardsPerDay: NewCardsPerDay;
+  reviewFormat: ReviewFormat;
 }
 
 /** GET /api/settings — the full, defaulted preferences object. */

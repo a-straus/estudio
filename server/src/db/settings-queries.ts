@@ -6,6 +6,7 @@ import type {
   AppSettings,
   DefinitionDisplay,
   NewCardsPerDay,
+  ReviewFormat,
 } from "@estudio/shared";
 import { nowIso, type DB } from "./db.js";
 // Reuse the SRS engine's key so reads/writes stay in sync (do not redefine it).
@@ -13,6 +14,9 @@ import { NEW_CARDS_PER_DAY_SETTING } from "./srs-queries.js";
 
 /** Plain-string preference: which definition line(s) to reveal. */
 export const DEFINITION_DISPLAY_SETTING = "definition_display";
+
+/** Plain-string preference: which review render mode to use. */
+export const REVIEW_FORMAT_SETTING = "review_format";
 
 export const ALLOWED_DEFINITION_DISPLAY: readonly DefinitionDisplay[] = [
   "es",
@@ -22,9 +26,11 @@ export const ALLOWED_DEFINITION_DISPLAY: readonly DefinitionDisplay[] = [
 export const ALLOWED_NEW_CARDS_PER_DAY: readonly NewCardsPerDay[] = [
   10, 20, 40,
 ];
+export const ALLOWED_REVIEW_FORMAT: readonly ReviewFormat[] = ["mc", "yesno"];
 
 const DEFAULT_DEFINITION_DISPLAY: DefinitionDisplay = "both";
 const DEFAULT_NEW_CARDS_PER_DAY: NewCardsPerDay = 20;
+const DEFAULT_REVIEW_FORMAT: ReviewFormat = "mc";
 
 function readRaw(db: DB, key: string): string | undefined {
   const row = db.prepare("SELECT value FROM setting WHERE key = ?").get(key) as
@@ -59,7 +65,14 @@ export function getSettings(db: DB): AppSettings {
     }
   }
 
-  return { definitionDisplay, newCardsPerDay };
+  const formatRaw = readRaw(db, REVIEW_FORMAT_SETTING);
+  const reviewFormat = ALLOWED_REVIEW_FORMAT.includes(
+    formatRaw as ReviewFormat,
+  )
+    ? (formatRaw as ReviewFormat)
+    : DEFAULT_REVIEW_FORMAT;
+
+  return { definitionDisplay, newCardsPerDay, reviewFormat };
 }
 
 /** Upsert one preference row, stamping updated_at. */

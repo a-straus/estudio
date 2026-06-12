@@ -39,6 +39,7 @@ describe("settings routes", () => {
     expect(body.settings).toEqual({
       definitionDisplay: "both",
       newCardsPerDay: 20,
+      reviewFormat: "mc",
     });
   });
 
@@ -51,6 +52,7 @@ describe("settings routes", () => {
     expect(body.settings).toEqual({
       definitionDisplay: "es",
       newCardsPerDay: 40,
+      reviewFormat: "mc",
     });
 
     // Persisted: a fresh GET reflects it, and new_cards_per_day is JSON-encoded.
@@ -73,7 +75,36 @@ describe("settings routes", () => {
     expect(body.settings).toEqual({
       definitionDisplay: "en",
       newCardsPerDay: 20,
+      reviewFormat: "mc",
     });
+  });
+
+  it("GET /api/settings returns default reviewFormat 'mc'", async () => {
+    const res = await request(app).get("/api/settings").expect(200);
+    const body = res.body as GetSettingsResponse;
+    expect(body.settings.reviewFormat).toBe("mc");
+  });
+
+  it("PUT { reviewFormat: 'yesno' } persists and GET reflects it", async () => {
+    await request(app)
+      .put("/api/settings")
+      .send({ reviewFormat: "yesno" })
+      .expect(200);
+    const get = (await request(app).get("/api/settings").expect(200))
+      .body as GetSettingsResponse;
+    expect(get.settings.reviewFormat).toBe("yesno");
+  });
+
+  it("PUT an invalid reviewFormat value returns 400", async () => {
+    const res = await request(app)
+      .put("/api/settings")
+      .send({ reviewFormat: "hard" })
+      .expect(400);
+    expect(res.body.error.code).toBe("invalid_setting");
+    // Nothing was written — default is still returned.
+    const get = (await request(app).get("/api/settings").expect(200))
+      .body as GetSettingsResponse;
+    expect(get.settings.reviewFormat).toBe("mc");
   });
 
   it("PUT /api/settings rejects an invalid definitionDisplay with 400", async () => {

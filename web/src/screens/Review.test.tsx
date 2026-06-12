@@ -10,12 +10,23 @@ vi.mock("./reviewApi", () => ({
   submitReview: vi.fn(),
 }));
 
+vi.mock("./systemApi", () => ({
+  getSettings: vi.fn(),
+  putSettings: vi.fn(),
+}));
+
 import { buildChoiceOptions, Review } from "./Review";
 import * as api from "./reviewApi";
+import * as sysApi from "./systemApi";
 
 const mockApi = api as unknown as {
   fetchDueQueue: ReturnType<typeof vi.fn>;
   submitReview: ReturnType<typeof vi.fn>;
+};
+
+const mockSysApi = sysApi as unknown as {
+  getSettings: ReturnType<typeof vi.fn>;
+  putSettings: ReturnType<typeof vi.fn>;
 };
 
 function due(
@@ -60,6 +71,13 @@ const scheduled = {
 beforeEach(() => {
   vi.clearAllMocks();
   mockApi.submitReview.mockResolvedValue(scheduled);
+  // Default: settings loads with mc format and "both" definitions.
+  mockSysApi.getSettings.mockResolvedValue({
+    settings: { definitionDisplay: "both", newCardsPerDay: 20, reviewFormat: "mc" },
+  });
+  mockSysApi.putSettings.mockResolvedValue({
+    settings: { definitionDisplay: "both", newCardsPerDay: 20, reviewFormat: "mc" },
+  });
 });
 
 /** Helper: render Review, wait for landing, then start the active run. */
@@ -326,5 +344,86 @@ describe("buildChoiceOptions", () => {
     expect(
       buildChoiceOptions(small[0], small, "w2d", distractors.slice(0, 1)),
     ).toBeNull();
+  });
+});
+
+describe("Review yes/no format", () => {
+  async function startYesNoReview() {
+    mockSysApi.getSettings.mockResolvedValue({
+      settings: {
+        definitionDisplay: "both",
+        newCardsPerDay: 20,
+        reviewFormat: "yesno",
+      },
+    });
+    mockApi.fetchDueQueue.mockResolvedValue(
+      queue([due({ wordId: 1, term: "arpón" })]),
+    );
+    render(<Review deckId={1} />);
+    const startBtn = await screen.findByRole("button", { name: "Start review" });
+    fireEvent.click(startBtn);
+    // Wait for the card to appear.
+    await screen.findByText("arpón");
+  }
+
+  it("shows 'Tap to reveal' hint before reveal and no grade buttons", async () => {
+    await startYesNoReview();
+    expect(screen.getByText("Tap to reveal")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Knew it" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /didn.t know/i })).toBeNull();
+  });
+
+  it("shows 'Didn't know' and 'Knew it' buttons after reveal", async () => {
+    await startYesNoReview();
+    // Tap the card to reveal.
+    fireEvent.click(screen.getByText("Do you know it?"));
+    expect(await screen.findByRole("button", { name: "Knew it" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /didn.t know/i })).toBeTruthy();
+    expect(screen.queryByText("Tap to reveal")).toBeNull();
+  });
+
+  it("'Knew it' calls submitReview with grade 'good' and advances", async () => {
+    await startYesNoReview();
+    fireEvent.click(screen.getByText("Do you know it?"));
+    fireEvent.click(await screen.findByRole("button", { name: "Knew it" }));
+    await waitFor(() =>
+      expect(mockApi.submitReview).toHaveBeenCalledWith({
+        wordId: 1,
+        direction: "w2d",
+        grade: "good",
+      }),
+    );
+    // One-card queue → advances to summary.
+    expect(await screen.findByText(/1 card/)).toBeTruthy();
+  });
+
+  it("'Didn't know' calls submitReview with grade 'fail' and advances", async () => {
+    await startYesNoReview();
+    fireEvent.click(screen.getByText("Do you know it?"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /didn.t know/i }),
+    );
+    await waitFor(() =>
+      expect(mockApi.submitReview).toHaveBeenCalledWith({
+        wordId: 1,
+        direction: "w2d",
+        grade: "fail",
+      }),
+    );
+  });
+
+  it("landing shows the SegmentedControl with both format options", async () => {
+    mockSysApi.getSettings.mockResolvedValue({
+      settings: {
+        definitionDisplay: "both",
+        newCardsPerDay: 20,
+        reviewFormat: "mc",
+      },
+    });
+    mockApi.fetchDueQueue.mockResolvedValue(fourCardQueue());
+    render(<Review deckId={1} />);
+    await screen.findByText(/cards? due today/);
+    expect(screen.getByRole("radio", { name: "Multiple choice" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Yes-No" })).toBeTruthy();
   });
 });

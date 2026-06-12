@@ -177,6 +177,20 @@
   color: var(--color-incorrect);
 }
 
+/* Yesno mode — tap hint below the card. */
+.review__tap-hint {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-faint);
+  text-align: center;
+  margin: 0;
+}
+
+/* Landing: review format segmented control row. */
+.review__format-control {
+  width: 100%;
+}
+
 /* ---- End-of-session summary ---- */
 .review__summary-count {
   font-family: var(--font-app);

@@ -8,7 +8,9 @@ import { NEW_CARDS_PER_DAY_SETTING } from "../db/srs-queries.js";
 import {
   ALLOWED_DEFINITION_DISPLAY,
   ALLOWED_NEW_CARDS_PER_DAY,
+  ALLOWED_REVIEW_FORMAT,
   DEFINITION_DISPLAY_SETTING,
+  REVIEW_FORMAT_SETTING,
   getSettings,
   upsertSetting,
 } from "../db/settings-queries.js";
@@ -47,9 +49,17 @@ export function registerSettingsRoutes(app: Express, db: DB): void {
         return;
       }
     }
+    if (patch.reviewFormat !== undefined) {
+      if (!ALLOWED_REVIEW_FORMAT.includes(patch.reviewFormat)) {
+        invalid(
+          `reviewFormat must be one of: ${ALLOWED_REVIEW_FORMAT.join(", ")}`,
+        );
+        return;
+      }
+    }
 
-    // definition_display is a plain string; new_cards_per_day is a JSON number
-    // string (the SRS code parses it with JSON — match that).
+    // definition_display and review_format are plain strings; new_cards_per_day
+    // is a JSON number string (the SRS code parses it with JSON — match that).
     if (patch.definitionDisplay !== undefined) {
       upsertSetting(db, DEFINITION_DISPLAY_SETTING, patch.definitionDisplay);
     }
@@ -59,6 +69,9 @@ export function registerSettingsRoutes(app: Express, db: DB): void {
         NEW_CARDS_PER_DAY_SETTING,
         JSON.stringify(patch.newCardsPerDay),
       );
+    }
+    if (patch.reviewFormat !== undefined) {
+      upsertSetting(db, REVIEW_FORMAT_SETTING, patch.reviewFormat);
     }
 
     const body: PutSettingsResponse = { settings: getSettings(db) };
