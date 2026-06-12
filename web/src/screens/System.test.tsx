@@ -121,10 +121,11 @@ describe("System screen", () => {
     expect(
       await screen.findByText(/LLM spend · \$4\.12 · 3 calls/),
     ).toBeTruthy();
-    expect(screen.getByText("word_definition")).toBeTruthy();
+    // Internal task keys read back as the spec's plain feature words.
+    expect(screen.getByText("Definitions")).toBeTruthy();
 
-    // Jobs section shows the failed ingestion.
-    expect(screen.getByText("text_ingestion")).toBeTruthy();
+    // Jobs section shows the failed ingestion, type humanized from its key.
+    expect(screen.getByText("Text ingestion")).toBeTruthy();
 
     // Errors section.
     expect(screen.getByText("job failed permanently")).toBeTruthy();

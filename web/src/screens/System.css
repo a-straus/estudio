@@ -9,8 +9,9 @@
 }
 
 .system__title {
-  font-size: var(--text-lg);
+  font-size: var(--text-xl); /* the documented screen-title scale (tokens.md) */
   font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
   margin-bottom: var(--space-4);
 }
 
