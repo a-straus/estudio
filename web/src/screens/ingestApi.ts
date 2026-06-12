@@ -1,4 +1,5 @@
 import type {
+  AudioUploadResponse,
   JobView,
   PdfUploadResponse,
   TextIngestRequest,
@@ -32,4 +33,13 @@ export function uploadPdf(
 
 export function fetchJobs(): Promise<JobView[]> {
   return api<JobView[]>("/api/jobs");
+}
+
+export function submitAudio(file: File): Promise<AudioUploadResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  return api<AudioUploadResponse>("/api/sources/audio", {
+    method: "POST",
+    body: form,
+  });
 }
