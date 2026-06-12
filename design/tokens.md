@@ -112,6 +112,7 @@ Single source of truth. Every value in D3–D6 references these names. The dark 
   /* ---- Hit targets & layout ---- */
   --hit-target: 44px; /* min height of every mobile control */
   --header-height: 56px; /* sticky SiteHeader bar height (bp-tablet+) */
+  --nav-height: 56px; /* phone AppNav bottom-bar height — taller than --hit-target so label + tap target breathe */
   --measure-reading: 680px; /* lesson / long-form column max width */
   --measure-app: 1120px; /* general desktop content max width */
   --indent-entry: 20px; /* the signature hanging indent */
