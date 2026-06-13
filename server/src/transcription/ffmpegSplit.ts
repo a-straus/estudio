@@ -76,64 +76,92 @@ export function createFfmpegSplitAudio(): SplitAudio {
 
       const bytesPerSec = input.data.length / totalSeconds;
       const targetBytes = Math.floor(maxBytes * 0.92);
-      const segmentSeconds = Math.max(
-        1,
-        Math.floor(targetBytes / bytesPerSec),
-      );
-
-      await execFileAsync("ffmpeg", [
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-i",
-        inPath,
-        "-f",
-        "segment",
-        "-segment_time",
-        String(segmentSeconds),
-        "-c",
-        "copy",
-        "-reset_timestamps",
-        "1",
-        path.join(tmpDir, `chunk%03d.${ext}`),
-      ]);
-
-      const chunkFiles = fs
-        .readdirSync(tmpDir)
-        .filter((f) => f.startsWith("chunk") && f.endsWith(`.${ext}`))
-        .sort();
-
-      if (chunkFiles.length === 0) {
-        throw new TranscriptionError(
-          "ffmpeg produced no audio segments",
-          { retryable: false },
-        );
-      }
-
+      // Segment duration is derived from the AVERAGE bitrate, so a localized
+      // bitrate spike sustained across one segment can still overshoot maxBytes.
+      // When that happens we re-run the segment pass with a smaller target
+      // computed from the worst overshoot, rather than failing the whole lesson
+      // (Whisper may already have transcribed earlier chunks in this call).
+      // Bounded to maxAttempts; only a genuinely unsplittable input (a single
+      // frame larger than maxBytes) exhausts the loop and throws.
+      const maxAttempts = 3;
       const base = input.filename.replace(/\.[^.]*$/, "");
-      const chunks = [];
-      for (let i = 0; i < chunkFiles.length; i++) {
-        const file = path.join(tmpDir, chunkFiles[i]);
-        const data = fs.readFileSync(file);
-        if (data.length > maxBytes) {
+      let segmentSeconds = Math.max(1, Math.floor(targetBytes / bytesPerSec));
+      let lastSegmentSeconds = segmentSeconds;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        lastSegmentSeconds = segmentSeconds;
+        // Fresh per-attempt output dir so a smaller-target re-run never reads or
+        // collides with the previous attempt's segments; removed before the next
+        // attempt, and the surviving dir is cleaned by the outer finally.
+        const outDir = path.join(tmpDir, `attempt${attempt}`);
+        fs.mkdirSync(outDir);
+
+        await execFileAsync("ffmpeg", [
+          "-hide_banner",
+          "-loglevel",
+          "error",
+          "-i",
+          inPath,
+          "-f",
+          "segment",
+          "-segment_time",
+          String(segmentSeconds),
+          "-c",
+          "copy",
+          "-reset_timestamps",
+          "1",
+          path.join(outDir, `chunk%03d.${ext}`),
+        ]);
+
+        const chunkFiles = fs
+          .readdirSync(outDir)
+          .filter((f) => f.startsWith("chunk") && f.endsWith(`.${ext}`))
+          .sort();
+
+        if (chunkFiles.length === 0) {
           throw new TranscriptionError(
-            `a ${segmentSeconds}s segment still exceeds the ${maxBytes}-byte limit`,
+            "ffmpeg produced no audio segments",
             { retryable: false },
           );
         }
-        const chunkSeconds = await probeDurationSeconds(file);
-        const minutes =
-          chunkSeconds !== null
-            ? chunkSeconds / 60
-            : input.minutes / chunkFiles.length;
-        chunks.push({
-          data,
-          filename: `${base}.part${String(i + 1).padStart(3, "0")}.${ext}`,
-          minutes,
-        });
+
+        let largestChunkBytes = 0;
+        for (const f of chunkFiles) {
+          const size = fs.statSync(path.join(outDir, f)).size;
+          if (size > largestChunkBytes) largestChunkBytes = size;
+        }
+
+        if (largestChunkBytes <= maxBytes) {
+          const chunks = [];
+          for (let i = 0; i < chunkFiles.length; i++) {
+            const file = path.join(outDir, chunkFiles[i]);
+            const data = fs.readFileSync(file);
+            const chunkSeconds = await probeDurationSeconds(file);
+            const minutes =
+              chunkSeconds !== null
+                ? chunkSeconds / 60
+                : input.minutes / chunkFiles.length;
+            chunks.push({
+              data,
+              filename: `${base}.part${String(i + 1).padStart(3, "0")}.${ext}`,
+              minutes,
+            });
+          }
+          return chunks;
+        }
+
+        // Overshoot: shrink the target from the worst observed chunk and retry.
+        segmentSeconds = Math.max(
+          1,
+          Math.floor(segmentSeconds * (maxBytes / largestChunkBytes) * 0.92),
+        );
+        fs.rmSync(outDir, { recursive: true, force: true });
       }
 
-      return chunks;
+      throw new TranscriptionError(
+        `a ${lastSegmentSeconds}s segment still exceeds the ${maxBytes}-byte limit`,
+        { retryable: false },
+      );
     } catch (err) {
       if (err instanceof TranscriptionError) throw err;
       throw new TranscriptionError(
