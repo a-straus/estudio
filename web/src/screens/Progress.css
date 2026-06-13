@@ -1,0 +1,238 @@
+/* Progress screen (design/screens/progress.md §3.8). Honest mastery — no
+   engagement theater, no gamification. Quiet ledger aesthetic throughout. */
+
+.progress {
+  max-width: var(--measure-app);
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+}
+
+.progress__title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  margin-bottom: var(--space-5);
+}
+
+/* ---- Status counts row ---- */
+
+.progress__counts {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  margin-bottom: var(--space-6);
+}
+
+/* Override ProgressStat's default vertical-stack separator for horizontal row. */
+.progress__counts .progress-stat {
+  flex: 1;
+}
+
+.progress__counts .progress-stat + .progress-stat {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+  border-left: 1px solid var(--color-rule);
+  margin-left: var(--space-4);
+  padding-left: var(--space-4);
+}
+
+/* ---- Charts grid — stack on mobile, two-up at bp-desktop ---- */
+
+.progress__charts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+@media (min-width: 1120px) /* bp-desktop */ {
+  .progress__charts {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-5);
+  }
+}
+
+/* ---- Sections (all regions share this shell) ---- */
+
+.progress__section {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-rule);
+}
+
+.progress__section-title {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+  margin-bottom: var(--space-3);
+}
+
+/* ---- Due forecast bar chart ---- */
+
+.progress__forecast {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.progress__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 48px;
+}
+
+.progress__bar {
+  width: 4px;
+  background: var(--color-accent-wash);
+  border-radius: var(--radius-pill);
+  /* min-height applied via inline style; 0 height = axes-only on empty */
+}
+
+.progress__bar--today {
+  background: var(--color-accent);
+}
+
+.progress__chart-annotation {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+}
+
+/* ---- Quiz accuracy line chart ---- */
+
+.progress__accuracy-chart {
+  display: block;
+  overflow: visible;
+}
+
+.progress__accuracy-sentence {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  margin-top: var(--space-2);
+}
+
+/* ---- Book coverage ---- */
+
+.progress__coverage {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.progress__coverage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--hit-target);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.progress__coverage-title {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress__coverage-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  flex-shrink: 0;
+}
+
+/* ---- Pill track ---- */
+
+.progress__pills {
+  display: flex;
+  gap: 2px;
+}
+
+.progress__pill {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-rule-strong);
+}
+
+.progress__pill--filled {
+  background: var(--color-accent);
+}
+
+/* ---- "All sources →" expand affordance ---- */
+
+.progress__show-all {
+  margin-top: var(--space-3);
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.progress__show-all:hover {
+  color: var(--color-ink);
+}
+
+/* ---- Footer link to System ---- */
+
+.progress__footer-link {
+  display: block;
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-rule);
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  text-decoration: none;
+}
+
+.progress__footer-link:hover {
+  color: var(--color-ink);
+}
+
+/* ---- States ---- */
+
+.progress__loading {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-faint);
+}
+
+.progress__muted {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-ink-faint);
+}
+
+.progress__error {
+  font-family: var(--font-meta);
+  font-size: var(--text-sm);
+  color: var(--color-incorrect);
+}
+
+.progress__retry {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-incorrect);
+  text-decoration: underline;
+}

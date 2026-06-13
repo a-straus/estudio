@@ -13,6 +13,7 @@ import { Ask } from "./screens/Ask";
 import { Suggestions } from "./screens/Suggestions";
 import { Lessons } from "./screens/Lessons";
 import { Notes } from "./screens/Notes";
+import { Progress } from "./screens/Progress";
 import { applyTheme, readTheme } from "./theme";
 import { useIsPhone } from "./hooks/useIsPhone";
 
@@ -117,6 +118,14 @@ export function App() {
     return (
       <AppShell title="Quiz" activeHref="/quiz">
         {() => <Quiz />}
+      </AppShell>
+    );
+  }
+
+  if (window.location.pathname.startsWith("/progress")) {
+    return (
+      <AppShell title="Progress" activeHref="/progress">
+        {() => <Progress />}
       </AppShell>
     );
   }

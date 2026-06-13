@@ -41,12 +41,14 @@ const NAV: { label: string; href: string }[] = [
   { label: "Lessons", href: "/lessons" },
   { label: "Suggestions", href: "/suggestions" },
   { label: "Ingest", href: "/ingest" },
+  { label: "Progress", href: "/progress" },
   { label: "System", href: "/system" },
 ];
 
 /** Quiet utility links closing the footer — real routes only. */
 const FOOTER_LINKS: FooterLink[] = [
   { label: "Ingest", href: "/ingest" },
+  { label: "Progress", href: "/progress" },
   { label: "Notes", href: "/notes" },
   { label: "System", href: "/system" },
 ];
