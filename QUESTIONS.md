@@ -56,7 +56,7 @@ This is the only one of your 11 feedback items that needed a question — the ot
 proceed on /ingest the moment you pick.
 
 **Your answer:**
-
+- A. Ingest is a desktop item. I will not be doing it on phone. If it contradicts the item in GOALS then that's fine. override it
 
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
