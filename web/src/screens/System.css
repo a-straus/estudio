@@ -158,6 +158,21 @@
   color: var(--color-ink);
 }
 
+/* English level row — inline label + quiet Button side by side. */
+.system__pref--inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.system__pref-meta {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  margin-left: var(--space-2);
+}
+
 /* Tables become stacked label/value pairs below bp-tablet (640px). */
 @media (max-width: 640px) /* bp-tablet */ {
   .system__row:not(.system__row--stacked) {

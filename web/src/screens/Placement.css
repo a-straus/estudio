@@ -1,0 +1,104 @@
+/* Placement screen (D3 §3.10). Every value names a D2 token. */
+
+.placement {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-6) var(--space-4);
+  min-height: 60vh;
+}
+
+.placement__card {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ---- Intro ---- */
+.placement__intro-text {
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--color-ink-soft);
+  margin: 0;
+}
+
+/* ---- Probe card ---- */
+.placement__entry {
+  /* The WordEntry hero headword already carries appropriate sizing */
+}
+
+.placement__entry-skeleton {
+  font-family: var(--font-study);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-ink-faint);
+  line-height: var(--leading-tight);
+}
+
+@media (min-width: 640px) { /* bp-tablet */
+  .placement__entry-skeleton {
+    font-size: var(--text-3xl);
+  }
+}
+
+.placement__headword-skeleton {
+  /* em-dash skeleton, same as loading state in other components */
+}
+
+.placement__meta {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  margin: 0;
+}
+
+/* ---- Thumb zone — two equal buttons, bottom-anchored on phone ---- */
+.placement__thumb-zone {
+  display: flex;
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-rule);
+  padding-top: var(--space-5);
+}
+
+.placement__btn {
+  flex: 1;
+  min-height: var(--hit-target);
+  justify-content: center;
+}
+
+/* ---- Actions (intro + result) ---- */
+.placement__actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.placement__actions--center {
+  justify-content: center;
+}
+
+/* ---- Result ---- */
+.placement__verdict {
+  font-family: var(--font-meta);
+  font-size: var(--text-base);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink);
+  margin: 0;
+}
+
+.placement__note {
+  font-family: var(--font-app);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+  color: var(--color-ink-soft);
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No transitions to strip in this component */
+}

@@ -4,12 +4,14 @@ import type {
   DefinitionDisplay,
   JobView,
   NewCardsPerDay,
+  PlacementStatusResponse,
   PutSettingsRequest,
   SystemErrorView,
   SystemSpendResponse,
   SystemStatusResponse,
 } from "@estudio/shared";
 import { Button, SegmentedControl, Toast } from "../components";
+import { fetchPlacementStatus } from "./placementApi";
 import {
   fetchErrors,
   fetchJobs,
@@ -232,10 +234,12 @@ function ErrorsSection({ errors }: { errors: Section<SystemErrorView[]> }) {
 
 function PreferencesSection({
   settings,
+  placement,
   onDefinitionDisplay,
   onNewCardsPerDay,
 }: {
   settings: Section<AppSettings>;
+  placement: PlacementStatusResponse | undefined;
   onDefinitionDisplay: (v: DefinitionDisplay) => void;
   onNewCardsPerDay: (v: NewCardsPerDay) => void;
 }) {
@@ -246,6 +250,12 @@ function PreferencesSection({
         Preferences unreadable. {settings.message}
       </p>
     );
+
+  const placementMeta =
+    placement?.calibrated && placement.level
+      ? ` · ~${placement.level} · ${placement.seeded ?? 0} words`
+      : "";
+
   return (
     <div className="system__prefs">
       <div className="system__pref">
@@ -265,6 +275,20 @@ function PreferencesSection({
           value={String(settings.newCardsPerDay)}
           onChange={(v) => onNewCardsPerDay(Number(v) as NewCardsPerDay)}
         />
+      </div>
+      <div className="system__pref system__pref--inline">
+        <span className="system__pref-label">
+          English level
+          {placementMeta && (
+            <span className="system__pref-meta">{placementMeta}</span>
+          )}
+        </span>
+        <Button
+          variant="quiet"
+          onClick={() => (window.location.href = "/placement")}
+        >
+          {placement?.calibrated ? "Re-calibrate" : "Calibrate"}
+        </Button>
       </div>
     </div>
   );
@@ -325,6 +349,9 @@ export function System() {
   const [status, setStatus] =
     useState<Section<SystemStatusResponse>>(undefined);
   const [settings, setSettings] = useState<Section<AppSettings>>(undefined);
+  const [placement, setPlacement] = useState<
+    PlacementStatusResponse | undefined
+  >(undefined);
 
   const [backingUp, setBackingUp] = useState(false);
   const [backupError, setBackupError] = useState<string | null>(null);
@@ -351,6 +378,9 @@ export function System() {
       (r) => setSettings(r.settings),
       (err) => setSettings(asError(err)),
     );
+    fetchPlacementStatus().then(setPlacement, () => {
+      /* non-fatal — section degrades gracefully */
+    });
     loadStatus();
   }, [loadStatus]);
 
@@ -424,6 +454,7 @@ export function System() {
       <SectionShell label="PREFERENCES">
         <PreferencesSection
           settings={settings}
+          placement={placement}
           onDefinitionDisplay={(v) => saveSettings({ definitionDisplay: v })}
           onNewCardsPerDay={(v) => saveSettings({ newCardsPerDay: v })}
         />
