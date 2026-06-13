@@ -330,7 +330,34 @@ function BackupSection({
         busyLabel="Backing up…"
         onClick={onBackup}
       >
-        Export backup now
+        Back up now
+      </Button>
+      <Button
+        variant="quiet"
+        onClick={() => {
+          const a = document.createElement("a");
+          a.href = "/api/system/export";
+          a.download = "";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }}
+      >
+        Export data (JSON)
+      </Button>
+      <Button
+        variant="quiet"
+        disabled={!backup.latestFilename}
+        onClick={() => {
+          const a = document.createElement("a");
+          a.href = "/api/system/backup/download";
+          a.download = "";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }}
+      >
+        Download latest backup (.db)
       </Button>
       {backupError && <p className="system__unreadable">{backupError}</p>}
     </>

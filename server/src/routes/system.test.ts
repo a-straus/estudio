@@ -142,4 +142,41 @@ describe("system routes", () => {
     expect(status.backup.count).toBeGreaterThanOrEqual(1);
     expect(status.backup.latestFilename).toBe(body.filename);
   });
+
+  it("GET /api/system/export returns a JSON attachment with all tables and seeded data", async () => {
+    const res = await request(app).get("/api/system/export").expect(200);
+    expect(res.headers["content-disposition"]).toMatch(/^attachment/);
+    expect(res.headers["content-type"]).toMatch(/application\/json/);
+    const dump = res.body as {
+      version: number;
+      exportedAt: string;
+      tables: Record<string, unknown[]>;
+    };
+    expect(dump.version).toBe(1);
+    expect(dump.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(typeof dump.tables).toBe("object");
+    // seeded rows appear: seed() inserts llm_call and job rows
+    expect(Array.isArray(dump.tables["llm_call"])).toBe(true);
+    expect(dump.tables["llm_call"]!.length).toBeGreaterThan(0);
+    expect(Array.isArray(dump.tables["job"])).toBe(true);
+    expect(dump.tables["job"]!.length).toBeGreaterThan(0);
+  });
+
+  it("GET /api/system/backup/download returns 404 when no backups exist", async () => {
+    fs.rmSync(backupsDir(dataDir), { recursive: true, force: true });
+    const res = await request(app)
+      .get("/api/system/backup/download")
+      .expect(404);
+    expect(res.body).toMatchObject({ error: { code: "no_backup" } });
+  });
+
+  it("GET /api/system/backup/download streams the latest backup as an attachment", async () => {
+    // Ensure a backup exists (migration may have already created one, but be explicit).
+    await request(app).post("/api/system/backup").expect(201);
+    const res = await request(app)
+      .get("/api/system/backup/download")
+      .expect(200);
+    expect(res.headers["content-disposition"]).toMatch(/^attachment/);
+    expect(res.headers["content-disposition"]).toMatch(/\.db/);
+  });
 });
