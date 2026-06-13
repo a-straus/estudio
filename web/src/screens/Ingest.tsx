@@ -459,6 +459,8 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
                   {mochiResult.total.toLocaleString()} cards ·{" "}
                   {mochiResult.imported.toLocaleString()} added ·{" "}
                   {mochiResult.duplicates.toLocaleString()} already in your deck
+                  {mochiResult.malformed > 0 &&
+                    ` · ${mochiResult.malformed.toLocaleString()} malformed`}
                 </p>
               )}
               {formError && (

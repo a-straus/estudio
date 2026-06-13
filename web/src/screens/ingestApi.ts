@@ -58,10 +58,11 @@ export function confirmGutenberg(
   );
 }
 
-/** Summary of a Mochi import. Local — a 3-field shape doesn't justify a shared type. */
+/** Summary of a Mochi import. Local — a 4-field shape doesn't justify a shared type. */
 export interface MochiImportResponse {
   imported: number;
   duplicates: number;
+  malformed: number;
   total: number;
   deck: string;
 }
