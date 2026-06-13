@@ -27,7 +27,11 @@ Mobile 390px                       Desktop 1280px
 └──────────────────────────┘       └──────────────────────────────────────────────┘
 ```
 
-**Responsive.** Mobile keeps all four methods but the drop zone becomes a tap-to-choose row; estimate/confirm stacks. Recent-ingests list is shared with the Today nudge.
+**Responsive / desktop-only (owner directive, iter 149).** Ingest is a **desktop task**: at `bp-tablet`+ (≥640px) the workbench renders as specified above. **Below `bp-tablet` (phone, <640px) the screen is disabled** — the `/ingest` route renders a plain desktop-only notice (via `EmptyState`, no action Button) instead of the workbench, and every phone entry point to it is hidden: Home's _Ingest_ OverviewCard + both "Ingest a source" Buttons, and Review's empty-state "Ingest" Button. (The desktop masthead _Ingest_ link is already `bp-tablet`+ only — SiteHeader nav is hidden on phone — so it needs no change.) The notice copy (sans, plain, names the next action):
+
+> **Ingest is desktop-only.** Adding sources — PDFs, pasted text, books — works best on a laptop. Open this page on your computer; you'll review the kept words here on your phone.
+
+Detection is **viewport width** via the existing 640px breakpoint (`matchMedia("(max-width: 639px)")`), never user-agent sniffing. This deliberately **waives the GOAL §15 "PDF ingestion works on a phone browser" sub-criterion** per the owner's explicit override (QUESTIONS "Disable /ingest on mobile" → option A; DECISIONS iter 149). The "Mobile 390px" mockup above is superseded for phone (it predates this directive). Everything else — review, triage, quiz, grammar, library — stays phone-primary and unchanged.
 
 **States.**
 

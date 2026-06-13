@@ -21,43 +21,6 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
 
-### [PENDING] Disable /ingest on mobile — confirm, it conflicts with a Phase-1 done-criterion
-
-You asked (FEEDBACK, 2026-06-12): *"Restrict and disable the /ingest route and its
-entry points entirely when the application is accessed from a mobile device."*
-
-I want to build it, but it directly contradicts a criterion you set in **GOAL §15
-(Phase-1 done)**: *"Every Phase 1 Must story in §5 passes its acceptance criteria
-on desktop Chrome **and one real phone browser**."* **Spanish PDF ingestion is a
-Phase-1 Must story** (§5, build-first), so §15 currently requires ingest to work on
-a phone — which is the opposite of disabling it there. GOAL.md is yours alone to
-change, so rather than silently override that criterion I'm confirming intent.
-
-My read of what you want: ingest (PDF upload, pasting long text) is a desktop task,
-so make **/ingest desktop-only** — on a phone, hide every entry point (the Home
-"Ingest" card + empty-state buttons, the Review empty-state "Ingest" button, the
-desktop masthead link) and guard the route itself (a phone visitor to /ingest gets
-a plain "Ingest is desktop-only — open this on your laptop" message, not the
-uploader). Detection by **viewport width** (the existing 640px responsive
-breakpoint), not user-agent sniffing. This effectively **waives the §15
-"ingestion works on a phone browser" sub-criterion** for the PDF/text-ingestion
-Must stories (everything else — review, triage, quiz, grammar, library — stays
-phone-primary and still must pass on a phone).
-
-**Options:**
-- **(A, recommended)** Make /ingest desktop-only as described; treat the §15
-  phone-ingest sub-criterion as waived. I build `ingest-mobile-guard` immediately.
-- **(B)** Keep ingest reachable on mobile but de-emphasize it (e.g., move it out of
-  the primary phone entry points only) — no route block, §15 unchanged.
-- **(C)** Leave it as-is for now.
-
-This is the only one of your 11 feedback items that needed a question — the other
-10 are within scope and I've queued them (3 already building this iteration). I'll
-proceed on /ingest the moment you pick.
-
-**Your answer:**
-- A. Ingest is a desktop item. I will not be doing it on phone. If it contradicts the item in GOALS then that's fine. override it
-
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
 You asked for "a list of everything that's been implemented and what I need to
@@ -114,6 +77,27 @@ see FEEDBACK.md ## Processed for the task each maps to):
 ## Answered
 
 <!-- Resolved questions are moved here by the orchestrator for record-keeping. -->
+
+### [ANSWERED] Disable /ingest on mobile — owner chose A (override the GOAL §15 phone-ingest sub-criterion)
+
+You asked (FEEDBACK, 2026-06-12) to disable the `/ingest` route + its entry points on
+mobile. I flagged that it contradicts GOAL §15 ("every Phase-1 Must story passes on a
+real phone browser"; PDF ingestion is a Must) and offered: (A) make /ingest desktop-only
+and treat the §15 phone-ingest sub-criterion as waived; (B) de-emphasize only; (C) leave
+as-is.
+
+**Your answer:** "A. Ingest is a desktop item. I will not be doing it on phone. If it
+contradicts the item in GOALS then that's fine. override it"
+
+**Resolution (orchestrator, iteration 149):** Option A. GOAL.md is read-only and the owner
+explicitly authorized overriding the §15 phone-ingest sub-criterion, so that sub-criterion
+is **waived** (recorded in DECISIONS.md iter 149; GOAL.md itself untouched). Acted: amended
+`design/screens/ingest.md` (+ INDEX Change-log) to make Ingest desktop-only — below the
+640px breakpoint the route renders a plain "Ingest is desktop-only" notice and every phone
+entry point (Home Ingest card + buttons, Review empty-state Ingest button) is hidden;
+detection by viewport width (matchMedia), never user-agent. Spawned **ingest-mobile-guard**
+this iteration. Everything else (review, triage, quiz, grammar, library) stays phone-primary
+and still must pass on a phone.
 
 ### [ANSWERED] ffmpeg in the container — to transcribe full-length (~1 hr) lesson recordings (Phase-2 done gate)
 
