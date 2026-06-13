@@ -58,6 +58,15 @@ describe("nextStep — descend (≤1/3 known)", () => {
   });
 });
 
+describe("nextStep — climb guard (already-visited band)", () => {
+  it("stops (done) when climb would re-serve an already-visited band", () => {
+    // C1 served first (1/6 = 16% → descend to B2); B2 passes (4/6 = 67% → climb).
+    // C1 already done → stop instead of re-serving identical cached words.
+    const r = nextStep([band("C1", 1, 6), band("B2", 4, 6)]);
+    expect(r).toEqual({ done: true, level: "B2" });
+  });
+});
+
 describe("nextStep — boundary (1/3 < ratio < 2/3)", () => {
   it("stops when exactly at boundary (3/6)", () => {
     const r = nextStep([band("C1", 3, 6)]);

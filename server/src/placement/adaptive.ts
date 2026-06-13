@@ -21,7 +21,7 @@ export interface BandResult {
 
 export type AdaptiveDecision =
   | { done: true; level: Band; nextBand?: undefined }
-  | { done: false; nextBand: Band; level?: undefined };;
+  | { done: false; nextBand: Band; level?: undefined };
 
 /**
  * Given the results for each completed band (in order), decide the next step.
@@ -47,7 +47,13 @@ export function nextStep(results: BandResult[]): AdaptiveDecision {
       // Already at the top band
       return { done: true, level: estimateLevel(results) };
     }
-    return { done: false, nextBand: BANDS[currentIdx + 1] };
+    // Only climb if we haven't already been to this higher band
+    const upperBand = BANDS[currentIdx + 1];
+    const alreadyDone = results.some((r) => r.band === upperBand);
+    if (alreadyDone) {
+      return { done: true, level: estimateLevel(results) };
+    }
+    return { done: false, nextBand: upperBand };
   }
 
   if (ratio <= 1 / 3) {
