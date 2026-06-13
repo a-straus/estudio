@@ -22,6 +22,7 @@ import {
 } from "../components";
 import { fetchDueQueue, submitReview } from "./reviewApi";
 import { getSettings, putSettings } from "./systemApi";
+import { useIsPhone } from "../hooks/useIsPhone";
 import "./Review.css";
 
 interface ReviewProps {
@@ -526,6 +527,7 @@ function ClozeCard({ card, cloze, reveal, onGrade, onNext }: ClozeCardProps) {
 type ReviewPhase = "loading" | "landing" | "active" | "finished";
 
 export function Review({ deckId }: ReviewProps) {
+  const isPhone = useIsPhone();
   const [phase, setPhase] = useState<ReviewPhase>("loading");
   const [loadError, setLoadError] = useState(false);
   const [queue, setQueue] = useState<DueQueueItem[]>([]);
@@ -684,12 +686,14 @@ export function Review({ deckId }: ReviewProps) {
       return (
         <div className="review__landing">
           <EmptyState message="Nothing due. Ingest something new?">
-            <Button
-              variant="quiet"
-              onClick={() => window.location.assign("/ingest")}
-            >
-              Ingest
-            </Button>
+            {!isPhone && (
+              <Button
+                variant="quiet"
+                onClick={() => window.location.assign("/ingest")}
+              >
+                Ingest
+              </Button>
+            )}
           </EmptyState>
         </div>
       );

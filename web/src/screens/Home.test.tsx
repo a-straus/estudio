@@ -1,10 +1,26 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import type { OverviewSummary } from "@estudio/shared";
 import "../test/setup";
 import type { OverviewState } from "../components";
 import { Home } from "./Home";
+
+function mockMatchMedia(phone: boolean) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: phone,
+      media: query,
+      onchange: null,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
 
 function summary(over: Partial<OverviewSummary> = {}): OverviewSummary {
   return {
@@ -136,5 +152,79 @@ describe("Home", () => {
     );
     expect(screen.getByText("madrugar")).toBeTruthy();
     expect(screen.getByText("Ingesting text")).toBeTruthy();
+  });
+});
+
+describe("Home — phone viewport", () => {
+  beforeEach(() => mockMatchMedia(true));
+  afterEach(() => mockMatchMedia(false));
+
+  it("hides the Ingest OverviewCard on phone", () => {
+    render(<Home overview={loaded()} />);
+    expect(screen.queryByRole("link", { name: /Ingest/ })).toBeNull();
+  });
+
+  it("omits the 'Ingest a source' button in the empty-library hero on phone", () => {
+    render(
+      <Home
+        overview={loaded({
+          featured: null,
+          review: { due: 0, newToday: 0 },
+          library: { total: 0, mature: 0 },
+          grammar: { topics: 0, belowFifty: 0, seeded: false },
+          recentWords: [{ id: 1, headword: "prueba", lemma: null, level: null, glossEn: null }],
+        })}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Ingest a source" })).toBeNull();
+  });
+
+  it("omits the 'Ingest a source' button in the empty-activity state on phone", () => {
+    render(
+      <Home
+        overview={loaded({
+          recentWords: [],
+          latestJob: null,
+        })}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Ingest a source" })).toBeNull();
+  });
+});
+
+describe("Home — desktop viewport", () => {
+  beforeEach(() => mockMatchMedia(false));
+
+  it("shows the Ingest OverviewCard on desktop", () => {
+    render(<Home overview={loaded()} />);
+    expect(screen.getByRole("link", { name: /Ingest/ }).getAttribute("href")).toBe("/ingest");
+  });
+
+  it("shows the 'Ingest a source' button in the empty-library hero on desktop", () => {
+    render(
+      <Home
+        overview={loaded({
+          featured: null,
+          review: { due: 0, newToday: 0 },
+          library: { total: 0, mature: 0 },
+          grammar: { topics: 0, belowFifty: 0, seeded: false },
+          // non-empty recentWords so activity section doesn't also show empty state
+          recentWords: [{ id: 1, headword: "prueba", lemma: null, level: null, glossEn: null }],
+        })}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Ingest a source" })).toBeTruthy();
+  });
+
+  it("shows the 'Ingest a source' button in the empty-activity state on desktop", () => {
+    render(
+      <Home
+        overview={loaded({
+          recentWords: [],
+          latestJob: null,
+        })}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Ingest a source" })).toBeTruthy();
   });
 });

@@ -1,4 +1,4 @@
-import { AppShell } from "./components";
+import { AppShell, EmptyState } from "./components";
 import { Grammar } from "./screens/Grammar";
 import { Home } from "./screens/Home";
 import { Lesson } from "./screens/Lesson";
@@ -13,6 +13,7 @@ import { Suggestions } from "./screens/Suggestions";
 import { Lessons } from "./screens/Lessons";
 import { Notes } from "./screens/Notes";
 import { applyTheme, readTheme } from "./theme";
+import { useIsPhone } from "./hooks/useIsPhone";
 
 // Apply the persisted theme before first paint, for every screen (including the
 // session screens, which carry no footer toggle of their own).
@@ -50,6 +51,8 @@ function readLessonTopicId(): number | null {
 }
 
 export function App() {
+  const isPhone = useIsPhone();
+
   // --- Session screens: full-screen takeover, no SiteHeader/SiteFooter. ---
   const sourceId = readSourceId();
   if (sourceId !== null) {
@@ -78,7 +81,13 @@ export function App() {
   if (window.location.pathname.startsWith("/ingest")) {
     return (
       <AppShell title="Ingest" activeHref="/ingest">
-        {() => <Ingest />}
+        {() =>
+          isPhone ? (
+            <EmptyState message="Ingest is desktop-only. Adding sources — PDFs, pasted text, books — works best on a laptop. Open this page on your computer; you'll review the kept words here on your phone." />
+          ) : (
+            <Ingest />
+          )
+        }
       </AppShell>
     );
   }

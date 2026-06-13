@@ -12,6 +12,7 @@ import {
   type OverviewState,
 } from "../components";
 import { monthDay } from "../format";
+import { useIsPhone } from "../hooks/useIsPhone";
 import "./Home.css";
 
 const EM_DASH = "—";
@@ -43,7 +44,7 @@ const JOB_LABEL: Record<string, string> = {
   grammar_seed: "Seeding your curriculum",
 };
 
-function renderHero(state: OverviewState) {
+function renderHero(state: OverviewState, isPhone: boolean) {
   // Loading: em-dash headword reserves the hero height (no layout shift).
   if (state.loading) return <HomeHero headword={EM_DASH} />;
 
@@ -51,9 +52,11 @@ function renderHero(state: OverviewState) {
   if (!f) {
     return (
       <EmptyState message="Your dictionary is empty. Add a PDF or paste text to begin.">
-        <Button variant="secondary" onClick={() => go("/ingest")}>
-          Ingest a source
-        </Button>
+        {!isPhone && (
+          <Button variant="secondary" onClick={() => go("/ingest")}>
+            Ingest a source
+          </Button>
+        )}
       </EmptyState>
     );
   }
@@ -109,6 +112,7 @@ interface CardSpec {
 function cardSpecs(
   summary: OverviewSummary | undefined,
   loading: boolean,
+  isPhone: boolean,
 ): CardSpec[] {
   const dash = loading ? EM_DASH : undefined;
   const s = summary;
@@ -161,7 +165,9 @@ function cardSpecs(
             `${s!.grammar.topics} topics · ${s!.grammar.belowFifty} below 50% mastery`,
           blurb: "",
         },
-    { title: "Ingest", href: "/ingest", blurb: "Add a PDF or paste text" },
+    ...(!isPhone
+      ? [{ title: "Ingest", href: "/ingest", blurb: "Add a PDF or paste text" }]
+      : []),
   ];
 
   // Suggestions: shown only when the pool is non-empty (Phase 2 → hidden now).
@@ -177,16 +183,18 @@ function cardSpecs(
   return cards;
 }
 
-function renderActivity(summary: OverviewSummary | undefined) {
+function renderActivity(summary: OverviewSummary | undefined, isPhone: boolean) {
   if (!summary) return null;
   const { recentWords, latestJob } = summary;
 
   if (recentWords.length === 0 && !latestJob) {
     return (
       <EmptyState message="Nothing studied yet. Ingest your first source.">
-        <Button variant="secondary" onClick={() => go("/ingest")}>
-          Ingest a source
-        </Button>
+        {!isPhone && (
+          <Button variant="secondary" onClick={() => go("/ingest")}>
+            Ingest a source
+          </Button>
+        )}
       </EmptyState>
     );
   }
@@ -228,15 +236,16 @@ function renderActivity(summary: OverviewSummary | undefined) {
 export function Home({ overview }: { overview: OverviewState }) {
   const { summary, loading, error } = overview;
   const [dismissed, setDismissed] = useState(false);
+  const isPhone = useIsPhone();
 
   return (
     <div className="home">
       <section className="home__band home__band--hero">
-        {renderHero(overview)}
+        {renderHero(overview, isPhone)}
       </section>
 
       <section className="home__band home__grid" aria-label="Areas">
-        {cardSpecs(summary, loading).map((c) => (
+        {cardSpecs(summary, loading, isPhone).map((c) => (
           <OverviewCard
             key={c.title}
             title={c.title}
@@ -249,7 +258,7 @@ export function Home({ overview }: { overview: OverviewState }) {
       </section>
 
       <section className="home__band home__activity">
-        {renderActivity(summary)}
+        {renderActivity(summary, isPhone)}
       </section>
 
       {error && !dismissed && (
