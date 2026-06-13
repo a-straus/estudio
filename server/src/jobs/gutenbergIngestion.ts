@@ -19,12 +19,13 @@ export const JOB_TYPE_GUTENBERG_INGESTION = "gutenberg_ingestion";
  */
 export const CANDIDATES_PER_BATCH = 200;
 
-// Rough per-batch token model for the upfront estimate. The pre-pass count is
-// the lever; these constants only need to be in the right ballpark for the
-// owner's >$5 confirm decision (GOAL §13), not exact.
-const PROMPT_OVERHEAD_TOKENS = 800; // rubric + calibration, per call
-const TOKENS_PER_CANDIDATE_IN = 3; // a word + its line in the list
-const TOKENS_PER_CANDIDATE_OUT = 20; // amortized output across kept/dropped words
+// Per-batch token model for the upfront cost estimate. Calibrated to a full
+// King James Bible run (9034 candidates, 46 batches: real tokensIn 79267,
+// real tokensOut 280611, real cost $7.41 on opus). Values intentionally err
+// high so the owner's >$5 confirm gate (GOAL §13) fires reliably.
+const PROMPT_OVERHEAD_TOKENS = 1000; // rubric + calibration, per call
+const TOKENS_PER_CANDIDATE_IN = 4; // a word + its line in the list
+const TOKENS_PER_CANDIDATE_OUT = 34; // amortized output across kept/dropped words
 
 export interface GutenbergIngestionPayload {
   sourceId: number;
