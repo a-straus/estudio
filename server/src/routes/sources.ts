@@ -530,10 +530,12 @@ export function registerSourceRoutes(
         pageIds: [page.id],
       });
     } else if (source.type === "text") {
-      const language = detectLanguage(source.transcript ?? "");
+      const langRow = db
+        .prepare("SELECT language FROM source WHERE id = ?")
+        .get(page.sourceId) as { language: "es" | "en" };
       jobId = enqueueTextIngestion(db, queue, {
         sourceId: page.sourceId,
-        language,
+        language: langRow.language,
         pageIds: [page.id],
       });
     } else {

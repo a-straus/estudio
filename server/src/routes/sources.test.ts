@@ -488,6 +488,36 @@ describe("POST /api/source-pages/:id/retry", () => {
     expect(job.type).toBe("pdf_ingestion");
   });
 
+  it("uses the persisted source.language (not re-detected) when retrying a failed text source page", async () => {
+    const now = new Date().toISOString();
+    // Spanish-looking transcript that detectLanguage would classify as 'es',
+    // but the source was explicitly created with language='en'.
+    const sourceId = Number(
+      db
+        .prepare(
+          "INSERT INTO source (type, title, transcript, language, created_at, updated_at) VALUES ('text', 'Test', 'algo en español por todos lados', 'en', ?, ?)",
+        )
+        .run(now, now).lastInsertRowid,
+    );
+    const pageId = Number(
+      db
+        .prepare(
+          "INSERT INTO source_page (source_id, page_no, kind, status, error, created_at, updated_at) VALUES (?, 1, 'vocab', 'failed', 'boom', ?, ?)",
+        )
+        .run(sourceId, now, now).lastInsertRowid,
+    );
+
+    const res = await request(app).post(`/api/source-pages/${pageId}/retry`);
+    expect(res.status).toBe(200);
+    expect(res.body.jobId).toBeGreaterThan(0);
+
+    const job = db
+      .prepare("SELECT type, payload FROM job WHERE id = ?")
+      .get(res.body.jobId) as { type: string; payload: string };
+    expect(job.type).toBe("text_ingestion");
+    expect(JSON.parse(job.payload).language).toBe("en");
+  });
+
   it("enqueues a gutenberg_ingestion job (not pdf_ingestion) when retrying a failed Gutenberg source page", async () => {
     const now = new Date().toISOString();
     const sourceId = Number(
