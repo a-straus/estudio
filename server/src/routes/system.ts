@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { Express, Request, Response } from "express";
 import type {
   SystemBackupResponse,
@@ -13,7 +14,7 @@ import {
   listRecentErrors,
   listRecentJobs,
 } from "../db/system-queries.js";
-import { backupStatus, runBackup } from "../jobs/backup.js";
+import { backupStatus, backupsDir, runBackup } from "../jobs/backup.js";
 import { logger } from "../logger.js";
 
 /**
@@ -46,6 +47,45 @@ export function registerSystemRoutes(
       backup: backupStatus(dataDir),
     };
     res.json(body);
+  });
+
+  app.get("/api/system/export", (_req: Request, res: Response) => {
+    const tableRows = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+      )
+      .all() as { name: string }[];
+
+    const tables: Record<string, unknown[]> = {};
+    for (const { name } of tableRows) {
+      tables[name] = db.prepare(`SELECT * FROM "${name}"`).all() as unknown[];
+    }
+
+    const exportedAt = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+    const date = exportedAt.slice(0, 10);
+    const dump = { version: 1, exportedAt, tables };
+
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="estudio-export-${date}.json"`,
+    );
+    res.send(JSON.stringify(dump, null, 2));
+  });
+
+  app.get("/api/system/backup/download", (_req: Request, res: Response) => {
+    const status = backupStatus(dataDir);
+    if (!status.latestFilename) {
+      res.status(404).json({
+        error: {
+          message: "No backup found. Create a backup first.",
+          code: "no_backup",
+        },
+      });
+      return;
+    }
+    const absolutePath = path.join(backupsDir(dataDir), status.latestFilename);
+    res.download(absolutePath, status.latestFilename);
   });
 
   app.post("/api/system/backup", (_req: Request, res: Response) => {

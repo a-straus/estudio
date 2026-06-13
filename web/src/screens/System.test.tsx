@@ -140,7 +140,7 @@ describe("System screen", () => {
     // Backup status + button.
     expect(screen.getByText(/3 kept/)).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Export backup now" }),
+      screen.getByRole("button", { name: "Back up now" }),
     ).toBeTruthy();
   });
 
@@ -151,7 +151,7 @@ describe("System screen", () => {
 
     render(<System />);
     const btn = await screen.findByRole("button", {
-      name: "Export backup now",
+      name: "Back up now",
     });
     fireEvent.click(btn);
 
