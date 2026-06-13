@@ -29,6 +29,7 @@ Done levels (from GOAL.md §15):
 <!-- review08-deadcss-nit → DONE (spawned + FINISHED + integrated all within iter 150 — fast sonnet worker; merge cefd2f0; full entry in Done). Dead `.review__format-control` rule removed; review-08 is now FULLY dispositioned (S1 landed via ffmpeg-segment-resplit, N1 via this, N2 no-task). -->
 
 <!-- (none in flight — capacity 0/5. Phase-3 spawning held on the gutenberg.org egress escalation; see Phase 3+ below.) -->
+<!-- iter 151: thin pass, egress-blocked (as iter-150 anticipated). Confirmed BY TOOL: gutenberg.org STILL absent from .devcontainer/init-firewall.sh (allowlist = npm/Anthropic/OpenAI/GitHub only — owner has NOT silently added it, the way they did ffmpeg/OpenAI-key/worker-auth); docs/fixtures/mochi/ STILL absent; QUESTIONS Phase-3 egress answer still blank; FEEDBACK Inbox empty; no [ANSWERED]; 0 real workers (the 2 ORPHANs codex-worker-engine/no-design are human-owned infra, ignored). Trunk green by inheritance (clean tree at 9cf2053; `git diff --stat 9cf2053..HEAD -- server web shared check.sh prompts` = EMPTY → byte-identical to the iter-150 625-green run; no integration → no check.sh re-run, iter-147 precedent). Did NOT spawn suggestion-streaming (owner-offered in QUESTIONS as opt-in fill-in; not opted into; deferral stands — marginal payoff on short structured output + cross-cutting LlmProvider-seam change that could collide with imminent Phase-3 calibration llm work). ffmpeg/ffprobe 5.1.9 still live. -->
 
 
 ## Backlog
