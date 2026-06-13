@@ -30,6 +30,7 @@ import { registerSuggestionRoutes } from "./routes/suggestions.js";
 import { registerLessonReadRoutes } from "./routes/lessons.js";
 import { registerNotesRoutes } from "./routes/notes.js";
 import { registerPlacementRoutes } from "./routes/placement.js";
+import { registerProgressRoutes } from "./routes/progress.js";
 
 // web/dist sits two levels up from both server/src/ and server/dist/.
 const webDistDir = fileURLToPath(new URL("../../web/dist/", import.meta.url));
@@ -91,6 +92,7 @@ export function createApp(
   registerLessonReadRoutes(app, db);
   registerNotesRoutes(app, db);
   registerPlacementRoutes(app, db, opts.llm);
+  registerProgressRoutes(app, db);
   if (opts.dataDir) {
     registerSystemRoutes(app, db, opts.dataDir);
   }
