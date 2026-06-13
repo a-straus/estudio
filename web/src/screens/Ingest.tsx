@@ -14,7 +14,9 @@ import {
   submitGutenberg,
   submitText,
   uploadPdf,
+  uploadMochi,
   ApiError,
+  type MochiImportResponse,
 } from "./ingestApi";
 import "./Ingest.css";
 
@@ -101,8 +103,12 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
   const [job, setJob] = useState<ActiveJob | null>(null);
   const [progress, setProgress] = useState<ProgressView | null>(null);
   const [backgrounded, setBackgrounded] = useState(false);
+  const [mochiResult, setMochiResult] = useState<MochiImportResponse | null>(
+    null,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const mochiInputRef = useRef<HTMLInputElement>(null);
 
   const wordCount =
     pasteText.trim() === "" ? 0 : pasteText.trim().split(/\s+/).length;
@@ -113,6 +119,23 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
     setBackgrounded(false);
     setFormError(null);
     setEstimate(null);
+    setMochiResult(null);
+  }, []);
+
+  const onPickMochi = useCallback(async (file: File) => {
+    setSubmitting(true);
+    setFormError(null);
+    setMochiResult(null);
+    try {
+      const res = await uploadMochi(file);
+      setMochiResult(res);
+    } catch (err) {
+      setFormError(
+        err instanceof ApiError ? err.message : "Couldn't read that file.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }, []);
 
   const onSubmitText = useCallback(async () => {
@@ -411,15 +434,38 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
           )}
 
           {method === "import" && (
-            <div className="ingest__coming-soon">
-              <TextInput
-                label="Mochi export"
-                value=""
-                onChange={() => {}}
-                disabled
-                placeholder="mochi-export.json"
+            <div className="ingest__dropzone">
+              <input
+                ref={mochiInputRef}
+                type="file"
+                accept=".mochi"
+                className="ingest__file-input"
+                aria-label="Choose a Mochi export"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void onPickMochi(file);
+                }}
               />
-              <p className="ingest__note">Coming soon.</p>
+              <Button
+                variant="primary"
+                busy={submitting}
+                busyLabel="Importing…"
+                onClick={() => mochiInputRef.current?.click()}
+              >
+                Choose a Mochi export (.mochi)
+              </Button>
+              {mochiResult && (
+                <p className="ingest__note">
+                  {mochiResult.total.toLocaleString()} cards ·{" "}
+                  {mochiResult.imported.toLocaleString()} added ·{" "}
+                  {mochiResult.duplicates.toLocaleString()} already in your deck
+                </p>
+              )}
+              {formError && (
+                <p className="ingest__error" role="alert">
+                  {formError}
+                </p>
+              )}
             </div>
           )}
 

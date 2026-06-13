@@ -20,6 +20,7 @@ vi.mock("./ingestApi", () => ({
   },
   submitText: vi.fn(),
   uploadPdf: vi.fn(),
+  uploadMochi: vi.fn(),
   fetchJobs: vi.fn(),
   submitGutenberg: vi.fn(),
   confirmGutenberg: vi.fn(),
@@ -31,6 +32,7 @@ import * as api from "./ingestApi";
 const mockApi = api as unknown as {
   submitText: ReturnType<typeof vi.fn>;
   uploadPdf: ReturnType<typeof vi.fn>;
+  uploadMochi: ReturnType<typeof vi.fn>;
   fetchJobs: ReturnType<typeof vi.fn>;
   submitGutenberg: ReturnType<typeof vi.fn>;
   confirmGutenberg: ReturnType<typeof vi.fn>;
@@ -57,6 +59,7 @@ beforeEach(() => {
   mockApi.fetchJobs.mockResolvedValue([]);
   mockApi.submitGutenberg.mockReset();
   mockApi.confirmGutenberg.mockReset();
+  mockApi.uploadMochi.mockReset();
 });
 
 describe("Ingest — idle", () => {
@@ -81,12 +84,31 @@ describe("Ingest — idle", () => {
     ).toBeDefined();
   });
 
-  it("renders Import as a disabled 'coming soon' panel", () => {
+  it("renders Import as a Mochi file picker and shows the import summary", async () => {
+    mockApi.uploadMochi.mockResolvedValue({
+      imported: 312,
+      duplicates: 19,
+      total: 331,
+      deck: "en",
+    });
     render(<Ingest />);
     fireEvent.click(screen.getByRole("radio", { name: "Import" }));
-    expect(screen.getByText("Coming soon.")).toBeDefined();
-    const field = screen.getByLabelText("Mochi export") as HTMLInputElement;
-    expect(field.disabled).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Choose a Mochi export (.mochi)" }),
+    ).toBeDefined();
+
+    const input = screen.getByLabelText(
+      "Choose a Mochi export",
+    ) as HTMLInputElement;
+    const file = new File(["zip"], "Vocab.mochi");
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("331 cards · 312 added · 19 already in your deck"),
+      ).toBeDefined(),
+    );
+    expect(mockApi.uploadMochi).toHaveBeenCalledWith(file);
   });
 });
 
