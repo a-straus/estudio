@@ -13,6 +13,7 @@ import {
   chunkText,
   detectLanguage,
   enqueueTextIngestion,
+  extractJson,
   runTextIngestion,
 } from "./textIngestion.js";
 
@@ -29,6 +30,42 @@ afterEach(() => {
   logger.detachDb();
   db.close();
   fs.rmSync(dataDir, { recursive: true, force: true });
+});
+
+describe("extractJson", () => {
+  it("parses well-formed JSON", () => {
+    expect(extractJson('{"words":[{"term":"foo"}]}')).toEqual({
+      words: [{ term: "foo" }],
+    });
+  });
+
+  it("strips a ```json fence and surrounding prose", () => {
+    const fenced = '```json\n{"words":[{"term":"foo"}]}\n```';
+    expect(extractJson(fenced)).toEqual({ words: [{ term: "foo" }] });
+  });
+
+  it("throws a clear truncation error with length and tail on cut-off JSON", () => {
+    const truncated = '{"words":[{"term":"foo","definition":"unterminat';
+    let caught: unknown;
+    try {
+      extractJson(truncated);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    const message = (caught as Error).message;
+    expect(message).toMatch(/truncat/i);
+    expect(message).toContain(`length=${truncated.length}`);
+    expect(message).toContain("unterminat");
+    // Not a bare SyntaxError leaking through.
+    expect((caught as Error).name).toBe("Error");
+  });
+
+  it("throws the 'no JSON' error when the response has no JSON at all", () => {
+    expect(() => extractJson("I'm sorry, I can't help with that.")).toThrow(
+      /no JSON in LLM response/,
+    );
+  });
 });
 
 function word(term: string, overrides: Partial<Record<string, unknown>> = {}) {

@@ -104,6 +104,19 @@ describe("LlmService.resolveTaskConfig", () => {
     );
   });
 
+  it("gives gutenberg_extraction 16384 max output tokens (truncation fix)", () => {
+    const llm = new LlmService(db, {}, { env: {} });
+    expect(llm.resolveTaskConfig("gutenberg_extraction").maxTokens).toBe(16384);
+  });
+
+  it("leaves other tasks on the adapter default (no maxTokens)", () => {
+    const llm = new LlmService(db, {}, { env: {} });
+    expect(
+      llm.resolveTaskConfig("text_extraction").maxTokens,
+    ).toBeUndefined();
+    expect(llm.resolveTaskConfig("pdf_extraction").maxTokens).toBeUndefined();
+  });
+
   it("env vars override the default", () => {
     const llm = new LlmService(
       db,
