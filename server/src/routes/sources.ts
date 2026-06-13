@@ -75,6 +75,7 @@ const defaultFetchGutenberg: FetchGutenberg = async (url) => {
   const res = await fetch(url, {
     headers: { "User-Agent": "estudio/1.0 (personal language-learning app)" },
     redirect: "follow",
+    signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) {
     throw new Error(`gutenberg fetch failed: HTTP ${res.status}`);

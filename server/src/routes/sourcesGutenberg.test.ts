@@ -176,6 +176,22 @@ describe("POST /api/sources/gutenberg (estimate)", () => {
     expect(res.status).toBe(502);
     expect(res.body.error.code).toBe("fetch_failed");
   });
+
+  it("502s when the fetch is aborted (timeout path)", async () => {
+    const app2 = express();
+    app2.use(express.json());
+    registerSourceRoutes(app2, db, queue, dataDir, {
+      llm,
+      fetchGutenberg: async () => {
+        throw Object.assign(new Error("aborted"), { name: "AbortError" });
+      },
+    });
+    const res = await request(app2)
+      .post("/api/sources/gutenberg")
+      .send({ ref: "10" });
+    expect(res.status).toBe(502);
+    expect(res.body.error.code).toBe("fetch_failed");
+  });
 });
 
 describe("POST /api/sources/gutenberg/:id/confirm", () => {
