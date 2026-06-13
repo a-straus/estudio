@@ -82,11 +82,13 @@ function llmCallRows() {
 const attachment = { kind: "pdf" as const, data: Buffer.from("%PDF-fake") };
 
 describe("LlmService.resolveTaskConfig", () => {
-  it("defaults pdf_extraction to anthropic / claude-fable-5", () => {
+  // FABLE-DISABLED (2026-06-13): default was claude-fable-5, now claude-opus-4-8
+  // (Fable disabled by Anthropic; see FABLE_REPLACEMENT in service.ts).
+  it("defaults pdf_extraction to anthropic / claude-opus-4-8", () => {
     const llm = new LlmService(db, {}, { env: {} });
     expect(llm.resolveTaskConfig("pdf_extraction")).toEqual({
       provider: "anthropic",
-      model: "claude-fable-5",
+      model: "claude-opus-4-8",
     });
   });
 

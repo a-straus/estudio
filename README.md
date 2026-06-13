@@ -147,11 +147,17 @@ better you fill §3/§8/§11/§13, the closer questions get to zero.
 | Role | Default | Knobs |
 |------|---------|-------|
 | Orchestrator iterations (routine) | `opus` at `max` effort | `ORCH_MODEL`, `ORCH_EFFORT` |
-| Orchestrator iterations (design phase, schema gate) | `fable` at `high` effort | `ORCH_DESIGN_EFFORT` |
+| Orchestrator iterations (design phase, schema gate) | `opus` at `high` effort | `ORCH_DESIGN_EFFORT` |
 | Trivial tasks (1–2 files, mechanical) | `sonnet` — routed per task | `spawn --model sonnet` |
 | Routine feature workers | `opus` at `medium` effort | `WORKER_MODEL`, `WORKER_EFFORT` |
 | Reviews | `opus` at `max` effort — routed per task | `spawn --model "$ORCH_MODEL" --effort medium` |
-| Trunk fixes, hard tasks, architecture | `fable` at `high` effort — routed per task | `spawn --model "$ORCH_MODEL" --effort high` (`xhigh` for the deepest) |
+| Trunk fixes, hard tasks, architecture | `opus` at `high` effort — routed per task | `spawn --model "$ORCH_MODEL" --effort high` (`xhigh` for the deepest) |
+
+> **FABLE-DISABLED (2026-06-13):** `fable` was the top tier for the design
+> phase, schema gate, and hardest tasks. Anthropic disabled `claude-fable-5`
+> (U.S. government directive), so those rows route to `opus` (the strongest
+> model still available). Restore `fable` here when it returns — see
+> `DECISIONS.md` (iteration 149).
 
 The orchestrator decides the routing; the loop just passes the flags. Effort
 levels (`low|medium|high|xhigh|max`) set thinking depth per invocation. The

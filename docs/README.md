@@ -209,31 +209,39 @@ resolves the provider/model for each task with this precedence:
 1. the `setting` row `llm.<task>` (JSON `{provider?, model?}`) — settable at
    runtime, no restart;
 2. else the env vars `LLM_<TASK>_PROVIDER` / `LLM_<TASK>_MODEL`;
-3. else the built-in default (`claude-fable-5` for every task).
+3. else the built-in per-task default (the quality-critical tasks default to
+   `claude-opus-4-8`; `quiz_grading` / `suggestion_select` to `claude-sonnet-4-6`,
+   `chat` to `claude-haiku-4-5` — see the `TASK_DEFAULTS` table in
+   `server/src/llm/service.ts`).
+
+   > **FABLE-DISABLED (2026-06-13):** the quality-critical tasks previously
+   > defaulted to `claude-fable-5`, which Anthropic disabled (U.S. government
+   > directive); they now use `claude-opus-4-8`, the strongest model still
+   > available. Reverting is one constant in `service.ts` — see `DECISIONS.md`.
 
 Models are never hardcoded at call sites, so switching the active model for a
 task is a **config-only** change — no code edits.
 
 **The knob used:** the env var `LLM_<TASK>_MODEL`, e.g. `LLM_QUIZ_CLOZE_MODEL`.
 
-**What I did (2026-06-11):** with zero code changes, ran the built
+**What I did:** with zero code changes, ran the built
 `LlmService.resolveTaskConfig("quiz_cloze")` against a scratch DB, first with no
 override and then with the env var set:
 
 ```
 --- default ---
-quiz_cloze -> anthropic / claude-fable-5
-
---- env LLM_QUIZ_CLOZE_MODEL=claude-opus-4-8 ---
 quiz_cloze -> anthropic / claude-opus-4-8
+
+--- env LLM_QUIZ_CLOZE_MODEL=claude-sonnet-4-6 ---
+quiz_cloze -> anthropic / claude-sonnet-4-6
 ```
 
 **Observed result:** the effective model for the `quiz_cloze` task changed from
-`claude-fable-5` to `claude-opus-4-8` purely from the environment — no source
-edits. The env override was set only for that one command; no config change was
-committed, so nothing needed reverting in the repo. (The runtime equivalent is
-writing the `setting` row `llm.quiz_cloze` from the System screen, which takes
-effect without a restart.)
+its built-in default (`claude-opus-4-8`) to `claude-sonnet-4-6` purely from the
+environment — no source edits. The env override was set only for that one
+command; no config change was committed, so nothing needed reverting in the
+repo. (The runtime equivalent is writing the `setting` row `llm.quiz_cloze` from
+the System screen, which takes effect without a restart.)
 
 ---
 

@@ -26,16 +26,30 @@ export interface TaskConfig {
   model: string;
 }
 
+// ── FABLE-DISABLED (2026-06-13, iteration 149) ──────────────────────────────
+// Anthropic disabled claude-fable-5 (U.S. government directive), so it can no
+// longer be called at runtime. Every task that defaulted to claude-fable-5 now
+// uses FABLE_REPLACEMENT = claude-opus-4-8, the strongest model still
+// available. These are the quality-critical tasks (vision extraction, page
+// classification, definitions, curriculum/lesson generation, cloze, lesson
+// analysis); §14's ≥90%-accept bar rides on word_definition + quiz_cloze, so
+// they take the best remaining model.
+// TO REVERT when Fable returns: set FABLE_REPLACEMENT back to "claude-fable-5"
+// — this one line restores every task below. The setting-row / env override
+// path in resolveTaskConfig is untouched, so any task can still be pinned to a
+// different model meanwhile. Full change-list in DECISIONS.md (iteration 149).
+const FABLE_REPLACEMENT = "claude-opus-4-8";
+
 const TASK_DEFAULTS: Record<LlmTask, TaskConfig> = {
-  pdf_extraction: { provider: "anthropic", model: "claude-fable-5" },
-  page_classification: { provider: "anthropic", model: "claude-fable-5" },
-  text_extraction: { provider: "anthropic", model: "claude-fable-5" },
-  word_definition: { provider: "anthropic", model: "claude-fable-5" },
-  grammar_curriculum: { provider: "anthropic", model: "claude-fable-5" },
-  grammar_lesson: { provider: "anthropic", model: "claude-fable-5" },
-  quiz_cloze: { provider: "anthropic", model: "claude-fable-5" },
+  pdf_extraction: { provider: "anthropic", model: FABLE_REPLACEMENT },
+  page_classification: { provider: "anthropic", model: FABLE_REPLACEMENT },
+  text_extraction: { provider: "anthropic", model: FABLE_REPLACEMENT },
+  word_definition: { provider: "anthropic", model: FABLE_REPLACEMENT },
+  grammar_curriculum: { provider: "anthropic", model: FABLE_REPLACEMENT },
+  grammar_lesson: { provider: "anthropic", model: FABLE_REPLACEMENT },
+  quiz_cloze: { provider: "anthropic", model: FABLE_REPLACEMENT },
   quiz_grading: { provider: "anthropic", model: "claude-sonnet-4-6" },
-  lesson_analysis: { provider: "anthropic", model: "claude-fable-5" },
+  lesson_analysis: { provider: "anthropic", model: FABLE_REPLACEMENT },
   chat: { provider: "anthropic", model: "claude-haiku-4-5" },
   suggestion_select: { provider: "anthropic", model: "claude-sonnet-4-6" },
 };

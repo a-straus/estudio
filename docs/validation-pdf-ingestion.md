@@ -5,7 +5,13 @@ Date: 2026-06-11 · Branch: `pdf-ingestion-live-validation`
 End-to-end validation of the PDF ingestion pipeline against the two real
 workbook scans in `/docs/fixtures/workbook/`, using **live Anthropic vision
 calls** (not the test mock). Model: `claude-fable-5` (the `pdf_extraction` /
-`page_classification` task default).
+`page_classification` task default *at the time of this run*).
+
+> **FABLE-DISABLED (2026-06-13):** this report records a run made on
+> `claude-fable-5`, which Anthropic has since disabled (U.S. government
+> directive). The `pdf_extraction` / `page_classification` default is now
+> `claude-opus-4-8`; this historical result is left as-run for the record. See
+> `DECISIONS.md` (iteration 149).
 
 ## What I ran
 

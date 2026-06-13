@@ -10,6 +10,10 @@ import {
 // USD per million tokens (input, output) — used only for the cost_estimate_usd
 // column on llm_call rows. Unknown models get a null estimate, never a guess.
 const PRICING: Record<string, { input: number; output: number }> = {
+  // FABLE-DISABLED (2026-06-13): claude-fable-5 is no longer a default model
+  // (see service.ts), but its price stays here so any task still pinned to it
+  // via a setting/env override is costed correctly, and reverting needs no edit
+  // to this table.
   "claude-fable-5": { input: 10, output: 50 },
   "claude-opus-4-8": { input: 5, output: 25 },
   "claude-sonnet-4-6": { input: 3, output: 15 },

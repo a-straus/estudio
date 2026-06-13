@@ -182,9 +182,12 @@ AUTOINCREMENT), `created_at`, `updated_at` (TEXT, ISO-8601 UTC) unless noted.
   `/server/src/llm/`; one adapter file per provider; ship `anthropic.ts`.
   Active provider/model per task is config (env defaults + `setting`
   overrides), never hardcoded at call sites. **Default model for the
-  `pdf_extraction` (vision/scan-reading) task: `claude-fable-5`**
-  (owner feedback 2026-06-10); each task's model is independently
-  configurable. Prompt templates live in `/prompts/<task>.md`, versioned in
+  `pdf_extraction` (vision/scan-reading) task and the other quality-critical
+  tasks: `claude-opus-4-8`** — the strongest model available (FABLE-DISABLED
+  2026-06-13: owner feedback 2026-06-10 set these to `claude-fable-5`, which
+  Anthropic has since disabled; revert via the `FABLE_REPLACEMENT` constant in
+  `server/src/llm/service.ts` when it returns — see DECISIONS.md). Each task's
+  model is independently configurable. Prompt templates live in `/prompts/<task>.md`, versioned in
   git, loaded at call time — no inline prompt strings. Every generated
   artifact (definition, lesson, question, explanation, curriculum,
   suggestion) is persisted and re-served from the DB before any
@@ -229,4 +232,5 @@ AUTOINCREMENT), `created_at`, `updated_at` (TEXT, ISO-8601 UTC) unless noted.
 - 2026-06-10 — Initial draft from GOAL.md §8 (orchestrator, iteration 1).
 - 2026-06-12 — Schema gate (orchestrator-approved batch, iteration 88; nothing else in flight): new `note` entity (per-answer self-notes feeding future generation — FEEDBACK 2026-06-11); `quiz_attempt.style` gains `mixed` (review-03 S5 — stop falsifying mixed/lesson attempts); migration 003 also materializes the already-specified Phase-2 tables `transcription_call`, `chat_thread`, `chat_message`, `suggestion` so Phase-2 build tasks need no schema grants and can run in parallel.
 - 2026-06-12 — Schema gate (orchestrator-approved, iteration 112; nothing else in flight): `source.duration_minutes` (REAL, nullable) added via migration 004 — a plain additive `ALTER TABLE source ADD COLUMN` (no table rebuild, unlike 002/003 which altered CHECKs). Fulfills review-05 S7: the Lessons list spec (lessons.md) leads each row with "· N min", but `lesson-queries.ts` hardcoded `durationMinutes:null` and `source` had no duration column (the per-call `minutes` REAL lives on `transcription_call`, which is the spend log, not a durable per-recording domain fact). The value is already computed at ingestion (`jobs/lessonAudioIngestion.ts` → `readAudioDuration`); it was simply never persisted. Requested by: review-05 audit. Outcome: approved — additive, within §8, existing rows get NULL (the UI already renders null as no-duration). Task: `schema-gate-004` (ORCH_MODEL/high, ran alone).
+- 2026-06-13 — FABLE-DISABLED (orchestrator, iteration 149; FEEDBACK 2026-06-13): Anthropic disabled `claude-fable-5` (U.S. government directive). The 8 quality-critical task defaults that used it (`pdf_extraction`, `page_classification`, `text_extraction`, `word_definition`, `grammar_curriculum`, `grammar_lesson`, `quiz_cloze`, `lesson_analysis`) now default to `claude-opus-4-8` (strongest available) via the `FABLE_REPLACEMENT` constant in `service.ts`. Not a schema change. Fully reversible — flip the one constant; all change sites are tagged `FABLE-DISABLED` (`grep -rni FABLE-DISABLED`). See DECISIONS.md (iteration 149).
 - 2026-06-10 — Critique reconciliation (arch-critique, all 13 findings adopted): no UNIQUE on normalized lemma — UNIQUE(term, language) exact + indexed normalized columns + triage-surfaced dedupe; new `extraction_item` (triage state), `source_page` (page classification, per-page retry, page→curriculum link), `error_log`; llm/transcription calls get status/error + prompt_version; word gets definition_origin/owner_edited_at/prompt_version; word↔card_state lifecycle + maturity (interval ≥ 21d) specified; lesson quiz questions live only in quiz_question (nullable lesson_id); review_log direction gains `cloze` + nullable quiz_question_id; suggestion.normalized_key defined; grammar_topic.seen_in_lessons dropped (derived).
