@@ -21,6 +21,41 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
 
+### [PENDING] Phase 3 needs a firewall egress (gutenberg.org) to start — and, later, Mochi fixtures
+
+**Where the project is:** Phases 1 and 2 are complete, the review-08 fix wave has landed
+(trunk green — **625 tests**), and the iter-142 FEEDBACK feature tail is essentially done —
+the last two items (the ffmpeg oversized-segment re-split, and `/ingest` desktop-only)
+integrated this iteration; one trivial dead-CSS nit is in flight. The next real chunk of
+work is **Phase 3 (GOAL §5: English — Gutenberg/KJV ingestion → English calibration →
+Mochi import)**, and its thinnest end-to-end slice is **Gutenberg/KJV ingestion (a Phase-3
+Must, §6.1/§3 goal 10)**.
+
+**The blocker (human-only):** that slice can't start because **`gutenberg.org` is not on the
+container firewall allowlist** — `.devcontainer/init-firewall.sh` currently allows only npm,
+the Anthropic + OpenAI APIs, and GitHub. Fetching a Gutenberg book by URL/ID needs that host
+reachable. This is the same class of change as the `api.openai.com` egress you added for
+Phase-2 transcription, and the orchestrator never edits the firewall.
+
+**What I need from you to start Phase 3:**
+1. **(Blocks the Phase-3 Must — KJV ingestion.)** Add `gutenberg.org` and `www.gutenberg.org`
+   to the allowlist in `.devcontainer/init-firewall.sh` (the KJV plain-text fetch may redirect
+   to the `www.` host), then rebuild the container. The instant it's live I'll decompose Phase 3
+   and spawn the Gutenberg/KJV ingestion (archaic-aware college-student rubric per §6.1 — keep
+   *concupiscence/propitiation/firmament*, drop *thee/thou/saith* as noise — likely-known
+   calibration on your learned words, ~50-word triage batches, coverage indicator).
+2. **(Needed later — when convenient, NOT a blocker now.)** Drop 3–5 exported Mochi cards into
+   `docs/fixtures/mochi/` (§17). This gates only the **Mochi importer** (a Phase-3 *Could*), so
+   it can follow the Gutenberg work — but having it there avoids a second wait.
+
+**Nothing else is stalled meanwhile:** the trivial dead-CSS nit is in flight, and
+`suggestion-streaming` (a deferred *Should* — additive streaming on the LlmProvider seam) is
+available if you'd rather I pick it up while the egress is pending; say so in FEEDBACK. I'm
+holding all Phase-3 spawning until the egress lands (I will not guess around the firewall).
+
+**Your answer:**
+
+
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
 You asked for "a list of everything that's been implemented and what I need to
