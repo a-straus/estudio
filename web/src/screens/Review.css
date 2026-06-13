@@ -186,11 +186,6 @@
   margin: 0;
 }
 
-/* Landing: review format segmented control row. */
-.review__format-control {
-  width: 100%;
-}
-
 /* ---- End-of-session summary ---- */
 .review__summary-count {
   font-family: var(--font-app);
