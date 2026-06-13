@@ -3,6 +3,7 @@ import type {
   ConfirmResponse,
   DedupeResolution,
   ExtractionItemView,
+  SourceCoverage,
   TriageBatchResponse,
   TriageDecision,
   TriageGroup,
@@ -10,6 +11,11 @@ import type {
 import { api } from "../api";
 
 export { ApiError } from "../api";
+
+/** Triage coverage for a source — powers the coverage indicator. */
+export function fetchCoverage(sourceId: number): Promise<SourceCoverage> {
+  return api<SourceCoverage>(`/api/sources/${sourceId}/coverage`);
+}
 
 export function fetchBatch(
   sourceId: number,

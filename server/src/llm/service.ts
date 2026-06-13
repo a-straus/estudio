@@ -12,6 +12,7 @@ export type LlmTask =
   | "pdf_extraction"
   | "page_classification"
   | "text_extraction"
+  | "gutenberg_extraction"
   | "word_definition"
   | "grammar_curriculum"
   | "grammar_lesson"
@@ -44,6 +45,7 @@ const TASK_DEFAULTS: Record<LlmTask, TaskConfig> = {
   pdf_extraction: { provider: "anthropic", model: FABLE_REPLACEMENT },
   page_classification: { provider: "anthropic", model: FABLE_REPLACEMENT },
   text_extraction: { provider: "anthropic", model: FABLE_REPLACEMENT },
+  gutenberg_extraction: { provider: "anthropic", model: FABLE_REPLACEMENT },
   word_definition: { provider: "anthropic", model: FABLE_REPLACEMENT },
   grammar_curriculum: { provider: "anthropic", model: FABLE_REPLACEMENT },
   grammar_lesson: { provider: "anthropic", model: FABLE_REPLACEMENT },

@@ -8,6 +8,7 @@ import { JobQueue } from "./jobs/queue.js";
 import {
   registerBackupHandler,
   registerGrammarSeedHandler,
+  registerGutenbergIngestionHandler,
   registerLessonAudioIngestionHandler,
   registerLessonGenHandler,
   registerQuizGenHandler,
@@ -42,6 +43,7 @@ const transcription = new TranscriptionService(
 
 const queue = new JobQueue(db);
 registerTextIngestionHandler(queue, db, llm);
+registerGutenbergIngestionHandler(queue, db, llm);
 registerPdfIngestionHandler(queue, db, llm);
 registerGrammarSeedHandler(queue, db, llm);
 registerQuizGenHandler(queue, db, llm);

@@ -4,6 +4,7 @@ import {
   type ConfirmResponse,
   type DedupeHit,
   type ExtractionItemView,
+  type SourceCoverage,
   type TriageDecision,
   type TriageGroup,
 } from "@estudio/shared";
@@ -20,6 +21,7 @@ import {
   bulkDecide,
   confirmBatch,
   fetchBatch,
+  fetchCoverage,
   patchDecision,
   resolveDedupe,
 } from "./triageApi";
@@ -102,6 +104,7 @@ export function Triage({ sourceId }: TriageProps) {
   const [summary, setSummary] = useState<ConfirmResponse | null>(null);
   const [dedupeHits, setDedupeHits] = useState<DedupeHit[]>([]);
   const [confirming, setConfirming] = useState(false);
+  const [coverage, setCoverage] = useState<SourceCoverage | null>(null);
 
   const rowRefs = useRef(new Map<number, HTMLDivElement>());
   // Always-current snapshot of `items`, updated synchronously by every decision
@@ -140,9 +143,20 @@ export function Triage({ sourceId }: TriageProps) {
     [sourceId],
   );
 
+  // Coverage indicator (GOAL §6.1): triaged/total + kept + untested. Quiet and
+  // best-effort — a failed fetch just hides the line, it never blocks sorting.
+  const refreshCoverage = useCallback(async () => {
+    try {
+      setCoverage(await fetchCoverage(sourceId));
+    } catch {
+      setCoverage(null);
+    }
+  }, [sourceId]);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void refreshCoverage();
+  }, [load, refreshCoverage]);
 
   const flow = useMemo(() => flowOrder(items), [items]);
 
@@ -258,6 +272,7 @@ export function Triage({ sourceId }: TriageProps) {
       setSummary(res);
       setDedupeHits(res.dedupeHits);
       setUndoStack([]);
+      void refreshCoverage();
       if (res.dedupeHits.length === 0) {
         setToast({
           text: `Kept ${res.learn} ${res.learn === 1 ? "word" : "words"}.`,
@@ -273,7 +288,7 @@ export function Triage({ sourceId }: TriageProps) {
     } finally {
       setConfirming(false);
     }
-  }, [sourceId, batchNo]);
+  }, [sourceId, batchNo, refreshCoverage]);
 
   const resolveHit = useCallback(
     async (hit: DedupeHit, resolution: "keep" | "merge") => {
@@ -528,6 +543,13 @@ export function Triage({ sourceId }: TriageProps) {
           Batch {batchNo} of {Math.max(batchCount, batchNo)} · {sortedCount} of{" "}
           {items.length} sorted
         </p>
+        {coverage && coverage.total > 0 && (
+          <p className="triage__meta triage__coverage">
+            Triaged {coverage.triaged.toLocaleString()} /{" "}
+            {coverage.total.toLocaleString()} · {coverage.kept.toLocaleString()}{" "}
+            kept, {coverage.untested.toLocaleString()} untested
+          </p>
+        )}
         <div className="triage__progress-track" aria-hidden="true">
           <div
             className="triage__progress-fill"

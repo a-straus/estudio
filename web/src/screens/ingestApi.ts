@@ -1,5 +1,8 @@
 import type {
   AudioUploadResponse,
+  GutenbergConfirmResponse,
+  GutenbergEstimateResponse,
+  GutenbergIngestRequest,
   JobView,
   PdfUploadResponse,
   TextIngestRequest,
@@ -33,6 +36,26 @@ export function uploadPdf(
 
 export function fetchJobs(): Promise<JobView[]> {
   return api<JobView[]>("/api/jobs");
+}
+
+/** Fetch a Gutenberg book and get the upfront cost estimate (no job yet). */
+export function submitGutenberg(
+  req: GutenbergIngestRequest,
+): Promise<GutenbergEstimateResponse> {
+  return api<GutenbergEstimateResponse>("/api/sources/gutenberg", {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
+}
+
+/** Owner-confirmed: start the resumable classification job. */
+export function confirmGutenberg(
+  sourceId: number,
+): Promise<GutenbergConfirmResponse> {
+  return api<GutenbergConfirmResponse>(
+    `/api/sources/gutenberg/${sourceId}/confirm`,
+    { method: "POST" },
+  );
 }
 
 export function submitAudio(file: File): Promise<AudioUploadResponse> {

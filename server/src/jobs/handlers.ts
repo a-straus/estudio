@@ -12,6 +12,11 @@ import {
   runTextIngestion,
   type TextIngestionPayload,
 } from "./textIngestion.js";
+import {
+  JOB_TYPE_GUTENBERG_INGESTION,
+  runGutenbergIngestion,
+  type GutenbergIngestionPayload,
+} from "./gutenbergIngestion.js";
 import { JOB_TYPE_GRAMMAR_SEED, runGrammarSeed } from "./grammarSeed.js";
 import {
   JOB_TYPE_QUIZ_GEN,
@@ -33,6 +38,17 @@ export function registerTextIngestionHandler(
 ): void {
   queue.register(JOB_TYPE_TEXT_INGESTION, (payload) =>
     runTextIngestion(db, llm, payload as TextIngestionPayload),
+  );
+}
+
+/** Register the gutenberg_ingestion job handler. */
+export function registerGutenbergIngestionHandler(
+  queue: JobQueue,
+  db: DB,
+  llm: LlmService,
+): void {
+  queue.register(JOB_TYPE_GUTENBERG_INGESTION, (payload) =>
+    runGutenbergIngestion(db, llm, payload as GutenbergIngestionPayload),
   );
 }
 

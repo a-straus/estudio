@@ -6,9 +6,12 @@ import {
   TextInput,
   type JobState,
 } from "../components";
+import type { GutenbergEstimateResponse } from "@estudio/shared";
 import {
+  confirmGutenberg,
   fetchJobs,
   submitAudio,
+  submitGutenberg,
   submitText,
   uploadPdf,
   ApiError,
@@ -89,6 +92,10 @@ function readProgress(progress: unknown): {
 export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
   const [method, setMethod] = useState<Method>("pdf");
   const [pasteText, setPasteText] = useState("");
+  const [gutenbergRef, setGutenbergRef] = useState("");
+  const [estimate, setEstimate] = useState<GutenbergEstimateResponse | null>(
+    null,
+  );
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [job, setJob] = useState<ActiveJob | null>(null);
@@ -105,6 +112,7 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
     setProgress(null);
     setBackgrounded(false);
     setFormError(null);
+    setEstimate(null);
   }, []);
 
   const onSubmitText = useCallback(async () => {
@@ -175,6 +183,57 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
       setSubmitting(false);
     }
   }, []);
+
+  // Step 1: fetch the book + get the upfront estimate (no spend yet).
+  const onEstimateGutenberg = useCallback(async () => {
+    if (gutenbergRef.trim() === "") {
+      setFormError("Enter a Gutenberg URL or ID first.");
+      return;
+    }
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const res = await submitGutenberg({ ref: gutenbergRef.trim() });
+      setEstimate(res);
+    } catch (err) {
+      setFormError(
+        err instanceof ApiError ? err.message : "Couldn't fetch that book.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }, [gutenbergRef]);
+
+  // Step 2: owner confirms the spend → start the resumable classification job.
+  const onConfirmGutenberg = useCallback(async () => {
+    if (!estimate) return;
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const res = await confirmGutenberg(estimate.sourceId);
+      setJob({
+        sourceId: res.sourceId,
+        jobId: res.jobId,
+        unit: "chunk",
+        total: res.pageCount,
+        costEstimateUsd: estimate.estimateUsd,
+      });
+      setProgress({
+        state: "queued",
+        done: 0,
+        failed: 0,
+        total: null,
+        phase: null,
+      });
+      setEstimate(null);
+    } catch (err) {
+      setFormError(
+        err instanceof ApiError ? err.message : "Couldn't start extraction.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }, [estimate]);
 
   // Poll job progress until the job reaches a terminal state (or is backgrounded).
   useEffect(() => {
@@ -295,22 +354,70 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
             </div>
           )}
 
-          {(method === "gutenberg" || method === "import") && (
+          {method === "gutenberg" && !estimate && (
+            <div className="ingest__paste">
+              <TextInput
+                label="Gutenberg URL or ID"
+                value={gutenbergRef}
+                onChange={setGutenbergRef}
+                placeholder="gutenberg.org/ebooks/10"
+                error={formError ?? undefined}
+                help="A Project Gutenberg ebook URL or its numeric ID."
+              />
+              <Button
+                variant="primary"
+                busy={submitting}
+                busyLabel="Fetching…"
+                disabled={gutenbergRef.trim() === ""}
+                onClick={() => void onEstimateGutenberg()}
+              >
+                Fetch &amp; estimate
+              </Button>
+            </div>
+          )}
+
+          {method === "gutenberg" && estimate && (
+            <div className="ingest__estimate">
+              <p className="ingest__estimate-line">
+                {estimate.title} · ~{estimate.wordCount.toLocaleString()} unique
+                candidate words · est. ${estimate.estimateUsd.toFixed(2)}
+              </p>
+              {estimate.estimateUsd > 5 && (
+                <p className="ingest__note" role="alert">
+                  This is a large book. Extracting it will spend about{" "}
+                  <strong>${estimate.estimateUsd.toFixed(2)}</strong> in one
+                  operation. It won't start until you confirm.
+                </p>
+              )}
+              <div className="ingest__job-actions">
+                <Button
+                  variant="primary"
+                  busy={submitting}
+                  busyLabel="Starting…"
+                  onClick={() => void onConfirmGutenberg()}
+                >
+                  Extract words
+                </Button>
+                <Button variant="quiet" onClick={reset}>
+                  Cancel
+                </Button>
+              </div>
+              {formError && (
+                <p className="ingest__error" role="alert">
+                  {formError}
+                </p>
+              )}
+            </div>
+          )}
+
+          {method === "import" && (
             <div className="ingest__coming-soon">
               <TextInput
-                label={
-                  method === "gutenberg"
-                    ? "Gutenberg URL or ID"
-                    : "Mochi export"
-                }
+                label="Mochi export"
                 value=""
                 onChange={() => {}}
                 disabled
-                placeholder={
-                  method === "gutenberg"
-                    ? "gutenberg.org/ebooks/2701"
-                    : "mochi-export.json"
-                }
+                placeholder="mochi-export.json"
               />
               <p className="ingest__note">Coming soon.</p>
             </div>
@@ -326,9 +433,11 @@ export function Ingest({ pollIntervalMs = 1000 }: IngestProps) {
 
       {job && progress && (
         <section className="ingest__job">
-          {job.isAudio && job.costEstimateUsd !== undefined && (
+          {job.costEstimateUsd !== undefined && (
             <p className="ingest__note">
-              {`est. $${job.costEstimateUsd.toFixed(2)} transcription`}
+              {job.isAudio
+                ? `est. $${job.costEstimateUsd.toFixed(2)} transcription`
+                : `est. $${job.costEstimateUsd.toFixed(2)}`}
             </p>
           )}
           {backgrounded ? (

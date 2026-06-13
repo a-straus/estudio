@@ -21,6 +21,8 @@ vi.mock("./ingestApi", () => ({
   submitText: vi.fn(),
   uploadPdf: vi.fn(),
   fetchJobs: vi.fn(),
+  submitGutenberg: vi.fn(),
+  confirmGutenberg: vi.fn(),
 }));
 
 import { Ingest } from "./Ingest";
@@ -30,6 +32,8 @@ const mockApi = api as unknown as {
   submitText: ReturnType<typeof vi.fn>;
   uploadPdf: ReturnType<typeof vi.fn>;
   fetchJobs: ReturnType<typeof vi.fn>;
+  submitGutenberg: ReturnType<typeof vi.fn>;
+  confirmGutenberg: ReturnType<typeof vi.fn>;
 };
 
 function job(over: Partial<JobView> & { id: number }): JobView {
@@ -51,6 +55,8 @@ beforeEach(() => {
   mockApi.uploadPdf.mockReset();
   mockApi.fetchJobs.mockReset();
   mockApi.fetchJobs.mockResolvedValue([]);
+  mockApi.submitGutenberg.mockReset();
+  mockApi.confirmGutenberg.mockReset();
 });
 
 describe("Ingest — idle", () => {
@@ -63,14 +69,77 @@ describe("Ingest — idle", () => {
     ).toBeDefined();
   });
 
-  it("renders Gutenberg and Import as disabled 'coming soon' panels", () => {
+  it("renders the Gutenberg URL/ID input (no longer 'coming soon')", () => {
     render(<Ingest />);
     fireEvent.click(screen.getByRole("radio", { name: "Gutenberg" }));
-    expect(screen.getByText("Coming soon.")).toBeDefined();
     const field = screen.getByLabelText(
       "Gutenberg URL or ID",
     ) as HTMLInputElement;
+    expect(field.disabled).toBe(false);
+    expect(
+      screen.getByRole("button", { name: "Fetch & estimate" }),
+    ).toBeDefined();
+  });
+
+  it("renders Import as a disabled 'coming soon' panel", () => {
+    render(<Ingest />);
+    fireEvent.click(screen.getByRole("radio", { name: "Import" }));
+    expect(screen.getByText("Coming soon.")).toBeDefined();
+    const field = screen.getByLabelText("Mochi export") as HTMLInputElement;
     expect(field.disabled).toBe(true);
+  });
+});
+
+describe("Ingest — Gutenberg", () => {
+  it("fetches an estimate, then confirms to start the job", async () => {
+    mockApi.submitGutenberg.mockResolvedValue({
+      sourceId: 42,
+      title: "The King James Bible",
+      wordCount: 12000,
+      batches: 60,
+      estimateUsd: 6.5,
+    });
+    mockApi.confirmGutenberg.mockResolvedValue({
+      sourceId: 42,
+      jobId: 9,
+      pageCount: 60,
+    });
+    render(<Ingest pollIntervalMs={10_000} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Gutenberg" }));
+
+    fireEvent.change(screen.getByLabelText("Gutenberg URL or ID"), {
+      target: { value: "10" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Fetch & estimate" }));
+
+    // Estimate region: title · candidate count · cost, with the >$5 spend
+    // warning made explicit before the owner proceeds.
+    await screen.findByText(/The King James Bible/);
+    expect(screen.getByText(/12,000 unique candidate words/)).toBeDefined();
+    // $6.50 appears in both the estimate line and the >$5 spend warning.
+    expect(screen.getAllByText(/\$6\.50/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/won't start until you confirm/)).toBeDefined();
+    expect(mockApi.submitGutenberg).toHaveBeenCalledWith({ ref: "10" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Extract words" }));
+
+    await waitFor(() =>
+      expect(mockApi.confirmGutenberg).toHaveBeenCalledWith(42),
+    );
+  });
+
+  it("surfaces a fetch error and does not confirm", async () => {
+    // A non-ApiError rejection falls back to the generic message.
+    mockApi.submitGutenberg.mockRejectedValue(new Error("network down"));
+    render(<Ingest pollIntervalMs={10_000} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Gutenberg" }));
+    fireEvent.change(screen.getByLabelText("Gutenberg URL or ID"), {
+      target: { value: "nonsense" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Fetch & estimate" }));
+
+    await screen.findByText(/Couldn't fetch that book\./);
+    expect(mockApi.confirmGutenberg).not.toHaveBeenCalled();
   });
 });
 
