@@ -20,7 +20,8 @@ export type LlmTask =
   | "quiz_grading"
   | "lesson_analysis"
   | "chat"
-  | "suggestion_select";
+  | "suggestion_select"
+  | "english_placement";
 
 export interface TaskConfig {
   provider: string;
@@ -54,6 +55,7 @@ const TASK_DEFAULTS: Record<LlmTask, TaskConfig> = {
   lesson_analysis: { provider: "anthropic", model: FABLE_REPLACEMENT },
   chat: { provider: "anthropic", model: "claude-haiku-4-5" },
   suggestion_select: { provider: "anthropic", model: "claude-sonnet-4-6" },
+  english_placement: { provider: "anthropic", model: FABLE_REPLACEMENT },
 };
 
 const DEFAULT_MAX_ATTEMPTS = 3;

@@ -257,7 +257,7 @@ interface DeckRow {
   id: number;
 }
 
-function deckIdForLanguage(db: DB, language: Language): number {
+export function deckIdForLanguage(db: DB, language: Language): number {
   const deck = db
     .prepare("SELECT id FROM deck WHERE language = ? ORDER BY id LIMIT 1")
     .get(language) as DeckRow | undefined;

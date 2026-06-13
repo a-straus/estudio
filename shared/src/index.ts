@@ -13,3 +13,4 @@ export * from "./quiz-api.js";
 export * from "./chat-api.js";
 export * from "./suggestions-api.js";
 export * from "./notes-api.js";
+export * from "./placement-api.js";

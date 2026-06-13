@@ -1,6 +1,7 @@
 import { AppShell, EmptyState } from "./components";
 import { Grammar } from "./screens/Grammar";
 import { Home } from "./screens/Home";
+import { Placement } from "./screens/Placement";
 import { Lesson } from "./screens/Lesson";
 import { Ingest } from "./screens/Ingest";
 import { Library } from "./screens/Library";
@@ -124,6 +125,14 @@ export function App() {
     return (
       <AppShell title="System" activeHref="/system">
         {() => <System />}
+      </AppShell>
+    );
+  }
+
+  if (window.location.pathname.startsWith("/placement")) {
+    return (
+      <AppShell title="English level" activeHref="/system">
+        {() => <Placement />}
       </AppShell>
     );
   }

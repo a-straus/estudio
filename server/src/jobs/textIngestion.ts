@@ -223,7 +223,7 @@ async function processChunk(
  * Strip only a leading/trailing fence — never backticks elsewhere, which could
  * appear legitimately inside a JSON string value.
  */
-function extractJson(text: string): unknown {
+export function extractJson(text: string): unknown {
   const trimmed = text
     .trim()
     .replace(/^```(?:json)?\s*/, "")
