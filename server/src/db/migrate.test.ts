@@ -38,6 +38,7 @@ describe("runMigrations with the real migrations", () => {
       "002_quiz_question_check.sql",
       "003_note_mixed_phase2.sql",
       "004_source_duration.sql",
+      "005_source_language.sql",
     ]);
     const tables = (
       db
@@ -101,6 +102,8 @@ describe("runMigrations with the real migrations", () => {
       ]),
     );
     expect(columns("review_log")).toContain("quiz_question_id");
+    // 005: source carries a language column (es|en), validated in code.
+    expect(columns("source")).toContain("language");
     expect(columns("quiz_question")).toEqual(
       expect.arrayContaining(["lesson_id", "prompt_version"]),
     );

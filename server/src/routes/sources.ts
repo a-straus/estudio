@@ -119,6 +119,7 @@ export function registerSourceRoutes(
         title,
         ref: originalName,
         storedPath,
+        language: "es", // Spanish workbooks
       });
       insertSourcePages(db, sourceId, pageCount);
       const jobId = enqueuePdfIngestion(db, queue, { sourceId });
@@ -193,6 +194,7 @@ export function registerSourceRoutes(
         title,
         ref: originalName,
         storedPath,
+        language: "es", // Spanish lessons
       });
       const jobId = enqueueLessonAudioIngestion(db, queue, { sourceId });
 
@@ -240,9 +242,9 @@ export function registerSourceRoutes(
     const sourceId = Number(
       db
         .prepare(
-          "INSERT INTO source (type, title, ref, transcript, created_at, updated_at) VALUES ('text', ?, NULL, ?, ?, ?)",
+          "INSERT INTO source (type, title, ref, transcript, language, created_at, updated_at) VALUES ('text', ?, NULL, ?, ?, ?, ?)",
         )
-        .run(title, text, now, now).lastInsertRowid,
+        .run(title, text, language, now, now).lastInsertRowid,
     );
     insertSourcePages(db, sourceId, pageCount);
     const jobId = enqueueTextIngestion(db, queue, { sourceId, language });

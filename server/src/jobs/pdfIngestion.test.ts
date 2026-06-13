@@ -104,6 +104,7 @@ function makeSource(fixture: string, pageCount: number): number {
     title: path.basename(fixture, ".pdf"),
     ref: path.basename(fixture),
     storedPath: fixture,
+    language: "es",
   });
   insertSourcePages(db, sourceId, pageCount);
   return sourceId;
@@ -226,6 +227,7 @@ describe("runPdfIngestion", () => {
       title: "Lectura general",
       ref: "lectura.pdf",
       storedPath: PARAGRAPH_PDF,
+    language: "es",
     });
     insertSourcePages(db, sourceId, 1);
     const { llm, calls } = makeLlm({
@@ -275,6 +277,7 @@ describe("runPdfIngestion", () => {
       title: "El subjuntivo: práctica",
       ref: "subjuntivo.pdf",
       storedPath: PARAGRAPH_PDF,
+    language: "es",
     });
     insertSourcePages(db, sourceId, 1);
     const { llm } = makeLlm({

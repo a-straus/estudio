@@ -400,6 +400,90 @@ describe("POST /api/sources/:id/extraction-items/confirm", () => {
   });
 });
 
+describe("language-aware materialization (English source)", () => {
+  function seedEnglishSource(): number {
+    const now = nowIso();
+    const r = db
+      .prepare(
+        "INSERT INTO source (type, title, language, created_at, updated_at) VALUES ('gutenberg', 'King James Bible', 'en', ?, ?)",
+      )
+      .run(now, now);
+    return Number(r.lastInsertRowid);
+  }
+
+  function englishDeckId(): number {
+    return (
+      db.prepare("SELECT id FROM deck WHERE language = 'en'").get() as {
+        id: number;
+      }
+    ).id;
+  }
+
+  it("routes confirmed words into the English deck with language 'en'", async () => {
+    const enSource = seedEnglishSource();
+    const learnId = seedItem(enSource, { term: "covenant" });
+    const knowId = seedItem(enSource, { term: "wilderness" });
+    await request(app)
+      .patch(`/api/extraction-items/${learnId}`)
+      .send({ decision: "learn" });
+    await request(app)
+      .patch(`/api/extraction-items/${knowId}`)
+      .send({ decision: "know" });
+
+    const res = await request(app)
+      .post(`/api/sources/${enSource}/extraction-items/confirm`)
+      .send({ batchNo: 1 });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ materialized: 2, dedupeHits: [] });
+
+    const enDeck = englishDeckId();
+    const words = db
+      .prepare("SELECT term, language, deck_id FROM word ORDER BY id")
+      .all() as { term: string; language: string; deck_id: number }[];
+    expect(words).toEqual([
+      { term: "covenant", language: "en", deck_id: enDeck },
+      { term: "wilderness", language: "en", deck_id: enDeck },
+    ]);
+    // Not the Spanish deck.
+    const esDeck = (
+      db.prepare("SELECT id FROM deck WHERE language = 'es'").get() as {
+        id: number;
+      }
+    ).id;
+    expect(words.every((w) => w.deck_id !== esDeck)).toBe(true);
+  });
+
+  it("dedupes English candidates only against English words", async () => {
+    // A Spanish word sharing the same normalized lemma as an English candidate
+    // must NOT cause a false dedupe hit — different language, different deck.
+    const now = nowIso();
+    db.prepare(
+      `INSERT INTO word (term, term_normalized, lemma, lemma_normalized, language, definition_en, status, deck_id, created_at, updated_at)
+       VALUES ('son', 'son', 'son', 'son', 'es', 'they are (ser)', 'learning', 1, ?, ?)`,
+    ).run(now, now);
+
+    const enSource = seedEnglishSource();
+    const id = seedItem(enSource, { term: "son", lemma: "son" });
+    await request(app)
+      .patch(`/api/extraction-items/${id}`)
+      .send({ decision: "learn" });
+
+    const res = await request(app)
+      .post(`/api/sources/${enSource}/extraction-items/confirm`)
+      .send({ batchNo: 1 });
+    expect(res.status).toBe(200);
+    expect(res.body.materialized).toBe(1);
+    expect(res.body.dedupeHits).toHaveLength(0);
+
+    // Now there are two 'son' rows: one es, one en, each in its own deck.
+    const sons = db
+      .prepare("SELECT language, deck_id FROM word WHERE term = 'son' ORDER BY id")
+      .all() as { language: string; deck_id: number }[];
+    expect(sons.map((w) => w.language)).toEqual(["es", "en"]);
+    expect(sons[1].deck_id).toBe(englishDeckId());
+  });
+});
+
 describe("POST /api/extraction-items/:id/resolve-dedupe", () => {
   function seedDupe(): number {
     const now = nowIso();
