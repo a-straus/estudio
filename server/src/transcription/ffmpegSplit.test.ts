@@ -108,4 +108,59 @@ describe("createFfmpegSplitAudio", () => {
 
     await expect(split(input, 1)).rejects.toBeInstanceOf(TranscriptionError);
   });
+
+  it("recovers via re-split when a tiny limit would over-split, never returning an oversized chunk", async () => {
+    // The re-split loop fires when an average-bitrate-derived segment still
+    // overshoots maxBytes (a localized VBR spike). The synthetic sine clip is
+    // effectively CBR, so a hand-crafted overshoot is impractical to construct
+    // here — the first average-based pass usually already fits. What this test
+    // pins is the loop's PUBLIC guarantee under a small limit: the splitter
+    // never returns a chunk above maxBytes, and the chunks together cover the
+    // whole input. With a small enough limit the loop is exercised if the first
+    // pass overshoots, and the invariant holds either way.
+    const durationSeconds = 30;
+    const data = await makeClip("mp3", durationSeconds);
+    const totalMinutes = durationSeconds / 60;
+    const maxBytes = 24 * 1024;
+    const input: AudioInput = {
+      data,
+      filename: "lesson.mp3",
+      minutes: totalMinutes,
+    };
+
+    // Sanity: the clip is well over the limit, so it must be split.
+    expect(data.length).toBeGreaterThan(maxBytes);
+
+    const chunks = await split(input, maxBytes);
+
+    // Multiple chunks, every one under the limit.
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const chunk of chunks) {
+      expect(chunk.data.length).toBeLessThanOrEqual(maxBytes);
+    }
+
+    // Coverage: chunk durations sum back to (approximately) the whole input.
+    const summedMinutes = chunks.reduce((sum, c) => sum + c.minutes, 0);
+    expect(summedMinutes).toBeGreaterThan(totalMinutes * 0.95);
+    expect(summedMinutes).toBeLessThan(totalMinutes * 1.05);
+  });
+
+  it("throws a non-retryable error after bounded attempts for an unsplittable input", async () => {
+    // maxBytes smaller than the smallest possible single segment: the bounded
+    // re-split loop can never satisfy it, so after its attempts it throws the
+    // non-retryable TranscriptionError (retryable:false — identical
+    // deterministic ffmpeg cannot improve on a retry).
+    const data = await makeClip("mp3", 10);
+    const input: AudioInput = { data, filename: "lesson.mp3", minutes: 10 / 60 };
+
+    let caught: unknown;
+    try {
+      await split(input, 1);
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(TranscriptionError);
+    expect((caught as TranscriptionError).retryable).toBe(false);
+  });
 });
