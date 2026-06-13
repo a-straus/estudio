@@ -61,6 +61,10 @@ Done levels (from GOAL.md §15):
 
 ## Backlog
 
+### Phase 3 — remaining (release-gating)
+
+- **gutenberg-extraction-maxtokens** [Phase-3, HIGH — gates the §14/§15 KJV full-book proof] **Found by the iter-162 LIVE full-KJV validation run** (logs/orchestrator/kjv-full-validation.log): multiple chunks fail with `SyntaxError: Unterminated string in JSON` in `extractJson` (server/src/jobs/textIngestion.ts:235), consistently truncating at ~20.3–20.5K chars → the LLM classification response is being **cut off at the token cap**. Root cause: `gutenberg_extraction` (server/src/llm/service.ts:49) sets **no `maxTokens`** so it uses `DEFAULT_MAX_TOKENS=8192` (anthropic.ts:23), but `CANDIDATES_PER_BATCH=200` (gutenbergIngestion.ts:20) produces JSON output that exceeds 8192 tokens for a full batch → truncation → bare `JSON.parse` throws → that chunk's words are silently lost (job is per-chunk fault-tolerant, so the run continues but coverage is incomplete). `TaskConfig` already supports `maxTokens?` (types.ts:24). **Fix (minimal+robust):** set `maxTokens: 16384` on the `gutenberg_extraction` task config (≈2x headroom for a 200-word batch) AND make `extractJson`/`processChunk` resilient — detect a truncated/oversized response and surface a clear error (ideally retry the chunk with a smaller sub-batch) instead of losing it silently. Add a test: a mocked provider returning a truncated/over-long response → assert the chunk is retried/handled, not silently dropped. Files: server/src/llm/service.ts + server/src/jobs/textIngestion.ts (and/or gutenbergIngestion.ts) + tests. File-disjoint from mochi-import. Schema NONE. opus/high (correctness-critical). **Next iteration: read the completed validation log first** (failure count + partial coverage + real cost), spawn this, then RE-RUN the full validation to tick §14 clean.
+
 ### Reviews (cadence)
 
 <!-- review-04 integrated iter 99 (commit b5c9126; REVIEW.md dispositioned + git-rm'd). -->
