@@ -10,7 +10,7 @@
 2. _Jobs_ — `JobStatus` rows: running (progress + stage), queued, finished (last 10, with durations). Quiet Button "Cancel" on running jobs.
 3. _Errors_ — last 20, each: timestamp, what failed, what the app did about it ("retried ×2, gave up — affected 3 words, flagged in Library").
 4. _Backup_ — "Last export · yesterday 23:40 · 2.1 MB" + primary-quiet Button "Export backup now"; restore via file picker.
-5. _Preferences_ — the owner's few settings as plain rows, one SegmentedControl each: "Definitions on reveal · Spanish / English / Both" (default Both), "New cards per day · 10 / 20 / 40" (default 20).
+5. _Preferences_ — the owner's few settings as plain rows, one SegmentedControl each: "Definitions on reveal · Spanish / English / Both" (default Both), "New cards per day · 10 / 20 / 40" (default 20). One more row, a quiet Button rather than a control — "English level · [Calibrate]" — opening the one-time English placement assessment (`screens/placement.md`); once run it reads "English level · ~C1 · 24 words · [Re-calibrate]" with the band/count in `--font-meta`.
 
 ```
 Desktop (mobile is the same column, narrower)
