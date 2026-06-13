@@ -13,9 +13,22 @@ import { nowIso, type DB } from "./db.js";
 // snake_case → camelCase mapping lives here, at the query layer. SQL for the
 // triage flow is isolated in this file so it never collides with queries.ts.
 
-// Extraction candidates are Spanish vocabulary: the ingestion pipeline emits
-// es candidates and dedupes against es words (see jobs/pdfIngestion.ts).
-const LANGUAGE = "es";
+// The triage path routes a candidate into the deck of its SOURCE's language:
+// a Spanish source materializes es words into the Spanish deck, an English
+// source (e.g. a Gutenberg ingest) materializes en words into the English
+// deck, and dedupe checks only against words of that same language. Sources
+// predating the language column read back NULL — fall back to Spanish, which
+// matches the 005 backfill.
+type Language = "es" | "en";
+const DEFAULT_LANGUAGE: Language = "es";
+
+/** The source's language, defaulting to Spanish for legacy/missing rows. */
+function sourceLanguage(db: DB, sourceId: number): Language {
+  const row = db
+    .prepare("SELECT language FROM source WHERE id = ?")
+    .get(sourceId) as { language: string | null } | undefined;
+  return row?.language === "en" ? "en" : DEFAULT_LANGUAGE;
+}
 
 interface ExtractionItemRowDb {
   id: number;
@@ -198,6 +211,7 @@ export function bulkDecision(
 function findExistingWord(
   db: DB,
   lemmaNormalized: string,
+  language: Language,
 ): {
   id: number;
   term: string;
@@ -208,7 +222,7 @@ function findExistingWord(
     .prepare(
       "SELECT id, term, definition_en AS definitionEn, status FROM word WHERE lemma_normalized = ? AND language = ? ORDER BY id LIMIT 1",
     )
-    .get(lemmaNormalized, LANGUAGE) as
+    .get(lemmaNormalized, language) as
     | { id: number; term: string; definitionEn: string | null; status: string }
     | undefined;
   return row ?? null;
@@ -222,6 +236,7 @@ function findExistingWord(
 function findWordByTerm(
   db: DB,
   term: string,
+  language: Language,
 ): {
   id: number;
   term: string;
@@ -232,7 +247,7 @@ function findWordByTerm(
     .prepare(
       "SELECT id, term, definition_en AS definitionEn, status FROM word WHERE term = ? AND language = ? ORDER BY id LIMIT 1",
     )
-    .get(term, LANGUAGE) as
+    .get(term, language) as
     | { id: number; term: string; definitionEn: string | null; status: string }
     | undefined;
   return row ?? null;
@@ -242,11 +257,11 @@ interface DeckRow {
   id: number;
 }
 
-function esDeckId(db: DB): number {
+function deckIdForLanguage(db: DB, language: Language): number {
   const deck = db
     .prepare("SELECT id FROM deck WHERE language = ? ORDER BY id LIMIT 1")
-    .get(LANGUAGE) as DeckRow | undefined;
-  if (!deck) throw new Error("no Spanish deck seeded");
+    .get(language) as DeckRow | undefined;
+  if (!deck) throw new Error(`no deck seeded for language ${language}`);
   return deck.id;
 }
 
@@ -255,6 +270,7 @@ function materializeWord(
   db: DB,
   item: ExtractionItemView,
   status: "new" | "known",
+  language: Language,
   deckId: number,
   now: string,
 ): number {
@@ -271,7 +287,7 @@ function materializeWord(
       normalize(item.term),
       item.lemma,
       lemmaKey(item),
-      LANGUAGE,
+      language,
       item.partOfSpeech,
       item.definitionEs,
       item.definitionEn,
@@ -312,7 +328,8 @@ export function confirmBatch(
   const items = listBatchItems(db, sourceId, batchNo).filter(
     (it) => it.decidedAt === null && it.decision !== "pending",
   );
-  const deckId = esDeckId(db);
+  const language = sourceLanguage(db, sourceId);
+  const deckId = deckIdForLanguage(db, language);
   const now = nowIso();
   const response: ConfirmResponse = {
     materialized: 0,
@@ -333,13 +350,14 @@ export function confirmBatch(
         continue;
       }
       const existing =
-        findExistingWord(db, lemmaKey(item)) ?? findWordByTerm(db, item.term);
+        findExistingWord(db, lemmaKey(item), language) ??
+        findWordByTerm(db, item.term, language);
       if (existing) {
         hits.push({ item, existingWord: existing });
         continue;
       }
       const status = item.decision === "know" ? "known" : "new";
-      materializeWord(db, item, status, deckId, now);
+      materializeWord(db, item, status, language, deckId, now);
       response.materialized += 1;
       if (status === "known") response.known += 1;
       else response.learn += 1;
@@ -370,10 +388,12 @@ export function resolveDedupe(
   if (item.decidedAt !== null) return "already_confirmed";
   if (item.decision !== "know" && item.decision !== "learn")
     return "not_dedupe";
+  const language = sourceLanguage(db, item.sourceId);
   // Same lookup order as confirmBatch: lemma match first, then exact term
   // (the homograph case, where only the term collides).
   const existing =
-    findExistingWord(db, lemmaKey(item)) ?? findWordByTerm(db, item.term);
+    findExistingWord(db, lemmaKey(item), language) ??
+    findWordByTerm(db, item.term, language);
   if (!existing) return "not_dedupe";
 
   const now = nowIso();
@@ -388,12 +408,19 @@ export function resolveDedupe(
   // term duplicate — surface that rather than crashing.
   const clash = db
     .prepare("SELECT id FROM word WHERE term = ? AND language = ? LIMIT 1")
-    .get(item.term, LANGUAGE) as { id: number } | undefined;
+    .get(item.term, language) as { id: number } | undefined;
   if (clash) return "term_taken";
 
   const status = item.decision === "know" ? "known" : "new";
   db.transaction(() => {
-    materializeWord(db, item, status, esDeckId(db), now);
+    materializeWord(
+      db,
+      item,
+      status,
+      language,
+      deckIdForLanguage(db, language),
+      now,
+    );
   })();
   return getExtractionItem(db, id)!;
 }

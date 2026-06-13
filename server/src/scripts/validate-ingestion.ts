@@ -59,6 +59,7 @@ async function main(): Promise<void> {
       title: path.basename(fixture, ".pdf"),
       ref: fixture,
       storedPath: filePath,
+      language: "es",
     });
     insertSourcePages(db, sourceId, pageCount);
 

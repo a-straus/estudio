@@ -128,6 +128,7 @@ function makeAudioSource(filename = "lesson.m4a", bytes = 32): number {
     title: "Tuesday lesson",
     ref: filename,
     storedPath,
+    language: "es",
   });
 }
 

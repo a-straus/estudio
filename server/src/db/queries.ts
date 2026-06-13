@@ -100,14 +100,23 @@ export function insertSource(
     title: string;
     ref: string;
     storedPath: string;
+    language: "es" | "en";
   },
 ): number {
   const now = nowIso();
   const result = db
     .prepare(
-      "INSERT INTO source (type, title, ref, stored_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO source (type, title, ref, stored_path, language, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
     )
-    .run(source.type, source.title, source.ref, source.storedPath, now, now);
+    .run(
+      source.type,
+      source.title,
+      source.ref,
+      source.storedPath,
+      source.language,
+      now,
+      now,
+    );
   return Number(result.lastInsertRowid);
 }
 

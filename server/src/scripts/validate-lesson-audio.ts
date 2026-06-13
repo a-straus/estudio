@@ -84,6 +84,7 @@ async function main(): Promise<void> {
     title: path.basename(fixture, path.extname(fixture)),
     ref: fixture,
     storedPath: filePath,
+    language: "es",
   });
 
   rule(`SOURCE ${sourceId}: ${fixture}  (${mb.toFixed(1)} MB, >24 MB → split path)`);

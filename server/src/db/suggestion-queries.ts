@@ -246,8 +246,8 @@ export function addWordToDeck(db: DB, payload: WordPayload): number {
 
   const sourceResult = db
     .prepare(
-      `INSERT INTO source (type, title, created_at, updated_at)
-       VALUES ('suggestion', ?, ?, ?)`,
+      `INSERT INTO source (type, title, language, created_at, updated_at)
+       VALUES ('suggestion', ?, 'es', ?, ?)`,
     )
     .run(payload.term, now, now);
   const sourceId = Number(sourceResult.lastInsertRowid);
