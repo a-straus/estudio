@@ -54,7 +54,7 @@ available if you'd rather I pick it up while the egress is pending; say so in FE
 holding all Phase-3 spawning until the egress lands (I will not guess around the firewall).
 
 **Your answer:**
-
+-done and done. firewall edited and mochi ingest file dropped in docs. You'll have to figure out how to read it, idk how.
 
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 

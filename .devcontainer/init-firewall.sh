@@ -52,6 +52,7 @@ collect_allowlist() {
         "nodejs.org" \
         "merriam-webster.com" \
         "api.openai.com" \
+        "gutenberg.org" \
         "www.merriam-webster.com"; do
         echo "Resolving $domain..."
         ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
