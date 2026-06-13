@@ -58,6 +58,23 @@ export function confirmGutenberg(
   );
 }
 
+/** Summary of a Mochi import. Local — a 3-field shape doesn't justify a shared type. */
+export interface MochiImportResponse {
+  imported: number;
+  duplicates: number;
+  total: number;
+  deck: string;
+}
+
+export function uploadMochi(file: File): Promise<MochiImportResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  return api<MochiImportResponse>("/api/sources/mochi", {
+    method: "POST",
+    body: form,
+  });
+}
+
 export function submitAudio(file: File): Promise<AudioUploadResponse> {
   const form = new FormData();
   form.append("file", file);

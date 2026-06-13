@@ -20,6 +20,7 @@ import {
   listSourcePages,
 } from "../db/queries.js";
 import { enqueuePdfIngestion } from "../jobs/pdfIngestion.js";
+import { importMochiCards, parseMochiExport } from "../jobs/mochiImport.js";
 import { enqueueLessonAudioIngestion } from "../jobs/lessonAudioIngestion.js";
 import {
   chunkCount,
@@ -172,6 +173,48 @@ export function registerSourceRoutes(
         pageCount,
       };
       res.status(201).json(body);
+    },
+  );
+
+  app.post(
+    "/api/sources/mochi",
+    upload.single("file"),
+    (req: Request, res: Response) => {
+      if (!req.file) {
+        res.status(400).json({
+          error: {
+            message: 'multipart field "file" is required',
+            code: "missing_file",
+          },
+        });
+        return;
+      }
+
+      const originalName = req.file.originalname || "export.mochi";
+      const safeName = path.basename(originalName).replace(/[^\w.\- ]+/g, "_");
+      const mochiDir = path.join(dataDir, "mochi");
+      fs.mkdirSync(mochiDir, { recursive: true });
+      const storedPath = path.join(
+        mochiDir,
+        `${nowIso().replace(/[:.]/g, "-")}-${safeName}`,
+      );
+      fs.writeFileSync(storedPath, req.file.buffer);
+
+      try {
+        const parsed = parseMochiExport(req.file.buffer);
+        const summary = importMochiCards(db, parsed, {
+          ref: originalName,
+          storedPath,
+        });
+        res.json(summary);
+      } catch (err) {
+        res.status(400).json({
+          error: {
+            message: err instanceof Error ? err.message : "invalid .mochi file",
+            code: "invalid_mochi",
+          },
+        });
+      }
     },
   );
 

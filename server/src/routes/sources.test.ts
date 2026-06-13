@@ -20,6 +20,9 @@ const fixturesDir = fileURLToPath(
 );
 const GRAMMAR_PDF = path.join(fixturesDir, "Grammar worksheet to process.pdf");
 const PARAGRAPH_PDF = path.join(fixturesDir, "Paragraph to Find words in.pdf");
+const MOCHI_FIXTURE = fileURLToPath(
+  new URL("../../../docs/fixtures/mochi/Vocab.mochi", import.meta.url),
+);
 
 let dataDir: string;
 let db: DB;
@@ -313,6 +316,65 @@ describe("POST /api/sources/pdf", () => {
     expect(db.prepare("SELECT COUNT(*) AS c FROM source").get()).toEqual({
       c: 0,
     });
+  });
+});
+
+describe("POST /api/sources/mochi", () => {
+  it("imports the fixture's cards into the 'en' deck, deduped on re-upload", async () => {
+    const res = await request(app)
+      .post("/api/sources/mochi")
+      .attach("file", MOCHI_FIXTURE);
+
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBeGreaterThan(300);
+    expect(res.body.imported).toBeGreaterThan(300);
+    // total = imported + duplicates (the fixture has a few repeated terms that
+    // dedupe within the import itself).
+    expect(res.body.imported + res.body.duplicates).toBe(res.body.total);
+
+    // Words are queryable in the 'en' deck with the owner's definitions.
+    const mammock = db
+      .prepare(
+        "SELECT definition_en, status, definition_origin FROM word WHERE language = 'en' AND term = 'Mammock'",
+      )
+      .get() as {
+      definition_en: string;
+      status: string;
+      definition_origin: string;
+    };
+    expect(mammock).toEqual({
+      definition_en: "to tear into fragments",
+      status: "learning",
+      definition_origin: "owner",
+    });
+
+    // A mochi provenance source row was created.
+    const source = db
+      .prepare("SELECT type, ref FROM source WHERE type = 'mochi'")
+      .get() as { type: string; ref: string };
+    expect(source).toEqual({ type: "mochi", ref: "Vocab.mochi" });
+
+    // Re-upload: every card is now a duplicate, none added.
+    const again = await request(app)
+      .post("/api/sources/mochi")
+      .attach("file", MOCHI_FIXTURE);
+    expect(again.status).toBe(200);
+    expect(again.body.imported).toBe(0);
+    expect(again.body.duplicates).toBe(res.body.total);
+  });
+
+  it("rejects a non-zip buffer with 400 invalid_mochi", async () => {
+    const res = await request(app)
+      .post("/api/sources/mochi")
+      .attach("file", Buffer.from("definitely not a zip"), "garbage.mochi");
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("invalid_mochi");
+  });
+
+  it("rejects a request without a file", async () => {
+    const res = await request(app).post("/api/sources/mochi");
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("missing_file");
   });
 });
 
