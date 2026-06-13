@@ -468,10 +468,40 @@ export function registerSourceRoutes(
     db.prepare(
       "UPDATE source_page SET status = 'pending', error = NULL, updated_at = ? WHERE id = ?",
     ).run(nowIso(), page.id);
-    const jobId = enqueuePdfIngestion(db, queue, {
-      sourceId: page.sourceId,
-      pageIds: [page.id],
-    });
+    const source = getSource(db, page.sourceId);
+    if (!source) {
+      res.status(404).json({
+        error: { message: "Source not found", code: "not_found" },
+      });
+      return;
+    }
+    let jobId: number;
+    if (source.type === "pdf") {
+      jobId = enqueuePdfIngestion(db, queue, {
+        sourceId: page.sourceId,
+        pageIds: [page.id],
+      });
+    } else if (source.type === "gutenberg") {
+      jobId = enqueueGutenbergIngestion(db, queue, {
+        sourceId: page.sourceId,
+        pageIds: [page.id],
+      });
+    } else if (source.type === "text") {
+      const language = detectLanguage(source.transcript ?? "");
+      jobId = enqueueTextIngestion(db, queue, {
+        sourceId: page.sourceId,
+        language,
+        pageIds: [page.id],
+      });
+    } else {
+      res.status(422).json({
+        error: {
+          message: `page retry is not supported for source type '${source.type}'`,
+          code: "unsupported_source_type",
+        },
+      });
+      return;
+    }
     const body: RetryPageResponse = { jobId };
     res.json(body);
   });

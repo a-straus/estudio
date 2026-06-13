@@ -415,6 +415,44 @@ describe("POST /api/source-pages/:id/retry", () => {
     const res = await request(app).post("/api/source-pages/9999/retry");
     expect(res.status).toBe(404);
   });
+
+  it("enqueues a pdf_ingestion job when retrying a failed PDF source page", async () => {
+    const { pageId } = await uploadAndFailPage();
+    const res = await request(app).post(`/api/source-pages/${pageId}/retry`);
+    expect(res.status).toBe(200);
+    const job = db
+      .prepare("SELECT type FROM job WHERE id = ?")
+      .get(res.body.jobId) as { type: string };
+    expect(job.type).toBe("pdf_ingestion");
+  });
+
+  it("enqueues a gutenberg_ingestion job (not pdf_ingestion) when retrying a failed Gutenberg source page", async () => {
+    const now = new Date().toISOString();
+    const sourceId = Number(
+      db
+        .prepare(
+          "INSERT INTO source (type, title, transcript, created_at, updated_at) VALUES ('gutenberg', 'Test Book', 'some text here', ?, ?)",
+        )
+        .run(now, now).lastInsertRowid,
+    );
+    const pageId = Number(
+      db
+        .prepare(
+          "INSERT INTO source_page (source_id, page_no, kind, status, error, created_at, updated_at) VALUES (?, 1, 'vocab', 'failed', 'boom', ?, ?)",
+        )
+        .run(sourceId, now, now).lastInsertRowid,
+    );
+
+    const res = await request(app).post(`/api/source-pages/${pageId}/retry`);
+    expect(res.status).toBe(200);
+    expect(res.body.jobId).toBeGreaterThan(0);
+
+    const job = db
+      .prepare("SELECT type FROM job WHERE id = ?")
+      .get(res.body.jobId) as { type: string };
+    expect(job.type).toBe("gutenberg_ingestion");
+    expect(job.type).not.toBe("pdf_ingestion");
+  });
 });
 
 describe("end-to-end: upload → job → triage candidates", () => {
