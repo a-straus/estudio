@@ -232,7 +232,20 @@ export function extractJson(text: string): unknown {
   const start = trimmed.search(/[{[]/);
   if (start === -1)
     throw new Error(`no JSON in LLM response: ${text.slice(0, 200)}`);
-  return JSON.parse(trimmed.slice(start));
+  const json = trimmed.slice(start);
+  try {
+    return JSON.parse(json);
+  } catch (err) {
+    // The usual cause is a response truncated at the output-token cap (cut off
+    // mid-string), which surfaces as a bare "Unterminated string in JSON".
+    // Re-throw with the length and tail so the truncation is diagnosable.
+    const tail = json.slice(-120);
+    const cause = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `LLM JSON parse failed (response likely truncated at the output-token ` +
+        `cap): ${cause}. length=${json.length}, tail=${JSON.stringify(tail)}`,
+    );
+  }
 }
 
 /**

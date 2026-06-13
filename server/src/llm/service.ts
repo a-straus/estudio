@@ -26,6 +26,11 @@ export type LlmTask =
 export interface TaskConfig {
   provider: string;
   model: string;
+  /**
+   * Output-token cap for the call. Omitted → the adapter's DEFAULT_MAX_TOKENS
+   * (8192). Only tasks whose response can exceed that default set it explicitly.
+   */
+  maxTokens?: number;
 }
 
 // ── FABLE-DISABLED (2026-06-13, iteration 149) ──────────────────────────────
@@ -46,7 +51,17 @@ const TASK_DEFAULTS: Record<LlmTask, TaskConfig> = {
   pdf_extraction: { provider: "anthropic", model: FABLE_REPLACEMENT },
   page_classification: { provider: "anthropic", model: FABLE_REPLACEMENT },
   text_extraction: { provider: "anthropic", model: FABLE_REPLACEMENT },
-  gutenberg_extraction: { provider: "anthropic", model: FABLE_REPLACEMENT },
+  // 200 candidates × compact per-word classification JSON ≈ ~8k output tokens,
+  // which overruns the adapter's 8192 default and truncates the response
+  // mid-string (extractJson then throws). 16384 gives ~2x headroom, well within
+  // the model's output limit. CANDIDATES_PER_BATCH is fixed (job-resume relies
+  // on it being deterministic), so the token cap — not the batch size — is the
+  // lever here.
+  gutenberg_extraction: {
+    provider: "anthropic",
+    model: FABLE_REPLACEMENT,
+    maxTokens: 16384,
+  },
   word_definition: { provider: "anthropic", model: FABLE_REPLACEMENT },
   grammar_curriculum: { provider: "anthropic", model: FABLE_REPLACEMENT },
   grammar_lesson: { provider: "anthropic", model: FABLE_REPLACEMENT },
@@ -113,6 +128,7 @@ export class LlmService {
       provider:
         override.provider ?? this.env[`LLM_${envKey}_PROVIDER`] ?? def.provider,
       model: override.model ?? this.env[`LLM_${envKey}_MODEL`] ?? def.model,
+      maxTokens: override.maxTokens ?? def.maxTokens,
     };
   }
 
@@ -150,7 +166,11 @@ export class LlmService {
       task,
       substitutions,
     );
-    const { provider: providerName, model } = this.resolveTaskConfig(task);
+    const {
+      provider: providerName,
+      model,
+      maxTokens,
+    } = this.resolveTaskConfig(task);
     const provider = this.providers[providerName];
 
     for (let attempt = 1; ; attempt++) {
@@ -162,8 +182,8 @@ export class LlmService {
           });
         }
         const response = await (attachments
-          ? provider.vision({ model, prompt, attachments })
-          : provider.complete({ model, prompt }));
+          ? provider.vision({ model, prompt, attachments, maxTokens })
+          : provider.complete({ model, prompt, maxTokens }));
         this.logCall(task, providerName, model, promptVersion, {
           latencyMs: Date.now() - startedAt,
           response,
