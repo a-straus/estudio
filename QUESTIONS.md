@@ -21,41 +21,6 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
 
-### [PENDING] Phase 3 needs a firewall egress (gutenberg.org) to start — and, later, Mochi fixtures
-
-**Where the project is:** Phases 1 and 2 are complete, the review-08 fix wave has landed
-(trunk green — **625 tests**), and the iter-142 FEEDBACK feature tail is essentially done —
-the last two items (the ffmpeg oversized-segment re-split, and `/ingest` desktop-only)
-integrated this iteration; one trivial dead-CSS nit is in flight. The next real chunk of
-work is **Phase 3 (GOAL §5: English — Gutenberg/KJV ingestion → English calibration →
-Mochi import)**, and its thinnest end-to-end slice is **Gutenberg/KJV ingestion (a Phase-3
-Must, §6.1/§3 goal 10)**.
-
-**The blocker (human-only):** that slice can't start because **`gutenberg.org` is not on the
-container firewall allowlist** — `.devcontainer/init-firewall.sh` currently allows only npm,
-the Anthropic + OpenAI APIs, and GitHub. Fetching a Gutenberg book by URL/ID needs that host
-reachable. This is the same class of change as the `api.openai.com` egress you added for
-Phase-2 transcription, and the orchestrator never edits the firewall.
-
-**What I need from you to start Phase 3:**
-1. **(Blocks the Phase-3 Must — KJV ingestion.)** Add `gutenberg.org` and `www.gutenberg.org`
-   to the allowlist in `.devcontainer/init-firewall.sh` (the KJV plain-text fetch may redirect
-   to the `www.` host), then rebuild the container. The instant it's live I'll decompose Phase 3
-   and spawn the Gutenberg/KJV ingestion (archaic-aware college-student rubric per §6.1 — keep
-   *concupiscence/propitiation/firmament*, drop *thee/thou/saith* as noise — likely-known
-   calibration on your learned words, ~50-word triage batches, coverage indicator).
-2. **(Needed later — when convenient, NOT a blocker now.)** Drop 3–5 exported Mochi cards into
-   `docs/fixtures/mochi/` (§17). This gates only the **Mochi importer** (a Phase-3 *Could*), so
-   it can follow the Gutenberg work — but having it there avoids a second wait.
-
-**Nothing else is stalled meanwhile:** the trivial dead-CSS nit is in flight, and
-`suggestion-streaming` (a deferred *Should* — additive streaming on the LlmProvider seam) is
-available if you'd rather I pick it up while the egress is pending; say so in FEEDBACK. I'm
-holding all Phase-3 spawning until the egress lands (I will not guess around the firewall).
-
-**Your answer:**
--done and done. firewall edited and mochi ingest file dropped in docs. You'll have to figure out how to read it, idk how.
-
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
 You asked for "a list of everything that's been implemented and what I need to
@@ -112,6 +77,32 @@ see FEEDBACK.md ## Processed for the task each maps to):
 ## Answered
 
 <!-- Resolved questions are moved here by the orchestrator for record-keeping. -->
+
+### [ANSWERED] Phase 3 firewall egress (gutenberg.org) + Mochi fixture — owner landed both
+
+You asked (iter 150) for `gutenberg.org` on the firewall allowlist (blocks the Phase-3 Must,
+Gutenberg/KJV ingestion) and, when convenient, 3–5 Mochi cards in `docs/fixtures/mochi/`
+(gates the Phase-3 *Could*, Mochi import).
+
+**Your answer:** "done and done. firewall edited and mochi ingest file dropped in docs.
+You'll have to figure out how to read it, idk how."
+
+**Resolution (orchestrator, iteration 152):** Both verified BY TOOL (not assumed from the
+written answer — the owner historically resolves blockers by silent action). Commit 920d50d
+added `gutenberg.org` to `.devcontainer/init-firewall.sh:55` **and the firewall is live** —
+`curl https://www.gutenberg.org/ebooks/10.txt.utf-8` returned **HTTP 200** (redirect to
+`/cache/epub/10/pg10.txt`, ebook 10 = the KJV itself), so egress works end-to-end, not just
+script-edited. The Mochi fixture `docs/fixtures/mochi/Vocab.mochi` (48 KB) is present; I
+"figured out how to read it" — it is a **ZIP containing a single `data.json` (326 KB) in
+Cognitect Transit-JSON** (`~:`/`~#`/`~t` tags; each card has `content` "front---back",
+`name`, `pos`, `reviews[]` SRS history, `tags`). **Phase 3 is unblocked.** Acted this
+iteration: decomposed Phase 3 (schema-gate-005 → gutenberg-kjv-ingestion →
+english-placement-assessment → mochi-import), opened the schema gate for a per-source
+`language` column (the triage→deck path is hardcoded Spanish, so English words can't route
+to the English deck), and spawned **schema-gate-005** alone (the gate runs one model change
+at a time). The Gutenberg/KJV ingestion forks from the migrated base next iteration. Mochi
+format is captured for the importer (a Could, after Gutenberg + calibration). Recorded in
+DECISIONS.md iter 152.
 
 ### [ANSWERED] Disable /ingest on mobile — owner chose A (override the GOAL §15 phone-ingest sub-criterion)
 
