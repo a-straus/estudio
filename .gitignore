@@ -9,6 +9,15 @@ node_modules/
 /projects/
 .claude/settings.local.json
 
+# Orchestrator runtime artifacts (per CLAUDE.md — never committed)
+/logs/
+.worker-done
+.worker-done.prev
+.worker-*
+STOP
+.release-done
+.orchestrator.pid
+
 # Estudio app
 .env
 /data/
