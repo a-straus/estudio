@@ -109,6 +109,16 @@ describe("LlmService.resolveTaskConfig", () => {
     expect(llm.resolveTaskConfig("gutenberg_extraction").maxTokens).toBe(16384);
   });
 
+  // Owner cost directive (FEEDBACK iter 165): the book-scale extraction runs on
+  // sonnet, not FABLE_REPLACEMENT/opus — keep/drop calls go through human triage,
+  // so cost beats top-model accuracy here. See DECISIONS iteration 165.
+  it("defaults gutenberg_extraction to the cheaper claude-sonnet-4-6", () => {
+    const llm = new LlmService(db, {}, { env: {} });
+    expect(llm.resolveTaskConfig("gutenberg_extraction").model).toBe(
+      "claude-sonnet-4-6",
+    );
+  });
+
   it("leaves other tasks on the adapter default (no maxTokens)", () => {
     const llm = new LlmService(db, {}, { env: {} });
     expect(

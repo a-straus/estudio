@@ -57,9 +57,22 @@ const TASK_DEFAULTS: Record<LlmTask, TaskConfig> = {
   // the model's output limit. CANDIDATES_PER_BATCH is fixed (job-resume relies
   // on it being deterministic), so the token cap — not the batch size — is the
   // lever here.
+  //
+  // ── COST: book-scale, so deliberately NOT FABLE_REPLACEMENT (opus) ──────────
+  // Owner directive (FEEDBACK, iteration 165): use cheaper models for large
+  // batch operations. The live KJV §14 proof on opus cost $7.41 (46 calls, full
+  // book). The keep/drop calls all pass through human triage (triage IS the
+  // check — GOAL §16), so classification accuracy here does NOT ride on the top
+  // model the way word_definition / quiz_cloze do (those keep FABLE_REPLACEMENT).
+  // Sonnet (in $3 / out $15 vs opus $5 / $25 ≈ 0.6×) reruns the same full book at
+  // ~$4.45 — ~40% less, and back under the §13 $5 confirm gate. The owner named
+  // sonnet explicitly; cheaper tiers exist (haiku) but classification still feeds
+  // triage, so we don't undercut the owner's call. Pinned to a literal, not
+  // FABLE_REPLACEMENT: a standing cost decision, kept even when Fable returns.
+  // Reversion: change the model string. See DECISIONS iteration 165.
   gutenberg_extraction: {
     provider: "anthropic",
-    model: FABLE_REPLACEMENT,
+    model: "claude-sonnet-4-6",
     maxTokens: 16384,
   },
   word_definition: { provider: "anthropic", model: FABLE_REPLACEMENT },
