@@ -23,6 +23,18 @@ const PRICING: Record<string, { input: number; output: number }> = {
 const DEFAULT_MAX_TOKENS = 8192;
 
 /**
+ * USD-per-million-token pricing for a model, or null when the model is unknown
+ * (so callers estimate nothing rather than guess). Exposed so upfront cost
+ * estimates (e.g. the Gutenberg ingest confirm step) reuse the same table that
+ * costs actual llm_call rows.
+ */
+export function modelPricing(
+  model: string,
+): { input: number; output: number } | null {
+  return PRICING[model] ?? null;
+}
+
+/**
  * The Anthropic adapter. The client is created lazily so the server boots
  * without an API key; calls then fail with a logged, non-retryable LlmError.
  * SDK auto-retry is disabled — the retry policy (and per-attempt llm_call

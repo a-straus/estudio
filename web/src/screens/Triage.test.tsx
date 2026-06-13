@@ -19,6 +19,7 @@ vi.mock("./triageApi", () => ({
     }
   },
   fetchBatch: vi.fn(),
+  fetchCoverage: vi.fn(),
   patchDecision: vi.fn(),
   bulkDecide: vi.fn(),
   confirmBatch: vi.fn(),
@@ -31,6 +32,7 @@ import * as api from "./triageApi";
 const mockApi = api as unknown as {
   ApiError: new (message: string, code: string) => Error;
   fetchBatch: ReturnType<typeof vi.fn>;
+  fetchCoverage: ReturnType<typeof vi.fn>;
   patchDecision: ReturnType<typeof vi.fn>;
   bulkDecide: ReturnType<typeof vi.fn>;
   confirmBatch: ReturnType<typeof vi.fn>;
@@ -96,6 +98,14 @@ const learnButton = () => screen.getByRole("button", { name: "Learn" });
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Coverage is best-effort background data; default it so the screen's load
+  // effect never calls an unmocked function.
+  mockApi.fetchCoverage.mockResolvedValue({
+    total: 0,
+    triaged: 0,
+    kept: 0,
+    untested: 0,
+  });
   // jsdom implements neither of these; the screen calls both.
   Element.prototype.scrollIntoView = vi.fn();
   assignSpy = vi.fn();

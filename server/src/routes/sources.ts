@@ -4,6 +4,8 @@ import multer from "multer";
 import type { Express, Request, Response } from "express";
 import type {
   AudioUploadResponse,
+  GutenbergConfirmResponse,
+  GutenbergEstimateResponse,
   PdfUploadResponse,
   RetryPageResponse,
   SourceDetailResponse,
@@ -24,6 +26,18 @@ import {
   detectLanguage,
   enqueueTextIngestion,
 } from "../jobs/textIngestion.js";
+import {
+  deriveGutenbergTitle,
+  resolveGutenbergUrl,
+  stripGutenbergBoilerplate,
+} from "../jobs/gutenbergPrepass.js";
+import {
+  enqueueGutenbergIngestion,
+  estimateGutenbergCostUsd,
+  gutenbergChunkCount,
+  gutenbergWordCount,
+} from "../jobs/gutenbergIngestion.js";
+import type { LlmService } from "../llm/service.js";
 import type { JobQueue } from "../jobs/queue.js";
 import { getPageCount } from "../pdf/pages.js";
 import { estimateWhisperCostUsd } from "../transcription/openai.js";
@@ -53,17 +67,44 @@ function extOf(filename: string): string {
   return i >= 0 ? filename.slice(i + 1).toLowerCase() : "";
 }
 
+/** Fetches a Gutenberg plain-text URL → its body. Injectable for tests. */
+export type FetchGutenberg = (url: string) => Promise<string>;
+
+/** Default fetch seam: polite UA, follows redirects to /cache/epub/<id>/. */
+const defaultFetchGutenberg: FetchGutenberg = async (url) => {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "estudio/1.0 (personal language-learning app)" },
+    redirect: "follow",
+  });
+  if (!res.ok) {
+    throw new Error(`gutenberg fetch failed: HTTP ${res.status}`);
+  }
+  return res.text();
+};
+
+// The estimate must resolve the gutenberg_extraction model to price it. When no
+// LlmService is wired (some test apps), fall back to the task's documented
+// default model so the estimate is still sensible.
+const ESTIMATE_FALLBACK_MODEL = "claude-opus-4-8";
+
 export function registerSourceRoutes(
   app: Express,
   db: DB,
   queue: JobQueue,
   dataDir: string,
-  // Injectable duration seam (defaults to the music-metadata impl) so the audio
-  // route is unit-testable without a real audio file. createApp passes 4 args,
-  // so this stays optional and app.ts is untouched.
-  opts: { readAudioDuration?: ReadAudioDurationMinutes } = {},
+  // Injectable seams (default to the real impls) so the audio and Gutenberg
+  // routes are unit-testable without a real file / live network.
+  opts: {
+    readAudioDuration?: ReadAudioDurationMinutes;
+    fetchGutenberg?: FetchGutenberg;
+    llm?: LlmService;
+  } = {},
 ): void {
   const readAudioDuration = opts.readAudioDuration ?? readAudioDurationMinutes;
+  const fetchGutenberg = opts.fetchGutenberg ?? defaultFetchGutenberg;
+  const estimateModel = () =>
+    opts.llm?.resolveTaskConfig("gutenberg_extraction").model ??
+    ESTIMATE_FALLBACK_MODEL;
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_UPLOAD_BYTES },
@@ -252,6 +293,137 @@ export function registerSourceRoutes(
     const body: TextIngestResponse = { sourceId, jobId, pageCount };
     res.status(201).json(body);
   });
+
+  // Fetch a Gutenberg book and return an UPFRONT cost estimate. The expensive
+  // classification is NOT started here — the owner confirms it (GOAL §13) via
+  // the /confirm route once they've seen the spend. The fetched, license-
+  // stripped text is persisted now (on transcript + a books/<id>.txt record) so
+  // confirm needs no re-fetch and the job re-derives chunks from it on resume.
+  app.post("/api/sources/gutenberg", async (req: Request, res: Response) => {
+    const ref = typeof req.body?.ref === "string" ? req.body.ref.trim() : "";
+    if (ref === "") {
+      res.status(400).json({
+        error: { message: "ref (URL or ID) is required", code: "missing_ref" },
+      });
+      return;
+    }
+    const fetchUrl = resolveGutenbergUrl(ref);
+    if (!fetchUrl) {
+      res.status(400).json({
+        error: {
+          message: "couldn't resolve a Gutenberg book from that URL or ID",
+          code: "invalid_gutenberg_ref",
+        },
+      });
+      return;
+    }
+
+    let raw: string;
+    try {
+      raw = await fetchGutenberg(fetchUrl);
+    } catch {
+      res.status(502).json({
+        error: {
+          message: "couldn't fetch that book from Project Gutenberg",
+          code: "fetch_failed",
+        },
+      });
+      return;
+    }
+    const text = stripGutenbergBoilerplate(raw);
+    if (text.trim() === "") {
+      res.status(502).json({
+        error: {
+          message: "fetched book had no readable text",
+          code: "empty_book",
+        },
+      });
+      return;
+    }
+
+    const title =
+      (typeof req.body?.title === "string" && req.body.title.trim()) ||
+      deriveGutenbergTitle(raw, ref);
+
+    // Persist source + raw text before anything else, so the estimate step
+    // never loses a fetched book. type='gutenberg', language='en' (this is the
+    // ONLY routing responsibility — the existing triage path does the rest).
+    const now = nowIso();
+    const sourceId = Number(
+      db
+        .prepare(
+          "INSERT INTO source (type, title, ref, transcript, language, created_at, updated_at) VALUES ('gutenberg', ?, ?, ?, 'en', ?, ?)",
+        )
+        .run(title, ref, text, now, now).lastInsertRowid,
+    );
+    const booksDir = path.join(dataDir, "books");
+    fs.mkdirSync(booksDir, { recursive: true });
+    const storedPath = path.join(booksDir, `${sourceId}.txt`);
+    fs.writeFileSync(storedPath, text);
+    db.prepare("UPDATE source SET stored_path = ? WHERE id = ?").run(
+      storedPath,
+      sourceId,
+    );
+
+    const wordCount = gutenbergWordCount(text);
+    const batches = gutenbergChunkCount(text);
+    const estimateUsd = estimateGutenbergCostUsd(wordCount, estimateModel());
+
+    const body: GutenbergEstimateResponse = {
+      sourceId,
+      title,
+      wordCount,
+      batches,
+      estimateUsd,
+    };
+    res.status(201).json(body);
+  });
+
+  // Owner-confirmed: enqueue the resumable classification job. Idempotent guard
+  // — a source whose chunks already exist can't be re-started.
+  app.post(
+    "/api/sources/gutenberg/:id/confirm",
+    (req: Request, res: Response) => {
+      const source = getSource(db, Number(req.params.id));
+      if (!source || source.type !== "gutenberg") {
+        res.status(404).json({
+          error: { message: "Gutenberg source not found", code: "not_found" },
+        });
+        return;
+      }
+      if (!source.transcript) {
+        res.status(409).json({
+          error: { message: "source has no fetched text", code: "no_text" },
+        });
+        return;
+      }
+      const existing = db
+        .prepare("SELECT COUNT(*) AS c FROM source_page WHERE source_id = ?")
+        .get(source.id) as { c: number };
+      if (existing.c > 0) {
+        res.status(409).json({
+          error: {
+            message: "this book's extraction has already been started",
+            code: "already_confirmed",
+          },
+        });
+        return;
+      }
+
+      const pageCount = gutenbergChunkCount(source.transcript);
+      insertSourcePages(db, source.id, pageCount);
+      const jobId = enqueueGutenbergIngestion(db, queue, {
+        sourceId: source.id,
+      });
+
+      const body: GutenbergConfirmResponse = {
+        sourceId: source.id,
+        jobId,
+        pageCount,
+      };
+      res.status(201).json(body);
+    },
+  );
 
   app.get("/api/sources/:id", (req: Request, res: Response) => {
     const source = getSource(db, Number(req.params.id));

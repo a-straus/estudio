@@ -72,7 +72,7 @@ export function createApp(
 
   // Source routes need the queue (to enqueue ingestion) and DATA_DIR (uploads).
   if (opts.queue && opts.dataDir) {
-    registerSourceRoutes(app, db, opts.queue, opts.dataDir);
+    registerSourceRoutes(app, db, opts.queue, opts.dataDir, { llm: opts.llm });
   }
   registerSrsRoutes(app, db);
   registerOverviewRoutes(app, db);

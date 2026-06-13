@@ -7,7 +7,7 @@ import type {
   TriageGroup,
 } from "@estudio/shared";
 import type { DB } from "../db/db.js";
-import { getSource } from "../db/queries.js";
+import { getSource, getSourceCoverage } from "../db/queries.js";
 import {
   bulkDecision,
   confirmBatch,
@@ -58,6 +58,17 @@ export function registerTriageRoutes(app: Express, db: DB): void {
       res.json(body);
     },
   );
+
+  // Triage coverage for a source: triaged/total + kept + untested counts.
+  // Powers the coverage indicator on the triage screen (GOAL §6.1).
+  app.get("/api/sources/:id/coverage", (req: Request, res: Response) => {
+    const source = getSource(db, Number(req.params.id));
+    if (!source) {
+      fail(res, 404, "Source not found", "not_found");
+      return;
+    }
+    res.json(getSourceCoverage(db, source.id));
+  });
 
   // Record (or undo, via 'pending') a single decision.
   app.patch("/api/extraction-items/:id", (req: Request, res: Response) => {

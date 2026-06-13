@@ -2,6 +2,7 @@ import type {
   JobStatus,
   JobView,
   LessonInsightType,
+  SourceCoverage,
   SourcePageKind,
   SourcePageStatus,
   SourcePageView,
@@ -164,6 +165,46 @@ export function getSourcePage(db: DB, id: number): SourcePageView | null {
     )
     .get(id) as SourcePageRowDb | undefined;
   return row ? toSourcePageView(row) : null;
+}
+
+/**
+ * Triage coverage for a source: how many candidates were sorted, how many were
+ * kept ('learn' decisions materialized into a word row), and how many of those
+ * kept words are still untested — materialized but with no review history yet
+ * (no card_state row and no review_log row). Powers the coverage indicator.
+ */
+export function getSourceCoverage(db: DB, sourceId: number): SourceCoverage {
+  const totals = db
+    .prepare(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN decision != 'pending' THEN 1 ELSE 0 END) AS triaged,
+         SUM(CASE WHEN decision = 'learn' AND word_id IS NOT NULL THEN 1 ELSE 0 END) AS kept
+       FROM extraction_item WHERE source_id = ?`,
+    )
+    .get(sourceId) as {
+    total: number;
+    triaged: number | null;
+    kept: number | null;
+  };
+  const { untested } = db
+    .prepare(
+      `SELECT COUNT(*) AS untested
+         FROM extraction_item ei
+         JOIN word w ON w.id = ei.word_id
+        WHERE ei.source_id = ?
+          AND ei.decision = 'learn'
+          AND ei.word_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM card_state cs WHERE cs.word_id = w.id)
+          AND NOT EXISTS (SELECT 1 FROM review_log rl WHERE rl.word_id = w.id)`,
+    )
+    .get(sourceId) as { untested: number };
+  return {
+    total: totals.total,
+    triaged: totals.triaged ?? 0,
+    kept: totals.kept ?? 0,
+    untested,
+  };
 }
 
 /**

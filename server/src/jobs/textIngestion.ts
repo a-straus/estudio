@@ -36,7 +36,7 @@ interface PageRow {
   status: string;
 }
 
-interface CandidateWord {
+export interface CandidateWord {
   term: string;
   lemma: string | null;
   partOfSpeech: string | null;
@@ -240,7 +240,7 @@ function extractJson(text: string): unknown {
  * the model can calibrate `likely_known`. Up to ~20 words with status 'known'
  * or 'mature'. Empty renders a clean fallback instruction.
  */
-function buildCalibrationSample(db: DB, language: Language): string {
+export function buildCalibrationSample(db: DB, language: Language): string {
   const rows = db
     .prepare(
       `SELECT term, lemma FROM word
@@ -254,7 +254,7 @@ function buildCalibrationSample(db: DB, language: Language): string {
   return rows.map((r) => r.lemma ?? r.term).join(", ");
 }
 
-function parseExtraction(text: string): CandidateWord[] {
+export function parseExtraction(text: string): CandidateWord[] {
   const parsed = extractJson(text) as { words?: unknown };
   if (!Array.isArray(parsed.words)) {
     throw new Error(`invalid extraction response: ${text.slice(0, 200)}`);
@@ -286,7 +286,7 @@ function parseExtraction(text: string): CandidateWord[] {
  * source. word_id stays null at ingestion: per the data-model contract it is
  * set only when a learn/know decision materializes a word row at triage confirm.
  */
-function insertExtractionItems(
+export function insertExtractionItems(
   db: DB,
   sourceId: number,
   words: CandidateWord[],
