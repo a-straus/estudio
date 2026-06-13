@@ -344,7 +344,7 @@ describe("POST /api/sources/mochi", () => {
     };
     expect(mammock).toEqual({
       definition_en: "to tear into fragments",
-      status: "learning",
+      status: "new",
       definition_origin: "owner",
     });
 

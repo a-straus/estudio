@@ -14,6 +14,7 @@ export interface MochiCard {
 export interface ParsedMochi {
   deckName: string;
   cards: MochiCard[];
+  malformed: number;
 }
 
 const SEPARATOR = "\n---\n";
@@ -51,6 +52,7 @@ export function parseMochiExport(zip: Buffer): ParsedMochi {
 
   const cards: MochiCard[] = [];
   const deckNames: string[] = [];
+  let malformed = 0;
   for (const deck of decks) {
     const d = deck as Record<string, unknown>;
     const name = typeof d["~:name"] === "string" ? (d["~:name"] as string) : "";
@@ -76,12 +78,12 @@ export function parseMochiExport(zip: Buffer): ParsedMochi {
         definition = content.slice(sepIndex + SEPARATOR.length).trim();
       }
 
-      if (term === "") continue;
+      if (term === "") { malformed++; continue; }
       cards.push({ term, definition });
     }
   }
 
-  return { deckName: deckNames.filter((n) => n !== "")[0] ?? "Vocab", cards };
+  return { deckName: deckNames.filter((n) => n !== "")[0] ?? "Vocab", cards, malformed };
 }
 
 export interface ImportMochiOpts {
@@ -94,6 +96,7 @@ export interface ImportMochiOpts {
 export interface ImportMochiResult {
   imported: number;
   duplicates: number;
+  malformed: number;
   total: number;
   deck: "en";
 }
@@ -153,7 +156,7 @@ export function importMochiCards(
       definitionEn: card.definition || null,
       example: null,
       level: null,
-      status: "learning",
+      status: "new",
       deckId,
       definitionOrigin: "owner",
       promptVersion: null,
@@ -162,5 +165,5 @@ export function importMochiCards(
     imported++;
   }
 
-  return { imported, duplicates, total: parsed.cards.length, deck: "en" };
+  return { imported, duplicates, malformed: parsed.malformed, total: parsed.cards.length, deck: "en" };
 }

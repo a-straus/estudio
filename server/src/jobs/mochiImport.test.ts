@@ -66,7 +66,7 @@ describe("parseMochiExport", () => {
     expect(parsed.cards).toEqual([{ term: "Solo term", definition: "" }]);
   });
 
-  it("skips a card whose term is empty after trimming", () => {
+  it("skips a card whose term is empty after trimming and counts it as malformed", () => {
     const parsed = parseMochiExport(
       mochiZip({
         "~:decks": [
@@ -83,6 +83,7 @@ describe("parseMochiExport", () => {
       }),
     );
     expect(parsed.cards).toEqual([{ term: "Keep", definition: "kept" }]);
+    expect(parsed.malformed).toBe(1);
   });
 
   it("throws on a buffer that is not a ZIP", () => {
@@ -102,6 +103,7 @@ describe("importMochiCards", () => {
       { term: "Mammock", definition: "to tear into fragments" },
       { term: "Petrichor", definition: "the smell of rain on dry earth" },
     ],
+    malformed: 0,
   };
   const opts = { ref: "Vocab.mochi", storedPath: "/tmp/Vocab.mochi" };
 
@@ -110,6 +112,7 @@ describe("importMochiCards", () => {
     expect(result).toEqual({
       imported: 2,
       duplicates: 0,
+      malformed: 0,
       total: 2,
       deck: "en",
     });
@@ -132,14 +135,14 @@ describe("importMochiCards", () => {
       {
         term: "Mammock",
         definition_en: "to tear into fragments",
-        status: "learning",
+        status: "new",
         definition_origin: "owner",
         deck_id: enDeck.id,
       },
       {
         term: "Petrichor",
         definition_en: "the smell of rain on dry earth",
-        status: "learning",
+        status: "new",
         definition_origin: "owner",
         deck_id: enDeck.id,
       },
@@ -161,6 +164,7 @@ describe("importMochiCards", () => {
     expect(second).toEqual({
       imported: 0,
       duplicates: 2,
+      malformed: 0,
       total: 2,
       deck: "en",
     });
@@ -168,5 +172,17 @@ describe("importMochiCards", () => {
       .prepare("SELECT COUNT(*) AS c FROM word WHERE language = 'en'")
       .get() as { c: number };
     expect(count.c).toBe(2);
+  });
+
+  it("threads malformed count from parsed data into the import result", () => {
+    const parsedWithMalformed: ParsedMochi = {
+      deckName: "Vocab",
+      cards: [{ term: "Liminal", definition: "occupying a threshold" }],
+      malformed: 3,
+    };
+    const result = importMochiCards(db, parsedWithMalformed, opts);
+    expect(result.malformed).toBe(3);
+    expect(result.imported).toBe(1);
+    expect(result.total).toBe(1);
   });
 });
