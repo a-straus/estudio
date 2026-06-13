@@ -201,6 +201,14 @@ describe("estimateGutenbergCostUsd", () => {
     expect(estimateGutenbergCostUsd(12000, "unknown-model")).toBe(0);
     expect(estimateGutenbergCostUsd(0, "claude-opus-4-8")).toBe(0);
   });
+
+  it("does not undershoot the real KJV run (9034 candidates, actual $7.41 on opus)", () => {
+    // Constants are calibrated to this run; estimate must always be >= real cost.
+    const estimate = estimateGutenbergCostUsd(9034, "claude-opus-4-8");
+    expect(estimate).toBeGreaterThanOrEqual(7.41);
+    // A small book still produces a small positive estimate (not zero).
+    expect(estimateGutenbergCostUsd(5, "claude-opus-4-8")).toBeGreaterThan(0);
+  });
 });
 
 describe("runGutenbergIngestion", () => {
