@@ -23,6 +23,8 @@ Altitude guide:
 
 ## Inbox
 
+- what were you using to process KJV? It looks like opus.  That cost me a good amount! You don't think sonnet would have been fine for that? Just try and use cheaper models in the future to do large operations like that, or at least ask before executing
+
 <!-- - one item per dash; date them if you like -->
 <!-- (empty — the 2026-06-13 Fable-removal directive was processed in iteration 149; see ## Processed) -->
 ## Processed
