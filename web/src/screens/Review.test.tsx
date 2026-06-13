@@ -4,6 +4,22 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { DueQueueItem } from "@estudio/shared";
 import "../test/setup";
 
+function mockMatchMedia(phone: boolean) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: phone,
+      media: query,
+      onchange: null,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
 vi.mock("./reviewApi", () => ({
   ApiError: class extends Error {},
   fetchDueQueue: vi.fn(),
@@ -425,5 +441,28 @@ describe("Review yes/no format", () => {
     await screen.findByText(/cards? due today/);
     expect(screen.getByRole("radio", { name: "Multiple choice" })).toBeTruthy();
     expect(screen.getByRole("radio", { name: "Yes-No" })).toBeTruthy();
+  });
+});
+
+describe("Review empty-state — phone", () => {
+  beforeEach(() => mockMatchMedia(true));
+  afterEach(() => mockMatchMedia(false));
+
+  it("hides the Ingest button in the empty state on phone", async () => {
+    mockApi.fetchDueQueue.mockResolvedValue(queue([]));
+    render(<Review deckId={1} />);
+    await screen.findByText(/Nothing due/);
+    expect(screen.queryByRole("button", { name: "Ingest" })).toBeNull();
+  });
+});
+
+describe("Review empty-state — desktop", () => {
+  beforeEach(() => mockMatchMedia(false));
+
+  it("shows the Ingest button in the empty state on desktop", async () => {
+    mockApi.fetchDueQueue.mockResolvedValue(queue([]));
+    render(<Review deckId={1} />);
+    await screen.findByText(/Nothing due/);
+    expect(screen.getByRole("button", { name: "Ingest" })).toBeTruthy();
   });
 });
