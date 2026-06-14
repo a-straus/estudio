@@ -21,6 +21,23 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
 
+### [PENDING] Run the KJV (Gutenberg) ingestion against your live library? — it's a paid, large operation
+
+Your Mochi words are now in (325, English deck — go look). **The KJV is the one remaining English item, and it's the one I won't run without you**, because it costs real money and you asked me (FEEDBACK iter 165) to check before large operations.
+
+What it does: fetches the King James Bible from Project Gutenberg, runs the archaic-aware "hard-word" rubric, and drops the kept words into your **triage queue** (you keep/skip; kept words enter the English deck and the review rotation). The pipeline is built and already proven end-to-end — that was the $7.41 §14 proof run in iter 165.
+
+Pick one:
+
+- **Full bible** — ~9,000 candidate words to triage, ~**$4.45** on sonnet. *(Recommended if you actually want to read the KJV without lookups — that's the §3 goal.)*
+- **A single short book** (e.g. Jude / Philemon) — a few dozen words, **pennies** — a taste to see the flow before committing.
+- **Skip for now** — leave it; you can trigger it yourself anytime on /ingest → Gutenberg.
+
+Tell me which (here or in FEEDBACK) and I'll run it next iteration. Nothing else is blocked meanwhile.
+
+**Your answer:**
+
+
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
 You asked for "a list of everything that's been implemented and what I need to
