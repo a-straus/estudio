@@ -158,6 +158,18 @@ describe("importMochiCards", () => {
     });
   });
 
+  it("sets source_id on imported words to the mochi source row", () => {
+    importMochiCards(db, parsed, opts);
+    const src = db
+      .prepare("SELECT id FROM source WHERE type = 'mochi'")
+      .get() as { id: number };
+    const words = db
+      .prepare("SELECT source_id FROM word WHERE language = 'en'")
+      .all() as { source_id: number | null }[];
+    expect(words.length).toBeGreaterThan(0);
+    for (const w of words) expect(w.source_id).toBe(src.id);
+  });
+
   it("reports every card as a duplicate on a second import", () => {
     importMochiCards(db, parsed, opts);
     const second = importMochiCards(db, parsed, opts);

@@ -160,6 +160,7 @@ export interface InsertWordFields {
   level: string | null;
   status: WordStatus;
   deckId: number;
+  sourceId?: number | null;
   definitionOrigin: "llm" | "owner";
   promptVersion: string | null;
 }
@@ -171,9 +172,9 @@ export function insertWord(db: DB, f: InsertWordFields): number {
       `INSERT INTO word
          (term, term_normalized, lemma, lemma_normalized, language,
           part_of_speech, definition_es, definition_en, example, level,
-          status, deck_id, definition_origin, prompt_version,
+          status, deck_id, source_id, definition_origin, prompt_version,
           created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       f.term,
@@ -188,6 +189,7 @@ export function insertWord(db: DB, f: InsertWordFields): number {
       f.level,
       f.status,
       f.deckId,
+      f.sourceId ?? null,
       f.definitionOrigin,
       f.promptVersion,
       now,

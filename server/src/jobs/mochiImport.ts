@@ -112,7 +112,7 @@ export function importMochiCards(
   parsed: ParsedMochi,
   opts: ImportMochiOpts,
 ): ImportMochiResult {
-  insertSource(db, {
+  const sourceId = insertSource(db, {
     type: "mochi",
     title: `Mochi: ${parsed.deckName}`,
     ref: opts.ref,
@@ -158,6 +158,7 @@ export function importMochiCards(
       level: null,
       status: "new",
       deckId,
+      sourceId,
       definitionOrigin: "owner",
       promptVersion: null,
     });
