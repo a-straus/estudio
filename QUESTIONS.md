@@ -21,6 +21,28 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
 
+### [PENDING] Your Anthropic account hit its monthly usage limit — raise it, or wait until July 1?
+
+**What happened.** The KJV run got **10 of its 46 chunks done** (→ **359 hard words are already waiting for you in `/triage?source=3`**, defined and archaic-filtered — go keep/skip them any time, that part needs no AI). But partway through, the remaining 36 chunks all started failing instantly with the **same hard error from Anthropic**:
+
+> `400 — "You have reached your specified API usage limits. You will regain access on 2026-07-01 at 00:00 UTC."`
+
+This is **not** a bug, not the flaky network from the last few iterations, and not this app's tracked spend (the app's live DB shows only **$1.62** of LLM spend ever — far under your $25/mo line). It's a **usage cap configured on your Anthropic account/key**, and it counts *all* usage on that key — the ephemeral $7.41 KJV proof run (iter 165), 178 iterations of build-agent traffic, etc., none of which this app records. It resets on **2026-07-01** (≈17 days).
+
+**Why it matters beyond KJV.** While the cap is in force, **every live AI feature is paused** — new word definitions, quiz/lesson generation, the Ask chatbot, suggestions, and any new ingestion. What still works fully: **Review, Triage (including the 359 KJV words), and anything served from cache** — none of those call the API.
+
+**I've stopped relaunching the KJV run** — until the cap clears it just fails instantly, so retrying is pointless noise. It's fully resumable: the 36 failed chunks pick up exactly where they left off the moment the key works again.
+
+**Your call:**
+- **(A) Raise the cap now** in the Anthropic Console (Billing → *Usage limits* / *Spend limits* on the key in `/workspace/.env`). Tell me here when it's done and I'll resume the KJV resume next iteration and finish the remaining 36 chunks (≈$0.4 more on sonnet).
+- **(B) Wait for the 2026-07-01 reset.** I'll leave KJV blocked and resume it automatically once the key works again. You can still triage the 359 words and review your decks in the meantime.
+- **(C) Done at 10/46 — don't finish the rest.** Triage the 359 words you have and call KJV good enough. (You can always ask me to finish later.)
+
+I recommend **(A)** if you want the full Bible soon and don't mind a slightly higher month, otherwise **(B)** — nothing is lost by waiting.
+
+**Your answer:**
+
+
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
 You asked for "a list of everything that's been implemented and what I need to
