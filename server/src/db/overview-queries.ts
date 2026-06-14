@@ -7,6 +7,7 @@ import type {
   OverviewFeatured,
   OverviewRecentWord,
   OverviewSummary,
+  WhatNext,
 } from "@estudio/shared";
 import { nowIso, type DB } from "./db.js";
 import { getWordDetail, listWords } from "./word-queries.js";
@@ -49,6 +50,14 @@ function lastReviewedAt(db: DB, wordId: number): string | null {
     )
     .get(wordId) as { ts: string | null };
   return row.ts;
+}
+
+/** Count of triage candidates not yet confirmed (decided_at IS NULL). */
+function pendingTriageCount(db: DB): number {
+  const row = db
+    .prepare("SELECT COUNT(*) AS n FROM extraction_item WHERE decided_at IS NULL")
+    .get() as { n: number };
+  return row.n;
 }
 
 /** The latest ingestion/seed job, newest-first, or null. */
@@ -124,16 +133,45 @@ function buildRecentWords(db: DB): OverviewRecentWord[] {
   }));
 }
 
+/** Compute the whatNext recommendation (null when suppressed or nothing to surface). */
+function buildWhatNext(
+  due: number,
+  pendingTriage: number,
+  allTopics: { id: number; name: string; mastery: number }[],
+  pool: number,
+): WhatNext | null {
+  if (due > 0 || pendingTriage > 0) return null;
+
+  const weakest = allTopics
+    .filter((t) => t.mastery < MASTERY_THRESHOLD)
+    .sort((a, b) => a.mastery - b.mastery || a.id - b.id)[0];
+
+  if (weakest) {
+    return {
+      kind: "grammar",
+      href: `/grammar/topics/${weakest.id}/lesson`,
+      topicName: weakest.name,
+      count: 0,
+    };
+  }
+  if (pool > 0) {
+    return { kind: "suggestions", href: "/suggestions", topicName: null, count: pool };
+  }
+  return null;
+}
+
 /** Assemble the whole overview payload from existing reads. */
 export function getOverviewSummary(db: DB): OverviewSummary {
   const now = nowIso();
   const grammar = getGrammarHome(db);
   const allTopics = grammar.categories.flatMap((c) => c.topics);
+  const due = getDueCards(db, DEFAULT_DECK_ID, now).length;
+  const pool = 0; // Phase 2 dormant — suggestions pool is always 0 today
 
   return {
     featured: buildFeatured(db, DEFAULT_DECK_ID),
     review: {
-      due: getDueCards(db, DEFAULT_DECK_ID, now).length,
+      due,
       newToday: countPromotedToday(db, DEFAULT_DECK_ID, now),
     },
     library: {
@@ -146,9 +184,10 @@ export function getOverviewSummary(db: DB): OverviewSummary {
       seeded: grammar.seeded,
     },
     // The Suggestion feature is Phase 2 and unbuilt; an empty pool hides the card.
-    suggestions: { pool: 0 },
+    suggestions: { pool },
     recentWords: buildRecentWords(db),
     latestJob: latestActivityJob(db),
     lastBackupAt: lastBackupJobAt(db),
+    whatNext: buildWhatNext(due, pendingTriageCount(db), allTopics, pool),
   };
 }

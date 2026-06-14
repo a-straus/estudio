@@ -4,6 +4,7 @@ import {
   Button,
   EmptyState,
   HomeHero,
+  HomeNudge,
   JobStatus,
   OverviewCard,
   Toast,
@@ -236,6 +237,7 @@ function renderActivity(summary: OverviewSummary | undefined, isPhone: boolean) 
 export function Home({ overview }: { overview: OverviewState }) {
   const { summary, loading, error } = overview;
   const [dismissed, setDismissed] = useState(false);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const isPhone = useIsPhone();
 
   return (
@@ -243,6 +245,13 @@ export function Home({ overview }: { overview: OverviewState }) {
       <section className="home__band home__band--hero">
         {renderHero(overview, isPhone)}
       </section>
+
+      {summary?.whatNext && !nudgeDismissed && (
+        <HomeNudge
+          whatNext={summary.whatNext}
+          onDismiss={() => setNudgeDismissed(true)}
+        />
+      )}
 
       <section className="home__band home__grid" aria-label="Areas">
         {cardSpecs(summary, loading, isPhone).map((c) => (
