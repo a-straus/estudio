@@ -239,7 +239,7 @@ One mined lesson insight (correction or struggle sentence). Used on Lessons deta
 
 ### QuickAdd — global add-a-word modal
 
-A small modal for adding one word or phrase from anywhere, reached from the persistent **Add** affordance in the chrome (the AppNav "+" cell on phone, the "+ Add" header Button at `bp-tablet`+; both in `screens/shell.md`). The app's first modal/overlay primitive. It reuses the words API — the server auto-defines a blank definition — so the surface stays deliberately small (the *quick* in quick-add).
+A small modal for adding one word or phrase from anywhere, reached from the persistent **Add** affordance in the chrome (the AppNav "+" cell on phone, the "+ Add" header Button at `bp-tablet`+; both in `screens/shell.md`). The app's first modal/overlay primitive. It reuses the words API — the server auto-defines a blank definition — so the surface stays deliberately small (the *quick* in quick-add). It also opens **pre-filled** when a word is tapped in rendered reading content (see §TappableText): the term field arrives populated with the tapped word and the language `SegmentedControl` preselected to that word's language, both still freely editable.
 
 **Anatomy.** A `--color-scrim` backdrop dimming the page; a centered panel `--color-surface`, `--radius-2`, `--shadow-3` (the overlay-dialog elevation), padding `--space-6` (`--space-5` phone), a narrow single-column width that caps well short of `--measure-app` — a form column, not a page. Inside, stacked `--space-4`: title "Add a word" (`--font-app` `--text-lg` `--weight-bold` `--color-ink`); a `TextInput` (study) labelled "Word or phrase", autofocused, paired with a `RecordButton` (see §RecordButton) for optional **dictation** — tap to speak a word or phrase, which is transcribed through the shared transcription layer and fills the field (still freely editable); a `SegmentedControl` for language (Spanish · English, default Spanish); a `--font-meta` `--text-xs` `--color-ink-faint` help line ("Leave the definition — we'll fill it in."); then an action row — primary Button "Add" (busy → "Adding…") with a quiet "Cancel" beside it. Success raises a `Toast` "Added _term_." and closes the panel.
 
@@ -281,6 +281,18 @@ after the `×`; renders nothing) · `none`/`loading` (server returned no
 recommendation, or the overview is still fetching → renders nothing, no skeleton
 — it is supplementary, never reserves space). No hover beyond the Button/×
 standard. No entrance motion — it must not compete with the hero's entrance.
+
+---
+
+### TappableText — tap a rendered word to add it
+
+Wraps a run of **app-rendered reading text** so any single word in it can be tapped to add that word to the deck — the cascade-learning path (tap a word *inside* another word's definition, a lesson example, or a chat reply, and add it without leaving the page). It reuses the global **QuickAdd** modal opened pre-filled, so it adds nothing on its own — the tap only *opens* the confirm surface (no auto-add, consistent with QuickAdd and HomeNudge). Used only where the user is **reading** content the app produced: `WordDetail` glosses + example, `Lesson` explanation + examples, and assistant replies in `ChatTurn`. It never wraps user input, chrome, labels, or the active answering surface of Review/Quiz/Triage — a tap there would disrupt the session (D5 thumb-zone).
+
+**Anatomy.** Splits its text on whitespace into word and non-word tokens (the `InsightRow` `SpannedText` precedent), rendering non-word tokens (spaces, punctuation) as plain text so spacing — and the host's bilingual family (`--font-study` for studied-language example/headword runs, `--font-app` for glosses/prose) — is preserved exactly: TappableText never restyles the text, it only makes the words interactive. Each word token is an inline, focusable control (a `<button type="button">` reset to inherit the surrounding type, or a `role="button"` span with `tabindex`), quiet by default — no persistent decoration, the words read as ordinary prose (D1.3, no sea of links). The affordance appears only on intent: on hover/focus the word takes a `--color-accent` underline (`text-decoration`) and `cursor: pointer`, `--color-accent-strong` while pressed.
+
+**Language.** The host declares the language of the run, and a tapped word opens QuickAdd with that language preselected (term pre-filled, still editable): a Spanish gloss/example → `es`, an English gloss/prose → `en`; in `ChatTurn` the existing per-line Spanish detection picks `es`/`en` per line. Each host surface shows one quiet `--font-meta` `--text-xs` `--color-ink-faint` hint per surface (not per entry) — "Tap a word to add it" — never a per-word badge.
+
+**States.** `idle` (plain prose) · `word hover/focus` (accent underline + pointer) · `pressed` (`--color-accent-strong`); activating a word opens QuickAdd, which owns the rest. Keyboard: a focused word activates on Enter/Space. Under `prefers-reduced-motion` the hover color change is instant. No busy/empty/error state of its own — failures live in QuickAdd.
 
 ---
 

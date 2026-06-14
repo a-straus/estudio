@@ -42,6 +42,10 @@ Key hints render in `--font-meta` `--text-xs` `--color-ink-faint` beside their c
 - Destructive or rare actions (delete, cancel job) are placed **outside** the thumb zone deliberately (top of detail views).
 - AppNav and action regions never coexist in a session — sessions take over the full viewport.
 
+### Tap-to-add (cascade learning)
+
+In **app-rendered reading content** — `WordDetail` glosses + example, `Lesson` explanation + examples, `ChatTurn` assistant replies — any single word is tappable to add it to the deck (the `TappableText` component, D4). The word stays quiet until intent: hover/focus shows a `--color-accent` underline + pointer; tap (or Enter/Space on a focused word) opens the global **QuickAdd** modal pre-filled with that word, language preselected to the word's language (Spanish run → `es`, English run → `en`), term still editable — it never adds without the QuickAdd confirm. Each such surface shows one quiet hint, "Tap a word to add it." Reading-only: never user input, chrome, or the active answering surface of Review/Quiz/Triage.
+
 ### Bilingual typography rules (Principle 2, operationalized)
 
 | Text                                          | Family         | Style                        | Token notes                     |
@@ -89,6 +93,7 @@ Rule of thumb for agents: **if the user is supposed to _learn from_ the string, 
 | Library, delete confirm   | "Delete _vergüenza_? Its card and schedule go with it." → "Delete" / "Keep"                                             |
 | Library, empty            | "No words yet. Ingest something, or add one by hand."                                                                  |
 | Library, forgot this      | "I forgot this" → toast "_vergüenza_ · due now"                                                                        |
+| Tap-to-add, hint          | "Tap a word to add it" (on app-rendered reading surfaces; tapping a word opens QuickAdd pre-filled)                     |
 | Grammar, lesson loading   | "Writing the lesson… ~40s"                                                                                             |
 | Grammar, partial          | "The lesson didn't finish. Retry, or read the partial draft below."                                                    |
 | Grammar, quiz CTA         | "Take the quiz"                                                                                                        |
