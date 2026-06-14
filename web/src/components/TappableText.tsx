@@ -49,6 +49,8 @@ export function TappableText({ text, language }: TappableTextProps) {
               type="button"
               className="tappable-text__word"
               onClick={activate}
+              // @testing-library/user-event is not installed; tests use fireEvent.keyDown directly, so this
+              // handler must stay until the tests are migrated to userEvent keyboard simulation.
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
