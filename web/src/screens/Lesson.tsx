@@ -14,6 +14,7 @@ import {
   type JobState,
   type QuizOptionState,
 } from "../components";
+import { TappableText } from "../components/TappableText";
 import {
   answerLesson,
   ApiError,
@@ -535,17 +536,22 @@ export function Lesson({ topicId, pollIntervalMs = 1000 }: LessonProps) {
       </button>
       <article className="lesson__reading">
         <h1 className="lesson__title">{lesson.topicName}</h1>
+        <p className="lesson__tap-hint">Tap a word to add it</p>
         {paragraphs(lesson.explanation).map((p, i) => (
           <p key={i} className="lesson__body">
-            {p}
+            <TappableText text={p} language="en" />
           </p>
         ))}
         {lesson.examples.length > 0 && (
           <ul className="lesson__examples">
             {lesson.examples.map((ex, i) => (
               <li key={i} className="lesson__example">
-                <span className="lesson__example-es">{ex.es}</span>
-                <span className="lesson__example-en">{ex.en}</span>
+                <span className="lesson__example-es">
+                  <TappableText text={ex.es} language="es" />
+                </span>
+                <span className="lesson__example-en">
+                  <TappableText text={ex.en} language="en" />
+                </span>
               </li>
             ))}
           </ul>

@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { OverviewSummary } from "@estudio/shared";
+import type { OverviewSummary, WordLanguage } from "@estudio/shared";
 import { AppNav } from "./AppNav";
 import { SiteHeader, type NavItem } from "./SiteHeader";
 import { SiteFooter, type FooterLink } from "./SiteFooter";
 import { Toast } from "./Toast";
 import { QuickAddModal } from "./QuickAddModal";
+import { QuickAddProvider } from "./QuickAddContext";
 import { fetchOverview } from "../screens/overviewApi";
 import {
   applyTheme,
@@ -73,6 +74,8 @@ export function AppShell({ title, activeHref, children }: AppShellProps) {
   const [theme, setTheme] = useState<Theme>(() => readTheme());
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddToast, setQuickAddToast] = useState<string | null>(null);
+  const [initialTerm, setInitialTerm] = useState<string | undefined>();
+  const [initialLanguage, setInitialLanguage] = useState<WordLanguage | undefined>();
 
   useEffect(() => {
     let live = true;
@@ -108,32 +111,56 @@ export function AppShell({ title, activeHref, children }: AppShellProps) {
     window.location.href = `/ask?new=1&kind=other&label=${label}`;
   }, [title]);
 
-  const handleQuickAdd = useCallback(() => setQuickAddOpen(true), []);
+  const openQuickAdd = useCallback(
+    (term?: string, lang?: WordLanguage) => {
+      setInitialTerm(term);
+      setInitialLanguage(lang);
+      setQuickAddOpen(true);
+    },
+    [],
+  );
+
+  // The blank "+" affordance keeps its existing callback shape
+  const handleQuickAdd = useCallback(() => openQuickAdd(), [openQuickAdd]);
+
+  const handleQuickAddClose = useCallback(() => {
+    setQuickAddOpen(false);
+    setInitialTerm(undefined);
+    setInitialLanguage(undefined);
+  }, []);
+
+  // Keep a stable ref for openQuickAdd to satisfy the provider value
+  const openQuickAddRef = useRef(openQuickAdd);
+  openQuickAddRef.current = openQuickAdd;
 
   return (
-    <div className="app-layout">
-      <SiteHeader title={title} nav={nav} onAsk={handleAsk} onQuickAdd={handleQuickAdd} />
-      <main className="app-layout__main">{children(overview)}</main>
-      <SiteFooter links={FOOTER_LINKS} theme={theme} onToggleTheme={toggleTheme}>
-        {footerStatus(overview)}
-      </SiteFooter>
-      <AppNav activeHref={activeHref} onQuickAdd={handleQuickAdd} />
-      <QuickAddModal
-        open={quickAddOpen}
-        onClose={() => setQuickAddOpen(false)}
-        onAdded={(w) => {
-          setQuickAddOpen(false);
-          setQuickAddToast(`Added ${w.term}.`);
-          fetchOverview()
-            .then((summary) => setOverview({ summary, loading: false }))
-            .catch(() => {});
-        }}
-      />
-      {quickAddToast && (
-        <Toast onDismiss={() => setQuickAddToast(null)}>
-          {quickAddToast}
-        </Toast>
-      )}
-    </div>
+    <QuickAddProvider openQuickAdd={openQuickAdd}>
+      <div className="app-layout">
+        <SiteHeader title={title} nav={nav} onAsk={handleAsk} onQuickAdd={handleQuickAdd} />
+        <main className="app-layout__main">{children(overview)}</main>
+        <SiteFooter links={FOOTER_LINKS} theme={theme} onToggleTheme={toggleTheme}>
+          {footerStatus(overview)}
+        </SiteFooter>
+        <AppNav activeHref={activeHref} onQuickAdd={handleQuickAdd} />
+        <QuickAddModal
+          open={quickAddOpen}
+          onClose={handleQuickAddClose}
+          initialTerm={initialTerm}
+          initialLanguage={initialLanguage}
+          onAdded={(w) => {
+            handleQuickAddClose();
+            setQuickAddToast(`Added ${w.term}.`);
+            fetchOverview()
+              .then((summary) => setOverview({ summary, loading: false }))
+              .catch(() => {});
+          }}
+        />
+        {quickAddToast && (
+          <Toast onDismiss={() => setQuickAddToast(null)}>
+            {quickAddToast}
+          </Toast>
+        )}
+      </div>
+    </QuickAddProvider>
   );
 }

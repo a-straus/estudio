@@ -6,6 +6,13 @@
   gap: var(--space-4);
 }
 
+.word-detail__tap-hint {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  margin: 0;
+}
+
 .word-detail__provenance {
   font-family: var(--font-meta);
   font-size: var(--text-xs);

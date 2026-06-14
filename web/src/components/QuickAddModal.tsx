@@ -16,9 +16,17 @@ interface QuickAddModalProps {
   open: boolean;
   onClose: () => void;
   onAdded?: (word: WordDetailResponse) => void;
+  initialTerm?: string;
+  initialLanguage?: WordLanguage;
 }
 
-export function QuickAddModal({ open, onClose, onAdded }: QuickAddModalProps) {
+export function QuickAddModal({
+  open,
+  onClose,
+  onAdded,
+  initialTerm,
+  initialLanguage,
+}: QuickAddModalProps) {
   const [term, setTerm] = useState("");
   const [language, setLanguage] = useState<WordLanguage>("es");
   const [saving, setSaving] = useState(false);
@@ -27,9 +35,18 @@ export function QuickAddModal({ open, onClose, onAdded }: QuickAddModalProps) {
   const titleId = "quick-add-title";
   const openerRef = useRef<Element | null>(null);
 
+  // Capture initial values at open time without including them as effect deps
+  // so they don't override user edits if the parent re-renders mid-session.
+  const initialTermRef = useRef(initialTerm);
+  const initialLanguageRef = useRef(initialLanguage);
+  initialTermRef.current = initialTerm;
+  initialLanguageRef.current = initialLanguage;
+
   useEffect(() => {
     if (open) {
       openerRef.current = document.activeElement;
+      setTerm(initialTermRef.current ?? "");
+      setLanguage(initialLanguageRef.current ?? "es");
     } else {
       setTerm("");
       setLanguage("es");
@@ -40,6 +57,8 @@ export function QuickAddModal({ open, onClose, onAdded }: QuickAddModalProps) {
         openerRef.current.focus();
       }
     }
+  // open is the only dep: we read initial values via refs at transition time.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const handleClose = useCallback(() => {

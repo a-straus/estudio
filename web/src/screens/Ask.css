@@ -143,6 +143,13 @@
   margin-bottom: var(--space-1);
 }
 
+.ask__tap-hint {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  margin: 0 0 var(--space-3);
+}
+
 /* Fixed composer at the bottom of the overlay — mobile: full-width input, mic top-right, Send bottom-right */
 .ask__composer {
   position: fixed;

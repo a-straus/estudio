@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "../test/setup";
 import { WordEntry } from "./WordEntry";
+import { QuickAddProvider } from "./QuickAddContext";
 
 const word = {
   headword: "tuviera",
@@ -92,5 +93,56 @@ describe("WordEntry", () => {
       "C1",
     );
     expect(container.querySelector(".word-entry__example")).toBeNull();
+  });
+
+  it("without tappable, glosses render plain text (no buttons)", () => {
+    const { container } = render(<WordEntry size="full" {...word} />);
+    expect(container.querySelectorAll("button")).toHaveLength(0);
+    expect(container.querySelector(".word-entry__gloss--es")?.textContent).toBe(
+      word.glossEs,
+    );
+  });
+
+  it("with tappable, words in glosses become interactive buttons", () => {
+    const spy = vi.fn();
+    render(
+      <QuickAddProvider openQuickAdd={spy}>
+        <WordEntry size="full" {...word} tappable />
+      </QuickAddProvider>,
+    );
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.length).toBeGreaterThan(0);
+  });
+
+  it("with tappable, clicking a word in glossEs calls openQuickAdd with language='es'", () => {
+    const spy = vi.fn();
+    render(
+      <QuickAddProvider openQuickAdd={spy}>
+        <WordEntry size="full" {...word} tappable />
+      </QuickAddProvider>,
+    );
+    // First word in the Spanish gloss
+    const esGloss = document
+      .querySelector(".word-entry__gloss--es")!;
+    const firstWordBtn = esGloss.querySelector("button")!;
+    fireEvent.click(firstWordBtn);
+    expect(spy).toHaveBeenCalledWith(expect.any(String), "es");
+  });
+
+  it("with tappable, clicking a word in glossEn calls openQuickAdd with language='en'", () => {
+    const spy = vi.fn();
+    render(
+      <QuickAddProvider openQuickAdd={spy}>
+        <WordEntry size="full" {...word} tappable />
+      </QuickAddProvider>,
+    );
+    // The non-es gloss spans
+    const allGlosses = document.querySelectorAll(".word-entry__gloss");
+    const enGloss = Array.from(allGlosses).find(
+      (g) => !g.classList.contains("word-entry__gloss--es"),
+    )!;
+    const firstWordBtn = enGloss.querySelector("button")!;
+    fireEvent.click(firstWordBtn);
+    expect(spy).toHaveBeenCalledWith(expect.any(String), "en");
   });
 });

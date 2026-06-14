@@ -12,9 +12,14 @@ describe("ChatTurn", () => {
   });
 
   it("renders assistant turn without label", () => {
-    render(<ChatTurn role="assistant" content="Because avergonzarse…" />);
+    const { container } = render(
+      <ChatTurn role="assistant" content="Because avergonzarse…" />,
+    );
     expect(screen.queryByText("you")).toBeNull();
-    expect(screen.getByText("Because avergonzarse…")).toBeTruthy();
+    // Words are tappable buttons in TappableText; check full text via container
+    expect(
+      container.querySelector(".chat-turn__body")?.textContent,
+    ).toBe("Because avergonzarse…");
   });
 
   it("renders pending-transcription state", () => {

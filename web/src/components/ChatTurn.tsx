@@ -1,4 +1,5 @@
 import { Button } from "./Button";
+import { TappableText } from "./TappableText";
 import "./ChatTurn.css";
 
 export type ChatTurnState = "default" | "streaming" | "failed" | "pending-transcription";
@@ -15,15 +16,24 @@ const SPANISH_CHARS = /[áéíóúüñÁÉÍÓÚÜÑ¿¡]/;
 function renderAssistantBody(content: string) {
   const lines = content.split("\n");
   if (!lines.some((l) => SPANISH_CHARS.test(l))) {
-    return <p className="chat-turn__body">{content}</p>;
+    return (
+      <p className="chat-turn__body">
+        <TappableText text={content} language="en" />
+      </p>
+    );
   }
   return (
     <div className="chat-turn__body">
       {lines.map((line, i) =>
         SPANISH_CHARS.test(line) ? (
-          <span key={i} className="chat-turn__spanish">{line}</span>
+          <span key={i} className="chat-turn__spanish">
+            <TappableText text={line} language="es" />
+          </span>
         ) : (
-          <span key={i}>{line}{i < lines.length - 1 ? <br /> : null}</span>
+          <span key={i}>
+            <TappableText text={line} language="en" />
+            {i < lines.length - 1 ? <br /> : null}
+          </span>
         ),
       )}
     </div>

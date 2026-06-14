@@ -340,6 +340,9 @@ export function Ask() {
           {contextText && (
             <p className="ask__context-line">{contextText}</p>
           )}
+          {messages.some((m) => m.role === "assistant") && (
+            <p className="ask__tap-hint">Tap a word to add it</p>
+          )}
           {loadingThread ? (
             <p className="ask__loading">Loading…</p>
           ) : (

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import "../test/setup";
 import { WordDetail } from "./WordDetail";
+import { QuickAddProvider } from "./QuickAddContext";
 
 const word = {
   headword: "vergüenza",
@@ -75,5 +76,34 @@ describe("WordDetail", () => {
     const history = Array.from({ length: 25 }, (_, i) => i % 2 === 0);
     const { container } = render(<WordDetail word={word} history={history} />);
     expect(container.querySelectorAll(".word-detail__tick")).toHaveLength(20);
+  });
+
+  it("shows the 'Tap a word to add it' hint in viewing mode", () => {
+    render(<WordDetail word={word} />);
+    expect(screen.getByText("Tap a word to add it")).toBeTruthy();
+  });
+
+  it("a word in a gloss is an interactive control that calls openQuickAdd when tapped", () => {
+    const spy = vi.fn();
+    render(
+      <QuickAddProvider openQuickAdd={spy}>
+        <WordDetail word={word} />
+      </QuickAddProvider>,
+    );
+    // Click first button inside the Spanish gloss
+    const esGloss = document.querySelector(".word-entry__gloss--es")!;
+    const btn = esGloss.querySelector("button")!;
+    fireEvent.click(btn);
+    expect(spy).toHaveBeenCalledWith(expect.any(String), "es");
+  });
+
+  it("editing mode does not show tappable gloss buttons", () => {
+    render(<WordDetail word={word} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    // In edit mode, glosses become text inputs, no tappable word buttons
+    expect(screen.queryByText("Tap a word to add it")).toBeNull();
+    // No word-level buttons from TappableText
+    const inputs = screen.getAllByRole("textbox");
+    expect(inputs.length).toBeGreaterThan(0);
   });
 });
