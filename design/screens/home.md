@@ -47,22 +47,20 @@ word worth revisiting (server's pick; never empty while the user has any word).
 A slim, optional **`HomeNudge`** line directly under the hero (hairline above,
 no card) that names the single most useful next step when nothing is already
 pressing — the GOAL §6.6 "what next" guidance brought to the front door. The
-server (`/api/overview` → `whatNext`) picks exactly one recommendation, in this
-priority:
+server (`/api/overview` → `whatNext`) returns a recommendation only when no card
+is due **and** nothing is waiting in triage (those have their own clear homes —
+the hero's "Start review", the Ingest/Library entry points). It then surfaces
+exactly one, in this priority:
 
-1. undecided words still waiting in triage ("12 words waiting — triage them" →
-   `/triage`),
-2. else the weakest below-mastery grammar topic, by name ("Your tutor is
-   covering the subjunctive — practice it" → that topic's lesson,
-   `/grammar/topics/{id}/lesson`),
-3. else, when the suggestion pool is non-empty, "N words picked for you" →
+1. the weakest below-mastery grammar topic, by name ("Your tutor is covering the
+   subjunctive — practice it" → that topic's lesson, `/grammar/topics/{id}/lesson`),
+2. else, when the suggestion pool is non-empty, "N words picked for you" →
    `/suggestions`.
 
-The band is absent entirely when there is nothing to surface, and when a card
-is due (the hero's "Start review" is then the obvious next step — the nudge
-never duplicates it). It only points: accept = follow the link, a trailing `×`
-dismisses it for the session; it never adds a word or enrolls a topic. Full
-spec: `components.md` §HomeNudge.
+The band is absent entirely whenever a card is due, triage candidates are still
+waiting, or there is nothing to surface. It only points: accept = follow the
+link, a trailing `×` dismisses it for the session; it never adds a word or
+enrolls a topic. Full spec: `components.md` §HomeNudge.
 
 ### 2 — Overview grid (entry points)
 
@@ -111,9 +109,10 @@ A quiet recap, `--color-paper-sunken` well (hairline top), padding `--space-6`:
   em-dash; no layout shift (reserve the hero height).
 - **Offline/error fetching the summary:** keep the static grid (links still
   work); show an inline `error` Toast, never a blank page.
-- **Nothing due, work available:** the What-next nudge appears under the hero
-  with one recommendation. **A card is due, or nothing to surface (or loading):**
-  the nudge band is absent — no reserved space, no skeleton.
+- **Nothing due, nothing waiting in triage, a study suggestion available:** the
+  What-next nudge appears under the hero with one recommendation. **A card is
+  due, triage is still pending, nothing to surface, or loading:** the nudge band
+  is absent — no reserved space, no skeleton.
 
 ## Notes
 

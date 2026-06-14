@@ -267,12 +267,14 @@ link; a trailing quiet `×` dismisses the nudge for the session (no persistence,
 like a Toast dismiss). Prompt + CTA sit on one line at `bp-tablet`+, the CTA
 wrapping below the sentence on phone.
 
-**Recommendation kinds (the server picks one, this priority).** `triage`
-(undecided words waiting → `/triage`) · `grammar` (the weakest below-mastery
-topic, by name → `/grammar/topics/{id}/lesson`) · `suggestions` (the suggestion
-pool is non-empty → `/suggestions`) · none (nothing to surface → renders
-nothing). The review path is intentionally absent: when cards are due the
-HomeHero already says "Start review", so the nudge stays out of its way.
+**Recommendation kinds (the server picks one, this priority).** `grammar` (the
+weakest below-mastery topic, by name → `/grammar/topics/{id}/lesson`) ·
+`suggestions` (the suggestion pool is non-empty → `/suggestions`) · none
+(nothing to surface → renders nothing). It is the "what to **study** next" hint
+for once the day's obvious work is done, so the server suppresses it entirely
+(returns none) while a card is due — the HomeHero's "Start review" is then the
+next step — or while triage candidates are still waiting (the user has clear
+work first, already reachable from the Ingest/Library entry points).
 
 **States.** `default` (a recommendation present) · `dismissed` (session-hidden
 after the `×`; renders nothing) · `none`/`loading` (server returned no
