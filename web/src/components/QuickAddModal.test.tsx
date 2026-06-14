@@ -141,4 +141,54 @@ describe("QuickAddModal", () => {
       ).toBe("hola");
     });
   });
+
+  it("prefills the term field with initialTerm when opened", () => {
+    render(
+      <QuickAddModal open onClose={vi.fn()} initialTerm="firmamento" />,
+    );
+    expect(
+      (screen.getByLabelText("Word or phrase") as HTMLInputElement).value,
+    ).toBe("firmamento");
+  });
+
+  it("preselects initialLanguage in the segmented control", () => {
+    render(
+      <QuickAddModal
+        open
+        onClose={vi.fn()}
+        initialTerm="eclipse"
+        initialLanguage="en"
+      />,
+    );
+    const radios = screen.getAllByRole("radio");
+    // Spanish = index 0, English = index 1
+    expect(radios[0].getAttribute("aria-checked")).toBe("false");
+    expect(radios[1].getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("defaults to Spanish and empty term when no initial values given", () => {
+    render(<QuickAddModal open onClose={vi.fn()} />);
+    expect(
+      (screen.getByLabelText("Word or phrase") as HTMLInputElement).value,
+    ).toBe("");
+    const radios = screen.getAllByRole("radio");
+    expect(radios[0].getAttribute("aria-checked")).toBe("true"); // Spanish
+  });
+
+  it("resets to empty/Spanish after close even if initial values were given", () => {
+    const { rerender } = render(
+      <QuickAddModal open onClose={vi.fn()} initialTerm="eclipse" initialLanguage="en" />,
+    );
+    // Simulate close
+    rerender(
+      <QuickAddModal open={false} onClose={vi.fn()} initialTerm="eclipse" initialLanguage="en" />,
+    );
+    // Re-open with no initial values
+    rerender(<QuickAddModal open onClose={vi.fn()} />);
+    expect(
+      (screen.getByLabelText("Word or phrase") as HTMLInputElement).value,
+    ).toBe("");
+    const radios = screen.getAllByRole("radio");
+    expect(radios[0].getAttribute("aria-checked")).toBe("true"); // Spanish
+  });
 });

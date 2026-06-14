@@ -104,9 +104,12 @@ describe("Lesson screen", () => {
 
     // Reading: title + both paragraphs + the Spanish example.
     expect(await screen.findByText("Subjuntivo: emoción")).toBeTruthy();
-    expect(screen.getByText("First paragraph.")).toBeTruthy();
-    expect(screen.getByText("Second paragraph.")).toBeTruthy();
-    expect(screen.getByText("Me alegra que vengas.")).toBeTruthy();
+    // Words are tappable buttons; check text via container elements
+    const bodies = document.querySelectorAll(".lesson__body");
+    expect(bodies[0].textContent).toBe("First paragraph.");
+    expect(bodies[1].textContent).toBe("Second paragraph.");
+    const esExample = document.querySelector(".lesson__example-es");
+    expect(esExample?.textContent).toBe("Me alegra que vengas.");
 
     // Into the quiz.
     fireEvent.click(screen.getByRole("button", { name: "Take the quiz" }));

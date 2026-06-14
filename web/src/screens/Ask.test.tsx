@@ -168,10 +168,12 @@ describe("Ask — thread view (new=1)", () => {
     const sendBtn = screen.getByText("Send");
     fireEvent.click(sendBtn);
 
-    await waitFor(() =>
-      expect(
-        screen.getByText("Because avergonzarse is reflexive by nature."),
-      ).toBeTruthy(),
-    );
+    await waitFor(() => {
+      // Words are tappable buttons in assistant turns; check text via container
+      const body = document.querySelector(".chat-turn--assistant .chat-turn__body");
+      expect(body?.textContent).toBe(
+        "Because avergonzarse is reflexive by nature.",
+      );
+    });
   });
 });

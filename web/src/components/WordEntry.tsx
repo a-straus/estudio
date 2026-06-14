@@ -1,3 +1,5 @@
+import type { WordLanguage } from "@estudio/shared";
+import { TappableText } from "./TappableText";
 import "./WordEntry.css";
 
 /** The word data every word-bearing component shares. */
@@ -27,6 +29,11 @@ interface WordEntryProps extends WordEntryData {
   size: WordEntrySize;
   /** Which definition line(s) to show in `full` (Settings preference; default both). */
   reveal?: GlossReveal;
+  /**
+   * When true, glosses and example become tappable for cascade learning.
+   * DEFAULT FALSE — all existing usages (review/quiz/triage/list) are unchanged.
+   */
+  tappable?: boolean;
 }
 
 /**
@@ -45,6 +52,7 @@ export function WordEntry({
   example,
   size,
   reveal = "both",
+  tappable = false,
 }: WordEntryProps) {
   const showLemma = size !== "compact" && lemma && lemma !== headword;
   const tagline =
@@ -69,6 +77,10 @@ export function WordEntry({
     enLine = glossEn;
   }
 
+  // Normalize the entry's language tag ("ES"/"EN") to a WordLanguage value
+  const entryLang: WordLanguage =
+    (language ?? "es").toLowerCase() === "en" ? "en" : "es";
+
   return (
     <div className={`word-entry word-entry--${size}`}>
       <span className="word-entry__headword">
@@ -83,12 +95,22 @@ export function WordEntry({
       {tagline && <span className="word-entry__tagline">{tagline}</span>}
       {size === "full" && esLine && (
         <span className="word-entry__gloss word-entry__gloss--es">
-          {esLine}
+          {tappable ? <TappableText text={esLine} language="es" /> : esLine}
         </span>
       )}
-      {enLine && <span className="word-entry__gloss">{enLine}</span>}
+      {enLine && (
+        <span className="word-entry__gloss">
+          {tappable ? <TappableText text={enLine} language="en" /> : enLine}
+        </span>
+      )}
       {size === "full" && example && (
-        <span className="word-entry__example">{example}</span>
+        <span className="word-entry__example">
+          {tappable ? (
+            <TappableText text={example} language={entryLang} />
+          ) : (
+            example
+          )}
+        </span>
       )}
     </div>
   );

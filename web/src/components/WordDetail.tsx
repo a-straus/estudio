@@ -121,7 +121,8 @@ export function WordDetail({
         </>
       ) : (
         <>
-          <WordEntry size="full" {...word} />
+          <WordEntry size="full" {...word} tappable />
+          <p className="word-detail__tap-hint">Tap a word to add it</p>
           {provenance && (
             <p className="word-detail__provenance">{provenance}</p>
           )}
