@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import type { OverviewSummary } from "@estudio/shared";
 import "../test/setup";
 import type { OverviewState } from "../components";
@@ -46,6 +46,7 @@ function summary(over: Partial<OverviewSummary> = {}): OverviewSummary {
     recentWords: [],
     latestJob: null,
     lastBackupAt: "2026-06-11T00:00:00Z",
+    whatNext: null,
     ...over,
   };
 }
@@ -189,6 +190,52 @@ describe("Home — phone viewport", () => {
       />,
     );
     expect(screen.queryByRole("button", { name: "Ingest a source" })).toBeNull();
+  });
+});
+
+describe("Home — HomeNudge", () => {
+  it("renders the grammar nudge sentence and CTA when whatNext is grammar kind", () => {
+    render(
+      <Home
+        overview={loaded({
+          review: { due: 0, newToday: 0 },
+          whatNext: {
+            kind: "grammar",
+            href: "/grammar/topics/7/lesson",
+            topicName: "el subjuntivo",
+            count: 0,
+          },
+        })}
+      />,
+    );
+    expect(
+      screen.getByText("Your tutor is covering el subjuntivo — practice it."),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Practice" })).toBeTruthy();
+  });
+
+  it("renders nothing when whatNext is null", () => {
+    render(<Home overview={loaded({ whatNext: null })} />);
+    expect(screen.queryByText("WHAT NEXT")).toBeNull();
+  });
+
+  it("hides the nudge when the × dismiss button is clicked", () => {
+    render(
+      <Home
+        overview={loaded({
+          review: { due: 0, newToday: 0 },
+          whatNext: {
+            kind: "grammar",
+            href: "/grammar/topics/3/lesson",
+            topicName: "el pretérito",
+            count: 0,
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("WHAT NEXT")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText("WHAT NEXT")).toBeNull();
   });
 });
 

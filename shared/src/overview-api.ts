@@ -4,6 +4,18 @@
 
 import type { JobStatus } from "./types.js";
 
+/** The single most useful next step to surface when nothing is pressing. */
+export interface WhatNext {
+  /** Which kind of next-step is recommended. */
+  kind: "grammar" | "suggestions";
+  /** Ready-to-use CTA destination path. */
+  href: string;
+  /** grammar: weakest below-mastery topic name; null for suggestions. */
+  topicName: string | null;
+  /** suggestions: pool size; 0 for grammar. */
+  count: number;
+}
+
 /** The featured word's dictionary fields — enough for a full WordEntry. */
 export interface OverviewFeaturedWord {
   id: number;
@@ -59,4 +71,6 @@ export interface OverviewSummary {
   latestJob: OverviewActivityJob | null;
   /** ISO-8601 timestamp of the last backup, or null. */
   lastBackupAt: string | null;
+  /** The single most useful next step; null when nothing to surface. */
+  whatNext: WhatNext | null;
 }

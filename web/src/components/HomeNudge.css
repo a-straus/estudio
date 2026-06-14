@@ -1,0 +1,48 @@
+/* HomeNudge — the "what next" quiet line between hero and overview grid.
+   Not a card: hairline above, padding-block only, content on the --measure-app spine. */
+
+.home-nudge {
+  border-top: 1px solid var(--color-rule);
+  padding-block: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.home-nudge__lead {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+.home-nudge__sentence {
+  margin: 0;
+  font-family: var(--font-app);
+  font-size: var(--text-base);
+  color: var(--color-ink);
+}
+
+.home-nudge__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* bp-tablet: row layout — all on one line */
+@media (min-width: 640px) { /* bp-tablet */
+  .home-nudge {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-4);
+  }
+
+  .home-nudge__sentence {
+    flex: 1;
+  }
+
+  .home-nudge__actions {
+    flex-shrink: 0;
+  }
+}

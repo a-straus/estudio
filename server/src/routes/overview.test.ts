@@ -151,3 +151,79 @@ describe("GET /api/overview", () => {
     expect(body.featured?.word.headword).toBe("madrugar");
   });
 });
+
+describe("GET /api/overview — whatNext", () => {
+  function insertGrammarTopic(name: string, mastery: number): number {
+    const catId = Number(
+      db
+        .prepare(
+          "INSERT INTO grammar_category (name, sort_order, created_at, updated_at) VALUES ('Test', 0, ?, ?)",
+        )
+        .run(nowIso(), nowIso()).lastInsertRowid,
+    );
+    return Number(
+      db
+        .prepare(
+          "INSERT INTO grammar_topic (category_id, name, mastery, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        )
+        .run(catId, name, mastery, nowIso(), nowIso()).lastInsertRowid,
+    );
+  }
+
+  function insertPendingTriageItem(): void {
+    const sourceId = Number(
+      db
+        .prepare("INSERT INTO source (type, title) VALUES ('text', 'test source')")
+        .run().lastInsertRowid,
+    );
+    db.prepare(
+      "INSERT INTO extraction_item (source_id, term) VALUES (?, 'triage_word')",
+    ).run(sourceId);
+  }
+
+  it("due > 0 → whatNext is null", async () => {
+    const w = insertWord("learning");
+    insertCard(w, { intervalDays: 3, dueAt: PAST });
+    insertGrammarTopic("Subjuntivo", 0.1);
+
+    const res = await request(app).get("/api/overview").expect(200);
+    expect((res.body as OverviewSummary).whatNext).toBeNull();
+  });
+
+  it("due == 0 with a pending extraction_item (decided_at NULL) → whatNext is null", async () => {
+    insertPendingTriageItem();
+    insertGrammarTopic("Subjuntivo", 0.1);
+
+    const res = await request(app).get("/api/overview").expect(200);
+    expect((res.body as OverviewSummary).whatNext).toBeNull();
+  });
+
+  it("due == 0, no pending triage, topic below 0.5 → kind grammar with weakest topic", async () => {
+    insertGrammarTopic("Subjuntivo", 0.2);
+
+    const res = await request(app).get("/api/overview").expect(200);
+    const wn = (res.body as OverviewSummary).whatNext;
+    expect(wn?.kind).toBe("grammar");
+    expect(wn?.topicName).toBe("Subjuntivo");
+    expect(wn?.href).toMatch(/^\/grammar\/topics\/\d+\/lesson$/);
+  });
+
+  it("picks the lowest-mastery topic when several are below threshold", async () => {
+    const idA = insertGrammarTopic("Pretérito", 0.4);
+    const idB = insertGrammarTopic("Subjuntivo", 0.1);
+
+    const res = await request(app).get("/api/overview").expect(200);
+    const wn = (res.body as OverviewSummary).whatNext;
+    expect(wn?.kind).toBe("grammar");
+    expect(wn?.topicName).toBe("Subjuntivo");
+    expect(wn?.href).toBe(`/grammar/topics/${idB}/lesson`);
+    void idA;
+  });
+
+  it("due == 0, no pending triage, no below-threshold topic, pool == 0 → null", async () => {
+    insertGrammarTopic("Avanzado", 0.9);
+
+    const res = await request(app).get("/api/overview").expect(200);
+    expect((res.body as OverviewSummary).whatNext).toBeNull();
+  });
+});

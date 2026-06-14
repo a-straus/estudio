@@ -20,6 +20,7 @@ export type { NavItem } from "./SiteHeader";
 export { SiteFooter } from "./SiteFooter";
 export type { FooterLink } from "./SiteFooter";
 export { HomeHero } from "./HomeHero";
+export { HomeNudge } from "./HomeNudge";
 export { OverviewCard } from "./OverviewCard";
 export { TextInput } from "./TextInput";
 export { Toast } from "./Toast";
