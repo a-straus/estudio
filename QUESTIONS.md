@@ -21,23 +21,6 @@ orchestrator records the resolution in DECISIONS.md and moves the entry to
 
 <!-- Orchestrator writes here when blocked. Answer these to unblock it. -->
 
-### [PENDING] Run the KJV (Gutenberg) ingestion against your live library? — it's a paid, large operation
-
-Your Mochi words are now in (325, English deck — go look). **The KJV is the one remaining English item, and it's the one I won't run without you**, because it costs real money and you asked me (FEEDBACK iter 165) to check before large operations.
-
-What it does: fetches the King James Bible from Project Gutenberg, runs the archaic-aware "hard-word" rubric, and drops the kept words into your **triage queue** (you keep/skip; kept words enter the English deck and the review rotation). The pipeline is built and already proven end-to-end — that was the $7.41 §14 proof run in iter 165.
-
-Pick one:
-
-- **Full bible** — ~9,000 candidate words to triage, ~**$4.45** on sonnet. *(Recommended if you actually want to read the KJV without lookups — that's the §3 goal.)*
-- **A single short book** (e.g. Jude / Philemon) — a few dozen words, **pennies** — a taste to see the flow before committing.
-- **Skip for now** — leave it; you can trigger it yourself anytime on /ingest → Gutenberg.
-
-Tell me which (here or in FEEDBACK) and I'll run it next iteration. Nothing else is blocked meanwhile.
-
-**Your answer:**
-
-
 ### [INFO — no answer required] Phase 1 review checklist (per your "make a list of everything implemented" request)
 
 You asked for "a list of everything that's been implemented and what I need to
@@ -94,6 +77,12 @@ see FEEDBACK.md ## Processed for the task each maps to):
 ## Answered
 
 <!-- Resolved questions are moved here by the orchestrator for record-keeping. -->
+
+### [ANSWERED] Run the KJV (Gutenberg) ingestion against your live library? — owner: "Run it!"
+
+**Your answer (FEEDBACK.md, 2026-06-14):** "Wow! The Mochi is in there! … Run it! I'm so happy with the outcome" — with awareness it's ~9,000 candidate words.
+
+**Resolution (orchestrator, iteration 175):** Approved → launched the **full KJV** (Project Gutenberg ebook 10) against the **LIVE `data/app.db`**, on **sonnet** (`gutenberg_extraction` pinned to claude-sonnet-4-6 since iter 165), as a detached orchestrator data op. Took a consistent backup first (`data/backups/app-pre-kjv-2026-06-14T07-58-10Z.db`). Started 08:00:15Z: 9034 pre-pass candidate words → 46 classification batches; upfront estimate **$4.85** (err-high, under the §13 $5 line). **Crucially, this run STOPS at the triage queue** — the archaic-aware rubric's kept hard-words land in `/triage?source=3` as `pending`; **nothing enters your study deck until you keep/skip them**, so the book does not silently add thousands of cards (directly addresses your "worried it's going to add 9000"). Monitored across iterations via `logs/orchestrator/kjv-prod-ingestion.log`; actual cost + triage count reported on completion. The earlier "2-3 runs" you flagged were ephemeral dev/proof runs (never your DB) — see the FEEDBACK ## Processed disposition and DECISIONS iter 175 for the dev-vs-prod guardrail answer. Recorded in DECISIONS.md iter 175.
 
 ### [ANSWERED] Phase 3 firewall egress (gutenberg.org) + Mochi fixture — owner landed both
 
