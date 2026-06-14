@@ -296,3 +296,28 @@ Wraps a run of **app-rendered reading text** so any single word in it can be tap
 
 ---
 
+### Pagination — page through a long list
+
+A quiet pager closing a paged list (Library is the first user): the English
+deck now runs to hundreds of words, so the word list returns one page at a time
+and this bar moves between pages. Counts-are-sentences (D1.5) and the-machine-
+reports-in-mono (D1.7) — the position is an honest range sentence in the meta
+style, never numbered page chips.
+
+**Anatomy.** Not a card — hairlines, not boxes (D1.3): a `--color-rule` hairline
+above, padding-block `--space-4`, inner content on the list's spine. A `secondary`
+Button "‹ Previous", a range sentence `--font-meta` `--text-xs` `--color-ink-faint`
+with its unit word ("51–100 of 325 words" — the total is the count matching the
+current search/filter, not the whole library), and a `secondary` Button "Next ›".
+Buttons keep min `--hit-target`; gap `--space-4`. At `bp-tablet`+ the range sits
+between the two Buttons (Previous · range · Next); on phone the two Buttons share
+one row with the range sentence centered below them — all in the thumb zone.
+
+**States.** `default` (both Buttons live) · `first page` (Previous `disabled`) ·
+`last page` (Next `disabled`) · `single page` (total ≤ one page → the whole
+component renders nothing; one page needs no pager) · `loading` (the range numbers
+show an em-dash until the count returns, Buttons disabled). No motion — paging
+swaps the list content without animation (the list is not a session surface).
+
+---
+
