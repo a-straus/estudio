@@ -247,3 +247,38 @@ A small modal for adding one word or phrase from anywhere, reached from the pers
 
 ---
 
+### HomeNudge — the "what next" prompt
+
+A single quiet line on Home that names the one most useful next step when
+nothing is already pressing — the GOAL §6.6 "what next" guidance, surfaced from
+the front door. It only ever *points*: it navigates or dismisses, never creates
+a word or enrolls a topic (no auto-add). Server-recommended — `/api/overview`
+returns one `whatNext` — so the client only renders.
+
+**Anatomy.** Not a card — hairlines, not boxes (D1.3). A full-width line on
+`--color-paper`, `--color-rule` hairline above, padding-block `--space-4`, inner
+content on the `--measure-app` spine. A `--font-meta` `--text-xs` `--tracking-meta`
+uppercase `--color-ink-faint` lead-in "WHAT NEXT", then the prompt sentence
+`--font-app` `--text-base` `--color-ink` with any count in `--font-meta` (a
+grammar topic name stays app sans — it is a label, not object language) — e.g.
+"Your tutor is covering the subjunctive — practice it." The action is a `quiet`
+Button ("Practice" / "Triage" / "See suggestions") that follows the recommended
+link; a trailing quiet `×` dismisses the nudge for the session (no persistence,
+like a Toast dismiss). Prompt + CTA sit on one line at `bp-tablet`+, the CTA
+wrapping below the sentence on phone.
+
+**Recommendation kinds (the server picks one, this priority).** `triage`
+(undecided words waiting → `/triage`) · `grammar` (the weakest below-mastery
+topic, by name → `/grammar/topics/{id}/lesson`) · `suggestions` (the suggestion
+pool is non-empty → `/suggestions`) · none (nothing to surface → renders
+nothing). The review path is intentionally absent: when cards are due the
+HomeHero already says "Start review", so the nudge stays out of its way.
+
+**States.** `default` (a recommendation present) · `dismissed` (session-hidden
+after the `×`; renders nothing) · `none`/`loading` (server returned no
+recommendation, or the overview is still fetching → renders nothing, no skeleton
+— it is supplementary, never reserves space). No hover beyond the Button/×
+standard. No entrance motion — it must not compete with the hero's entrance.
+
+---
+

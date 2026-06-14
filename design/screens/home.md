@@ -17,7 +17,9 @@ new typography.
 
 Within SiteHeader (with Home active) and above SiteFooter. Content spine
 `--measure-app`, centered. Three stacked bands, generous vertical rhythm
-(`--space-9` between bands on desktop, `--space-7` on phone).
+(`--space-9` between bands on desktop, `--space-7` on phone), plus an optional
+slim **What-next** nudge between the hero and the grid (absent when there is
+nothing to surface — it never reserves space).
 
 ### 1 — Hero band (the centerpiece)
 
@@ -39,6 +41,28 @@ word worth revisiting (server's pick; never empty while the user has any word).
   on first paint (removed under reduced-motion). The one place `--motion-slow`
   and `--shadow-3` are used: the hero sits on `--color-surface`, `--radius-2`,
   `--shadow-3` — the single lifted object on the page.
+
+### 1.5 — What next (nudge band)
+
+A slim, optional **`HomeNudge`** line directly under the hero (hairline above,
+no card) that names the single most useful next step when nothing is already
+pressing — the GOAL §6.6 "what next" guidance brought to the front door. The
+server (`/api/overview` → `whatNext`) picks exactly one recommendation, in this
+priority:
+
+1. undecided words still waiting in triage ("12 words waiting — triage them" →
+   `/triage`),
+2. else the weakest below-mastery grammar topic, by name ("Your tutor is
+   covering the subjunctive — practice it" → that topic's lesson,
+   `/grammar/topics/{id}/lesson`),
+3. else, when the suggestion pool is non-empty, "N words picked for you" →
+   `/suggestions`.
+
+The band is absent entirely when there is nothing to surface, and when a card
+is due (the hero's "Start review" is then the obvious next step — the nudge
+never duplicates it). It only points: accept = follow the link, a trailing `×`
+dismisses it for the session; it never adds a word or enrolls a topic. Full
+spec: `components.md` §HomeNudge.
 
 ### 2 — Overview grid (entry points)
 
@@ -87,6 +111,9 @@ A quiet recap, `--color-paper-sunken` well (hairline top), padding `--space-6`:
   em-dash; no layout shift (reserve the hero height).
 - **Offline/error fetching the summary:** keep the static grid (links still
   work); show an inline `error` Toast, never a blank page.
+- **Nothing due, work available:** the What-next nudge appears under the hero
+  with one recommendation. **A card is due, or nothing to surface (or loading):**
+  the nudge band is absent — no reserved space, no skeleton.
 
 ## Notes
 
