@@ -30,6 +30,11 @@ const MOCK_DATA: ProgressSummary = {
     { sourceId: 1, title: "Moby-Dick", triagedPct: 38, wordsKept: 122 },
     { sourceId: 2, title: "Workbook", triagedPct: 100, wordsKept: 208 },
   ],
+  grammarMastery: [
+    { topicId: 1, name: "Present Tense", category: "Tenses", mastery: 0.8 },
+    { topicId: 2, name: "Past Tense", category: "Tenses", mastery: 0.5 },
+    { topicId: 3, name: "Ser vs Estar", category: "Contrasts", mastery: 0.3 },
+  ],
 };
 
 const EMPTY_DATA: ProgressSummary = {
@@ -40,6 +45,7 @@ const EMPTY_DATA: ProgressSummary = {
   })),
   quizAccuracy: { sessions: [], average: null },
   coverage: [],
+  grammarMastery: [],
 };
 
 beforeEach(() => {

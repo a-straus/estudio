@@ -191,6 +191,60 @@
   color: var(--color-ink);
 }
 
+/* ---- Grammar mastery heatmap ---- */
+
+.progress__mastery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.progress__mastery-group {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.progress__mastery-category {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.progress__mastery-cells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.progress__mastery-cell {
+  width: 20px;
+  height: 20px;
+  background: var(--color-accent-wash);
+  border: 1px solid var(--color-rule);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress__mastery-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--color-accent);
+}
+
+.progress__mastery-legend {
+  font-family: var(--font-meta);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-meta);
+  color: var(--color-ink-faint);
+  margin: 0;
+}
+
 /* ---- Footer link to System ---- */
 
 .progress__footer-link {
