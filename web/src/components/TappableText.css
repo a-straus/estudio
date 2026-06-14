@@ -7,7 +7,7 @@
   font: inherit;
   color: inherit;
   line-height: inherit;
-  cursor: text;
+  cursor: inherit;
   display: inline;
   /* Quiet by default — prose reads as plain text */
 }
@@ -28,13 +28,4 @@
 
 .tappable-text__word:active {
   color: var(--color-accent-strong);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tappable-text__word,
-  .tappable-text__word:hover,
-  .tappable-text__word:focus-visible,
-  .tappable-text__word:active {
-    transition: none;
-  }
 }

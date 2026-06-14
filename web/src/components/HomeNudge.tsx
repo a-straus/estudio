@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { WhatNext } from "@estudio/shared";
 import { Button } from "./Button";
 import "./HomeNudge.css";
@@ -7,11 +8,17 @@ interface HomeNudgeProps {
   onDismiss: () => void;
 }
 
-function sentence(wn: WhatNext): string {
+function sentence(wn: WhatNext): ReactNode {
   if (wn.kind === "grammar") {
     return `Your tutor is covering ${wn.topicName} — practice it.`;
   }
-  return wn.count === 1 ? "1 word picked for you" : `${wn.count} words picked for you`;
+  const n = wn.count;
+  return (
+    <>
+      <span className="home-nudge__count">{n}</span>
+      {n === 1 ? " word picked for you" : " words picked for you"}
+    </>
+  );
 }
 
 function ctaLabel(wn: WhatNext): string {
