@@ -177,4 +177,70 @@ describe("GET /api/progress", () => {
     expect(body.coverage[0]!.title).toBe("Second Book");
     expect(body.coverage[1]!.title).toBe("First Book");
   });
+
+  it("returns empty grammarMastery when no topics exist", async () => {
+    const res = await request(app).get("/api/progress").expect(200);
+    const body = res.body as ProgressSummary;
+    expect(body.grammarMastery).toEqual([]);
+  });
+
+  it("returns grammarMastery ordered by category sort_order then topic id", async () => {
+    const now = nowIso();
+    // Insert categories with distinct sort_order values (second category sorts first)
+    const cat1 = db
+      .prepare(
+        `INSERT INTO grammar_category (name, sort_order) VALUES ('Tenses', 20)`,
+      )
+      .run().lastInsertRowid;
+    const cat2 = db
+      .prepare(
+        `INSERT INTO grammar_category (name, sort_order) VALUES ('Contrasts', 10)`,
+      )
+      .run().lastInsertRowid;
+
+    // Topics in cat1 (Tenses, sort_order=20)
+    db.prepare(
+      `INSERT INTO grammar_topic (category_id, name, description, mastery, updated_at)
+       VALUES (?, 'Present', 'desc', 0.8, ?)`,
+    ).run(cat1, now);
+    db.prepare(
+      `INSERT INTO grammar_topic (category_id, name, description, mastery, updated_at)
+       VALUES (?, 'Past', 'desc', 0.5, ?)`,
+    ).run(cat1, now);
+
+    // Topic in cat2 (Contrasts, sort_order=10)
+    db.prepare(
+      `INSERT INTO grammar_topic (category_id, name, description, mastery, updated_at)
+       VALUES (?, 'Ser vs Estar', 'desc', 0.3, ?)`,
+    ).run(cat2, now);
+
+    const res = await request(app).get("/api/progress").expect(200);
+    const body = res.body as ProgressSummary;
+
+    expect(body.grammarMastery).toHaveLength(3);
+    // cat2 (sort_order=10) comes before cat1 (sort_order=20)
+    expect(body.grammarMastery[0]!.category).toBe("Contrasts");
+    expect(body.grammarMastery[0]!.name).toBe("Ser vs Estar");
+    expect(body.grammarMastery[1]!.category).toBe("Tenses");
+    expect(body.grammarMastery[2]!.category).toBe("Tenses");
+  });
+
+  it("passes mastery through unrounded", async () => {
+    const now = nowIso();
+    const cat = db
+      .prepare(
+        `INSERT INTO grammar_category (name, sort_order) VALUES ('Test', 1)`,
+      )
+      .run().lastInsertRowid;
+    db.prepare(
+      `INSERT INTO grammar_topic (category_id, name, description, mastery, updated_at)
+       VALUES (?, 'Topic A', 'desc', 0.123456789, ?)`,
+    ).run(cat, now);
+
+    const res = await request(app).get("/api/progress").expect(200);
+    const body = res.body as ProgressSummary;
+
+    expect(body.grammarMastery).toHaveLength(1);
+    expect(body.grammarMastery[0]!.mastery).toBeCloseTo(0.123456789, 5);
+  });
 });

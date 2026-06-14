@@ -24,6 +24,14 @@ export interface ProgressCoverageRow {
   wordsKept: number;
 }
 
+export interface ProgressMasteryTopic {
+  topicId: number;
+  name: string;
+  category: string;
+  /** 0–1. */
+  mastery: number;
+}
+
 export interface ProgressSummary {
   counts: ProgressCounts;
   /** 14 entries, one per calendar day starting today. */
@@ -31,4 +39,5 @@ export interface ProgressSummary {
   quizAccuracy: ProgressQuizAccuracy;
   /** Newest source first. */
   coverage: ProgressCoverageRow[];
+  grammarMastery: ProgressMasteryTopic[];
 }

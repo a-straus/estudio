@@ -2,6 +2,7 @@
 
 import type {
   ProgressCoverageRow,
+  ProgressMasteryTopic,
   ProgressSummary,
 } from "@estudio/shared";
 import { nowIso, type DB } from "./db.js";
@@ -93,6 +94,17 @@ function getCoverage(db: DB): ProgressCoverageRow[] {
   });
 }
 
+function getGrammarMastery(db: DB): ProgressMasteryTopic[] {
+  return db
+    .prepare(
+      `SELECT t.id AS topicId, t.name AS name, c.name AS category, t.mastery AS mastery
+       FROM grammar_topic t
+       JOIN grammar_category c ON c.id = t.category_id
+       ORDER BY c.sort_order, c.id, t.id`,
+    )
+    .all() as ProgressMasteryTopic[];
+}
+
 export function getProgressSummary(db: DB): ProgressSummary {
   const today = nowIso().substring(0, 10); // "YYYY-MM-DD"
   return {
@@ -100,5 +112,6 @@ export function getProgressSummary(db: DB): ProgressSummary {
     dueForecast: getDueForecast(db, today),
     quizAccuracy: getQuizAccuracy(db),
     coverage: getCoverage(db),
+    grammarMastery: getGrammarMastery(db),
   };
 }

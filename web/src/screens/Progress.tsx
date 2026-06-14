@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ProgressSummary } from "@estudio/shared";
+import type { ProgressMasteryTopic, ProgressSummary } from "@estudio/shared";
 import { EmptyState, ProgressStat } from "../components";
 import { fetchProgress } from "./progressApi";
 import "./Progress.css";
@@ -114,6 +114,47 @@ function SectionError({ onRetry }: { onRetry: () => void }) {
         Retry.
       </button>
     </p>
+  );
+}
+
+// ---- grammar mastery heatmap ----
+
+function MasteryHeatmap({ topics }: { topics: ProgressMasteryTopic[] }) {
+  // Group flat array by category, preserving order
+  const groups: { category: string; topics: ProgressMasteryTopic[] }[] = [];
+  for (const topic of topics) {
+    const last = groups[groups.length - 1];
+    if (last && last.category === topic.category) {
+      last.topics.push(topic);
+    } else {
+      groups.push({ category: topic.category, topics: [topic] });
+    }
+  }
+
+  return (
+    <div className="progress__mastery">
+      {groups.map((group) => (
+        <div key={group.category} className="progress__mastery-group">
+          <span className="progress__mastery-category">{group.category}</span>
+          <div className="progress__mastery-cells">
+            {group.topics.map((topic) => (
+              <div
+                key={topic.topicId}
+                className="progress__mastery-cell"
+                title={topic.name}
+                aria-label={topic.name}
+              >
+                <div
+                  className="progress__mastery-fill"
+                  style={{ opacity: Math.max(0.12, topic.mastery) }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <p className="progress__mastery-legend">Less practiced → more</p>
+    </div>
   );
 }
 
@@ -246,7 +287,22 @@ export function Progress() {
         )}
       </section>
 
-      {/* 5. Footer link to System */}
+      {/* 5. Grammar mastery heatmap */}
+      <section className="progress__section" aria-label="Grammar mastery">
+        <h2 className="progress__section-title">Grammar mastery</h2>
+        {loading && <p className="progress__loading">{EM_DASH}</p>}
+        {error && <SectionError onRetry={load} />}
+        {summary && summary.grammarMastery.length === 0 && (
+          <p className="progress__muted">
+            No grammar topics yet — seed the curriculum on Grammar.
+          </p>
+        )}
+        {summary && summary.grammarMastery.length > 0 && (
+          <MasteryHeatmap topics={summary.grammarMastery} />
+        )}
+      </section>
+
+      {/* 6. Footer link to System */}
       <a href="/system" className="progress__footer-link">
         Spend, jobs &amp; backups →
       </a>
