@@ -8,6 +8,7 @@ import type {
 import {
   Button,
   EmptyState,
+  Pagination,
   SegmentedControl,
   TextInput,
   Toast,
@@ -46,6 +47,7 @@ const STATUS_OPTIONS = [
 ];
 
 const SEARCH_DEBOUNCE_MS = 200;
+const PAGE_SIZE = 50;
 
 function toWordEntry(w: WordListItem | WordDetailResponse) {
   return {
@@ -109,6 +111,9 @@ export function Library() {
   const [deck, setDeck] = useState<DeckFilter>("es");
   const [status, setStatus] = useState<StatusFilter>("all");
 
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
+
   const [words, setWords] = useState<WordListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -131,8 +136,11 @@ export function Library() {
         status: status === "all" ? undefined : status,
         deckId: deck === "all" ? undefined : DECK_BY_LANGUAGE[deck],
         sort: "alpha",
+        limit: PAGE_SIZE,
+        offset,
       });
       setWords(res.items);
+      setTotal(res.total);
     } catch (err) {
       setLoadError(
         err instanceof Error ? err.message : "Couldn't load your words.",
@@ -140,7 +148,7 @@ export function Library() {
     } finally {
       setLoading(false);
     }
-  }, [search, deck, status]);
+  }, [search, deck, status, offset]);
 
   // Debounced reload whenever a filter or the search query changes.
   useEffect(() => {
@@ -273,7 +281,10 @@ export function Library() {
               <TextInput
                 label="Search words"
                 value={search}
-                onChange={setSearch}
+                onChange={(v) => {
+                  setSearch(v);
+                  setOffset(0);
+                }}
                 placeholder="Search words…"
               />
             </div>
@@ -282,13 +293,19 @@ export function Library() {
                 label="Deck"
                 options={DECK_OPTIONS}
                 value={deck}
-                onChange={(v) => setDeck(v as DeckFilter)}
+                onChange={(v) => {
+                  setDeck(v as DeckFilter);
+                  setOffset(0);
+                }}
               />
               <SegmentedControl
                 label="Status"
                 options={STATUS_OPTIONS}
                 value={status}
-                onChange={(v) => setStatus(v as StatusFilter)}
+                onChange={(v) => {
+                  setStatus(v as StatusFilter);
+                  setOffset(0);
+                }}
               />
               <Button
                 variant="quiet"
@@ -321,33 +338,42 @@ export function Library() {
               </Button>
             </EmptyState>
           ) : (
-            <ul className="library__list">
-              {words.map((w) => (
-                <li
-                  key={w.id}
-                  className={
-                    "library__row" +
-                    (w.id === selectedId ? " library__row--selected" : "")
-                  }
-                >
-                  <button
-                    type="button"
-                    className="library__row-main"
-                    onClick={() => void openDetail(w.id)}
+            <>
+              <ul className="library__list">
+                {words.map((w) => (
+                  <li
+                    key={w.id}
+                    className={
+                      "library__row" +
+                      (w.id === selectedId ? " library__row--selected" : "")
+                    }
                   >
-                    <WordEntry size="compact" {...toWordEntry(w)} />
-                    <span className="library__row-status">{w.status}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="library__row-forgot"
-                    onClick={() => void forget(w.id, w.term)}
-                  >
-                    I forgot this
-                  </button>
-                </li>
-              ))}
-            </ul>
+                    <button
+                      type="button"
+                      className="library__row-main"
+                      onClick={() => void openDetail(w.id)}
+                    >
+                      <WordEntry size="compact" {...toWordEntry(w)} />
+                      <span className="library__row-status">{w.status}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="library__row-forgot"
+                      onClick={() => void forget(w.id, w.term)}
+                    >
+                      I forgot this
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <Pagination
+                total={total}
+                limit={PAGE_SIZE}
+                offset={offset}
+                onPrev={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+                onNext={() => setOffset(offset + PAGE_SIZE)}
+              />
+            </>
           )}
         </section>
 

@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
   within,
+  act,
 } from "@testing-library/react";
 import type { WordDetailResponse, WordListItem } from "@estudio/shared";
 import "../test/setup";
@@ -193,5 +194,89 @@ describe("Library screen", () => {
         "Couldn't auto-fill. Write the definition, or retry.",
       ),
     ).toBeTruthy();
+  });
+
+  describe("pagination", () => {
+    function multiPageResponse(offset = 0) {
+      return {
+        items: [
+          item({ id: 1, term: "desasosiego" }),
+          item({ id: 2, term: "vergüenza" }),
+        ],
+        total: 100,
+        limit: 50,
+        offset,
+      };
+    }
+
+    it("renders the pager when total > limit", async () => {
+      mockApi.fetchWords.mockResolvedValue(multiPageResponse());
+      render(<Library />);
+      await screen.findByText("desasosiego");
+      expect(screen.getByRole("navigation", { name: "Page navigation" })).toBeTruthy();
+      expect(screen.getByText("1–50 of 100 words")).toBeTruthy();
+    });
+
+    it("does not render the pager when total <= limit", async () => {
+      render(<Library />);
+      await screen.findByText("desasosiego");
+      expect(
+        screen.queryByRole("navigation", { name: "Page navigation" }),
+      ).toBeNull();
+    });
+
+    it("clicking Next requests the next page", async () => {
+      mockApi.fetchWords.mockResolvedValue(multiPageResponse());
+      render(<Library />);
+      await screen.findByText("desasosiego");
+
+      mockApi.fetchWords.mockResolvedValue(multiPageResponse(50));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Next ›" }));
+      });
+
+      await waitFor(() =>
+        expect(
+          mockApi.fetchWords.mock.calls.some(
+            (c) => (c[0] as { offset?: number }).offset === 50,
+          ),
+        ).toBe(true),
+      );
+    });
+
+    it("changing a filter resets to page 1", async () => {
+      mockApi.fetchWords.mockResolvedValue(multiPageResponse());
+      render(<Library />);
+      await screen.findByText("desasosiego");
+
+      // Navigate to page 2
+      mockApi.fetchWords.mockResolvedValue(multiPageResponse(50));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Next ›" }));
+      });
+      await waitFor(() =>
+        expect(
+          mockApi.fetchWords.mock.calls.some(
+            (c) => (c[0] as { offset?: number }).offset === 50,
+          ),
+        ).toBe(true),
+      );
+
+      // Change the deck filter — should reset offset to 0
+      mockApi.fetchWords.mockResolvedValue(multiPageResponse(0));
+      const callsBefore = mockApi.fetchWords.mock.calls.length;
+      fireEvent.click(screen.getByRole("radio", { name: "EN" }));
+
+      await waitFor(() => {
+        const newCalls = mockApi.fetchWords.mock.calls.slice(callsBefore);
+        return expect(
+          newCalls.some(
+            (c) =>
+              (c[0] as { offset?: number }).offset === 0 &&
+              (c[0] as { deckId?: number }).deckId === 2,
+          ),
+        ).toBe(true);
+      });
+    });
   });
 });

@@ -32,3 +32,4 @@ export { WordEntry } from "./WordEntry";
 export type { GlossReveal, WordEntryData, WordEntrySize } from "./WordEntry";
 export { TappableText } from "./TappableText";
 export { QuickAddProvider, useQuickAdd } from "./QuickAddContext";
+export { Pagination } from "./Pagination";
