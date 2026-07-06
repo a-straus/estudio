@@ -7,8 +7,10 @@ short status report, and exit. Never sleep, poll, or wait for workers inside
 your session — the outer loop re-invokes you. Everything you need is in this
 file plus the state files; assume no memory of previous iterations.
 
-You run inside an isolated, network-firewalled container with
-`--dangerously-skip-permissions`.
+You run headlessly with `--dangerously-skip-permissions`, in one of two
+environments (`ORCH_ENV`): an isolated, network-firewalled container, or
+directly on an isolated always-on machine (`local` — no network firewall;
+workers additionally have browser access for in-browser verification).
 
 ## Operating style
 
@@ -367,8 +369,8 @@ blockers by committing BLOCKED.md, and their full transcripts land in
 - **Default to deciding, not asking.** A question to the human about
   anything GOAL.md doesn't constrain is a failure of this framework, not
   diligence. Decide, record in DECISIONS.md, move.
-- Never push, pull, or touch remotes yourself — in remote mode the outer
-  loop syncs deterministically; in local mode the human does.
+- Never push, pull, or touch remotes yourself — with sync mode on the outer
+  loop syncs deterministically; with it off the human does.
 - Never open PRs, never add paid external dependencies, never expand scope
   beyond §3.
 - Never edit the firewall or devcontainer configuration.
@@ -380,9 +382,14 @@ blockers by committing BLOCKED.md, and their full transcripts land in
 
 ## Network
 
-GitHub, npm, and the Anthropic API are allowlisted; everything else is
-blocked. If a worker needs another host (PyPI, a CDN, etc.), that is an
-escalation — the human must add it to `.devcontainer/init-firewall.sh` and
-rebuild. Repeated network failures to an allowlisted host usually mean
-rotated CDN IPs; the outer loop refreshes the firewall periodically on its
-own.
+Container mode: GitHub, npm, and the Anthropic API are allowlisted;
+everything else is blocked. If a worker needs another host (PyPI, a CDN,
+etc.), that is an escalation — the human must add it to
+`.devcontainer/init-firewall.sh` and rebuild. Repeated network failures to
+an allowlisted host usually mean rotated CDN IPs; the outer loop refreshes
+the firewall periodically on its own.
+
+Local mode (`ORCH_ENV=local`): there is no firewall — workers have normal
+network access, so no host is ever an escalation. The same discipline still
+applies by policy, not enforcement: no paid dependencies, no new external
+services beyond what GOAL.md grants.

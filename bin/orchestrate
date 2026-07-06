@@ -36,6 +36,12 @@
 #                               decomposition) and schema-gate iterations
 #   WORKER_EFFORT=medium        default thinking depth for workers (per-task
 #                               --effort overrides)
+#   ORCH_ENV=<auto>             execution environment: 'container' (the
+#                               network-firewalled devcontainer — enables the
+#                               firewall refresh cycle) or 'local' (a bare,
+#                               isolated machine — no firewall; workers get
+#                               normal network and browser access).
+#                               Auto-detected; set to override
 #   ORCH_SYNC=0                 1 = pull GOAL.md edits / question answers from origin
 #                               before each iteration and push state + integrated work
 #                               after — turns GitHub into the dashboard for remote runs
@@ -76,12 +82,12 @@ self="$(cd "$(dirname "$0")" && pwd)/orchestrate"
 
 MAX_ITERATIONS="${MAX_ITERATIONS:-200}"
 MAX_COST_USD="${MAX_COST_USD:-0}"
-ORCH_MODEL="${ORCH_MODEL:-opus}"
+ORCH_MODEL="${ORCH_MODEL:-fable}"
 ORCH_ITER_MODEL="${ORCH_ITER_MODEL:-$ORCH_MODEL}"
-WORKER_MODEL="${WORKER_MODEL:-sonnet}"
-ORCH_EFFORT="${ORCH_EFFORT:-max}"
+WORKER_MODEL="${WORKER_MODEL:-opus}"
+ORCH_EFFORT="${ORCH_EFFORT:-medium}"
 ORCH_DESIGN_EFFORT="${ORCH_DESIGN_EFFORT:-high}"
-WORKER_EFFORT="${WORKER_EFFORT:-max}"
+WORKER_EFFORT="${WORKER_EFFORT:-medium}"
 ORCH_SYNC="${ORCH_SYNC:-0}"
 MAX_WORKERS="${MAX_WORKERS:-5}"
 MAX_WORKER_TURNS="${MAX_WORKER_TURNS:-150}"
@@ -103,6 +109,14 @@ export MAX_WORKERS MAX_WORKER_TURNS WORKER_TIMEOUT_SECS WORKTREE_ROOT \
 [[ -d "$repo/.git" ]] || die "$repo is not a git repository — clone your project first"
 command -v claude >/dev/null 2>&1 || die "claude CLI not found in PATH"
 command -v jq >/dev/null 2>&1 || die "jq not found in PATH (required to parse iteration results)"
+
+# Credentials: container mode injects them via docker --env-file; local mode
+# reads the repo's gitignored .orchestrator.env when the shell carries none.
+load_auth_env "$repo"
+if [[ "$ORCH_ENV" == "local" ]] && ! command -v timeout >/dev/null 2>&1; then
+    echo "WARNING: no 'timeout' command — hung iterations/workers won't be killed." >&2
+    echo "Install coreutils (brew install coreutils) and link gtimeout as timeout." >&2
+fi
 
 # Copy state-file templates into the project if they're not there yet.
 for f in GOAL.md TASKS.md QUESTIONS.md DECISIONS.md ARCHITECTURE.md FEEDBACK.md; do
@@ -134,8 +148,9 @@ fi
 
 # Git identity — fail now, not three hours in at the first worker commit.
 if ! git -C "$repo" var GIT_AUTHOR_IDENT >/dev/null 2>&1; then
-    echo "ERROR: git has no usable author identity. In the container, set" >&2
-    echo "AGENT_GIT_NAME / AGENT_GIT_EMAIL on your host shell (see README §1)." >&2
+    echo "ERROR: git has no usable author identity. Set GIT_AUTHOR_NAME /" >&2
+    echo "GIT_AUTHOR_EMAIL (and COMMITTER) in .orchestrator.env (local mode) or" >&2
+    echo ".devcontainer/devcontainer.env (container mode) — see README §1." >&2
     exit 1
 fi
 if command -v gh >/dev/null 2>&1 && ! gh auth status >/dev/null 2>&1; then
@@ -219,7 +234,7 @@ if (( ! fg )) && command -v tmux >/dev/null 2>&1; then
         ORCH_MAX_TURNS="$ORCH_MAX_TURNS" SLEEP_SECONDS="$SLEEP_SECONDS" \
         SLEEP_MAX="$SLEEP_MAX" QUIET_POLL_SECS="$QUIET_POLL_SECS" \
         QUIET_FORCE_SECS="$QUIET_FORCE_SECS" FIREWALL_EVERY="$FIREWALL_EVERY" \
-        NET_RETRY_MAX="$NET_RETRY_MAX" \
+        NET_RETRY_MAX="$NET_RETRY_MAX" ORCH_ENV="$ORCH_ENV" \
         MAX_CONSECUTIVE_ERRORS="$MAX_CONSECUTIVE_ERRORS" \
         WORKTREE_ROOT="$WORKTREE_ROOT" \
         bash "$self" --fg "$repo")"
@@ -321,7 +336,9 @@ guard_goal() {
     chmod 444 GOAL.md 2>/dev/null || true
 }
 
-log_line "orchestrator loop starting in $repo (max $MAX_ITERATIONS iterations, sync=$ORCH_SYNC${ORCH_MODEL:+, model=$ORCH_MODEL}${ORCH_EFFORT:+@$ORCH_EFFORT}, workers=$WORKER_MODEL${WORKER_EFFORT:+@$WORKER_EFFORT})"
+log_line "orchestrator loop starting in $repo (env=$ORCH_ENV, max $MAX_ITERATIONS iterations, sync=$ORCH_SYNC${ORCH_MODEL:+, model=$ORCH_MODEL}${ORCH_EFFORT:+@$ORCH_EFFORT}, workers=$WORKER_MODEL${WORKER_EFFORT:+@$WORKER_EFFORT})"
+[[ "$ORCH_ENV" == "local" ]] \
+    && log_line "local mode: no network firewall — agents have full network access; run only on an isolated machine"
 
 while :; do
     if [[ -f STOP ]]; then
@@ -343,9 +360,11 @@ while :; do
     iter=$((iter + 1))
 
     # Periodically re-resolve the firewall allowlist — CDN IPs rotate, and a
-    # multi-day run will otherwise start failing mysteriously. (Two separate
-    # guards: a combined arithmetic && does not protect the modulo on all bashes.)
-    if (( FIREWALL_EVERY > 0 )) && (( iter % FIREWALL_EVERY == 0 )) \
+    # multi-day run will otherwise start failing mysteriously. Container mode
+    # only: local mode has no firewall. (Two separate guards: a combined
+    # arithmetic && does not protect the modulo on all bashes.)
+    if [[ "$ORCH_ENV" == "container" ]] \
+            && (( FIREWALL_EVERY > 0 )) && (( iter % FIREWALL_EVERY == 0 )) \
             && [[ -x /usr/local/bin/init-firewall.sh ]]; then
         sudo -n /usr/local/bin/init-firewall.sh >/dev/null 2>&1 \
             && log_line "firewall allowlist refreshed" \
@@ -367,7 +386,7 @@ while :; do
             log_line "aborting: API unreachable after $net_fails consecutive probes — fix the network/firewall and re-run."
             exit 1
         fi
-        if [[ -x /usr/local/bin/init-firewall.sh ]]; then
+        if [[ "$ORCH_ENV" == "container" && -x /usr/local/bin/init-firewall.sh ]]; then
             sudo -n /usr/local/bin/init-firewall.sh >/dev/null 2>&1 \
                 && log_line "firewall allowlist refreshed after failed API probe" \
                 || log_line "WARNING: firewall refresh failed"

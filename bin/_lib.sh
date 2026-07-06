@@ -6,6 +6,34 @@
 # not inherit the orchestrator's CLAUDE.md from an ancestor directory.
 WORKTREE_ROOT="${WORKTREE_ROOT:-$HOME/worktrees}"
 
+# Execution environment: 'container' (the network-firewalled devcontainer) or
+# 'local' (a bare machine — e.g. an isolated always-on Mac mini, where workers
+# also get browser access). Auto-detected; set ORCH_ENV=local|container to
+# override. Container mode is what enables the firewall refresh cycle; local
+# mode has NO network firewall, so run it only on an isolated machine.
+if [[ "${ORCH_ENV:-}" != "local" && "${ORCH_ENV:-}" != "container" ]]; then
+    if [[ -f /.dockerenv || -x /usr/local/bin/init-firewall.sh ]]; then
+        ORCH_ENV=container
+    else
+        ORCH_ENV=local
+    fi
+fi
+export ORCH_ENV
+
+# Credentials/identity for headless `claude -p` runs. Claude Code scrubs auth
+# tokens from child-process environments, so headless runners load them from a
+# gitignored env file: .orchestrator.env at the repo root (local mode), falling
+# back to .devcontainer/devcontainer.env (container mode). A token already in
+# the environment wins — the file is only read when none is set.
+load_auth_env() {   # load_auth_env <root>
+    [[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}${ANTHROPIC_API_KEY:-}" ]] && return 0
+    local f
+    for f in "$1/.orchestrator.env" "$1/.devcontainer/devcontainer.env"; do
+        if [[ -f "$f" ]]; then set -a; . "$f"; set +a; return 0; fi
+    done
+    return 0
+}
+
 die() { echo "ERROR: $*" >&2; exit 1; }
 
 # Root of the main working tree, even when called from inside a linked worktree.
@@ -99,7 +127,7 @@ ensure_excludes() { # ensure_excludes <root>
     grep -vx -e GOAL.md -e TASKS.md -e QUESTIONS.md -e DECISIONS.md \
         "$exclude" > "$tmp" 2>/dev/null || true
     mv "$tmp" "$exclude"
-    for line in logs/ STOP .release-done .orchestrator.pid '.worker-*'; do
+    for line in logs/ STOP .release-done .orchestrator.pid .orchestrator.env '.worker-*'; do
         grep -qxF "$line" "$exclude" 2>/dev/null || echo "$line" >> "$exclude"
     done
 }
