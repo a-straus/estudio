@@ -14,7 +14,7 @@ Phase 1 (polish) priority per GOAL.md §5. -->
 **Bugs**
 
 1. **[BUG] /grammar/topics/{i}/lesson — MC options dead.** Selecting a multiple-choice option in a grammar lesson does nothing. Should use the same answer/grade/feedback logic as /quiz.
-2. **[BUG] /library — pagination unusable.** Owner cannot navigate past the first page of words. NOTE: a `library-pagination` fix merged to main at V1 iter 177 (`web/src/components/Pagination.tsx`) — first verify whether the owner is running a pre-fix build; if the fix is live and still broken, it's a real regression.
+2. **[BUG] /library — pagination unusable.** Owner cannot navigate past the first page of words, on the CURRENT build (confirmed: the deployed `web/dist` bundle contains the iter-177 Pagination component, so this is a real runtime bug, not a stale build). Orchestrator pre-triage 2026-07-06: the data path looks correct end-to-end (`Library.tsx` offset state → `fetchWords` limit/offset → `listWords` COUNT + LIMIT/OFFSET), so suspect rendering/overlap instead — `Pagination` is the last element of the list and the phone AppNav is `position: fixed` with `--nav-height: 56px`, while `AppShell.css` compensates with only `calc(var(--hit-target) + var(--space-3))` padding-bottom; the controls may be underlapping the bottom nav (likely the same root cause as the hidden /grammar light/dark toggle). Reproduce on phone AND desktop widths before fixing.
 3. **[BUG] /quiz on mobile — bottom nav cut by a stray line** after generating quiz questions and navigating to /quiz.
 4. **[BUG] Grammar lesson on mobile — bottom nav bar disrupted:** stray lines/color appear above the nav bar's top delineation line.
 5. **[BUG] /grammar — light/dark toggle hidden** behind the mobile bottom nav bar.
